@@ -1,0 +1,114 @@
+/* workspace-7c 담당: 표지·목차(#works) · 담기 확인(#saved) · 내 공연(#plans) · 관람 후(#tag) · 내 취향(#me) 화면 CSS.
+   화면마다 [data-view=…]로 범위를 좁혀 다른 화면(board.css)에 새지 않게 한다. 토큰은 style.css의 것만 쓴다. 터치 영역은 44px 이상. */
+
+/* 공통: 위 막대 링크 · 칩 · 입력 */
+[data-view=works] .top-right a,[data-view=plans] .top-right a,[data-view=me] .top-right a{display:inline-flex;align-items:center;min-height:44px;padding:0 2px}
+[data-view=saved] .chip,[data-view=tag] .chip,[data-view=plans] .chip,[data-view=me] .chip{min-height:44px}
+[data-view=me] .me-ax{min-height:28px;padding:0 10px;font-size:12px;border-width:1px}
+.chip small{font-size:11px;font-weight:500;opacity:.75}
+[data-view=tag] input,[data-view=me] input{width:100%;min-height:44px;padding:0 12px;border:1.5px solid var(--ink);border-radius:0;background:var(--white);color:var(--ink);font:inherit}
+[data-view=tag] input::placeholder,[data-view=me] input::placeholder{color:var(--muted)}
+
+/* ---------- 표지 · 목차 (#works) ---------- */
+[data-view=works] .cv-month{padding-top:12px;padding-bottom:10px}
+.cv-col{display:flex;flex-direction:column;min-width:0}
+.cv-img{position:relative;display:block}
+.cv-img img{width:100%;aspect-ratio:39/25;max-height:440px;object-fit:cover;object-position:center 30%}
+.cv-none{display:grid;place-items:center;aspect-ratio:39/25;background:var(--soft);font-size:28px;color:var(--muted)}
+.cv-tag{position:absolute;left:20px;top:16px;padding:4px 8px;background:var(--ink);color:#fff;font-size:11px;font-weight:900;letter-spacing:.12em}
+.cv-head{display:flex;flex-direction:column;gap:6px;padding-top:14px;padding-bottom:14px}
+.cv-title{min-width:0;font-family:var(--disp);font-weight:400;font-size:clamp(34px,12vw,50px);line-height:1;letter-spacing:-.01em;overflow-wrap:anywhere}
+.cv-no{font-size:22px;color:var(--wine)}
+.pk-band{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;min-height:64px;padding:12px 20px;background:var(--ink);color:#fff}
+.pk-stamp{width:44px;height:44px;font-size:13px}
+.pk-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pk-cap{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--wine-light)}
+.pk-when{font-size:18px;line-height:1.2}
+.pk-who{font-size:12px;color:#CFCFCF;overflow-wrap:anywhere}
+.pk-go{font-size:18px;font-weight:900}
+.pk-band.none .stamp.ring{border-color:var(--wine-light);color:var(--wine-light)}
+.pk-band.none .pk-who{font-size:13px;color:#fff}
+.toc{padding-top:14px;padding-bottom:12px}
+.toc-list{margin-top:8px}
+.toc-row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:baseline;gap:8px;min-height:52px;padding:11px 0;border-top:1px solid var(--soft)}
+.toc-row:first-child{border-top:0}
+.toc-no{font-size:22px;color:var(--wine)}
+.toc-nm{font-size:19px;font-weight:900;letter-spacing:-.02em;overflow-wrap:anywhere}
+.toc-when{font-size:12px;line-height:1.35;color:var(--muted);text-align:right}
+.toc-pick{display:block;color:var(--wine);font-weight:900}
+a.toc-row:hover .toc-nm{color:var(--wine)}
+.toc-row.off .toc-no{color:var(--wine-light)}
+.toc-row.off .toc-nm{color:var(--muted)}
+@media (min-width:900px){
+  [data-view=works] .split{gap:32px}
+  [data-view=works] .cv-month{padding-left:0;padding-right:0}
+  [data-view=works] .toc{padding-left:0;padding-right:0}
+}
+
+/* ---------- 담기 확인 (#saved) ---------- */
+.sv{display:flex;flex-direction:column;gap:18px;padding-top:28px;padding-bottom:32px}
+.sv-stamp{align-self:center;width:92px;height:92px}
+.sv-stamp svg{width:52px;height:52px}
+.sv-h{text-align:center;font-size:30px;line-height:1.15}
+.sv-main{display:flex;flex-direction:column;gap:4px;padding:16px;min-width:0}
+.sv-eye{color:var(--wine-light)}
+.sv-title{font-size:26px;line-height:1.1;overflow-wrap:anywhere}
+.sv-when{font-size:15px;font-weight:900}
+.sv-venue{color:#BDBDBD}
+.sv-stub{display:flex;flex-direction:column;justify-content:center;gap:8px;padding:12px;font-size:14px;font-weight:900}
+.sv-lead small{display:block;font-size:11px;font-weight:500;color:var(--wine-light)}
+.sv-q{display:flex;flex-direction:column;gap:8px}
+.sv-acts{gap:10px}
+.sv-acts p{margin-top:-4px}
+.sv-note{text-align:center}
+
+/* ---------- 내 공연 (#plans) ---------- */
+.pl{display:flex;flex-direction:column;gap:24px;padding-top:20px;padding-bottom:32px}
+.pl-sec{display:flex;flex-direction:column;gap:10px}
+.pl-list{display:flex;flex-direction:column;gap:16px;margin:0;padding:0;list-style:none}
+.pl-item{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pl-ticket{width:100%}
+.pl-main{display:flex;flex-direction:column;gap:3px;min-width:0;padding:14px 16px}
+.pl-title{font-size:22px;line-height:1.1;overflow-wrap:anywhere}
+.pl-when{font-size:13px;font-weight:700}
+.pl-cast{font-size:12px;color:#CFCFCF}
+.pl-stub{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px;text-align:center}
+.pl-d{font-size:26px;line-height:1.1}
+.pl-stub.rate{background:var(--wine);color:#fff}
+.pl-stub.done{color:var(--wine-light)}
+.pl-empty{display:flex;flex-direction:column;gap:12px;padding-top:24px}
+.pl-empty .disp{font-size:26px}
+
+/* ---------- 관람 후 (#tag) ---------- */
+.tg{display:flex;flex-direction:column;gap:14px;padding-top:16px;padding-bottom:32px}
+.tg-card{display:flex;flex-direction:column;gap:10px;padding:14px;background:var(--white);border:1px solid var(--ink)}
+.tg-h{font-size:22px;line-height:1.2}
+.tg-mood{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tg-m{min-height:56px;padding:0 6px;border:1.5px solid var(--ink);background:transparent;font-size:14px;font-weight:900}
+.tg-m.on{border-color:var(--wine);background:var(--wine-soft);color:var(--wine)}
+.tg-more>summary{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:52px;padding:10px 14px;border:1.5px solid var(--ink);font-size:14px;font-weight:700;line-height:1.4;list-style:none;cursor:pointer}
+.tg-more>summary::-webkit-details-marker{display:none}
+.tg-more>summary::after{content:"＋";flex:none}
+.tg-more[open]>summary{border-color:var(--wine);color:var(--wine)}
+.tg-more[open]>summary::after{content:"－"}
+.tg-body{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.tg-cmp{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--soft)}
+.tg-cn{font-weight:900}
+.tg-cmp .seg{display:grid;grid-template-columns:1fr 1fr}
+[data-view=tag] .seg button{min-height:44px;border:1px solid var(--soft);font-size:13px}
+.tg-lab{font-size:12px;font-weight:700}
+.tg-view{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.tg-view .chip{justify-content:center;padding:0}
+
+/* ---------- 내 취향 (#me) ---------- */
+.me{display:flex;flex-direction:column;padding-top:16px;padding-bottom:40px}
+.me-sec{display:flex;flex-direction:column;gap:10px;padding:18px 0;border-top:1px solid var(--ink)}
+.me-sec:first-child{border-top:3px solid var(--ink)}
+.me-fav{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.me-fav .btn{min-height:44px}
+.me-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.me-w{display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.me-wn{display:inline-flex;align-items:center;min-height:44px;font-size:17px;font-weight:900}
+.me-rec{display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid var(--soft)}
+.me-rec:first-of-type{border-top:0}
+#me-tsv{max-height:240px;margin:0;padding:10px;overflow:auto;border:1px solid var(--ink);background:var(--white);font-size:11px}

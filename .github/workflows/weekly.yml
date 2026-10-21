@@ -1,0 +1,52 @@
+# 매주 월요일 06시(한국)에 KOPIS 공연 목록·예매 순위를 새로 받아 검사한 뒤 앱을 다시 배포한다. Actions 탭에서 'Run workflow'로 바로 돌릴 수도 있다.
+# 비밀값(Settings → Secrets and variables → Actions): KOPIS_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, PAGES_DEPLOY_KEY(2ma1995/pickle 에 쓰는 배포 키)
+# 새 공연의 작품 테마 태그와 새 공연장의 지역은 자동으로 안 붙는다. 전체 목록에는 바로 나오고, 테마 카드 추천은 태그를 붙인 뒤부터 나온다
+name: weekly-kopis
+on:
+  schedule:
+    - cron: "0 21 * * 0"  # UTC 일요일 21시 = 한국 월요일 06시
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: deploy
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: Asia/Seoul
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: KOPIS 목록·예매 순위 받기
+        env:
+          KOPIS_API_KEY: ${{ secrets.KOPIS_API_KEY }}
+        run: |
+          python3 kopis_sync.py --current
+          python3 kopis_sync.py --boxoffice
+      - name: 검사(새 데이터로 앱 데이터를 만들어 확인)
+        run: |
+          python3 recommend.py --export app/data.js --no-track
+          python3 recommend.py --selftest
+          node tests/proto_check.js
+      - name: 배포 저장소 받기
+        env:
+          DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+          git clone -q git@github.com:2ma1995/pickle.git _site
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git branch -u origin/main
+      - name: 배포
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: ./deploy_pages.sh

@@ -1,0 +1,154 @@
+/* 앱과 프로토타입의 공통 화면 스타일. */
+:root{--bg:#F7F5F2;--fg:#252123;--muted:#686164;--faint:#746E72;--line:#E5DFDF;--soft:#F3EFED;--divider:#F3EFED;--accent:#B23A48;--accent-soft:#FDF2F4}
+/* 탐색과 취향 선택: 제목 → 선택 → 다음 행동 순서로 읽히도록 배치한다. */
+:where(a,button,input,select,textarea,summary):focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.top{background:var(--bg)}
+.topnav a.on{background:var(--accent-soft);color:var(--accent)}
+.card{border-radius:14px}
+.btn{border-radius:12px}
+main:is([data-view=onboard],[data-view=taste]) .one{max-width:800px;gap:20px}
+.onboard-head{padding-top:12px}
+.onboard-head .eyebrow{font-size:12px;letter-spacing:.1em;margin-bottom:12px}
+.onboard-head h1{font-size:clamp(28px,3vw,38px);letter-spacing:-.045em}
+.obcards{gap:12px}
+.obcard{position:relative;min-height:80px;padding:18px 40px 18px 18px;border-radius:14px;font-size:15px}
+.obcard::after{content:"";position:absolute;right:16px;top:50%;transform:translateY(-50%);width:17px;height:17px;border:1px solid var(--line);border-radius:50%}
+.obcard.on::after{content:"✓";display:grid;place-items:center;background:var(--accent);border-color:var(--accent);color:#fff;font-size:11px}
+.obcard.on{box-shadow:inset 0 0 0 1px var(--accent)}
+main:is([data-view=onboard],[data-view=taste]) .one>.card{padding:20px;gap:14px}
+main:is([data-view=onboard],[data-view=taste]) .one>.obg{grid-template-columns:1fr;gap:10px;margin-top:4px}
+main:is([data-view=onboard],[data-view=taste]) .obg>.btn.ghost{background:transparent;border-color:transparent;color:var(--muted);font-size:14px}
+.browse-head{padding:32px 26px;border-radius:20px;background:#39232C;color:#FFF9F4;display:grid;gap:14px}
+.browse-head .eyebrow{color:#E9B9C3;font-size:11px;letter-spacing:.16em}
+.browse-head h1{font-size:clamp(30px,4vw,46px);line-height:1.23;letter-spacing:-.045em}
+.browse-lead{color:#E0CCD2;font-size:14px;line-height:1.7;max-width:420px}
+main:is([data-view=works],[data-view=home]){gap:24px}
+main:is([data-view=works],[data-view=home])>.card.accent{border-color:var(--line);padding:22px;gap:12px}
+.work{border-radius:14px}
+.work .info{padding:16px;gap:6px}
+.work .info b{font-size:18px}
+.work .go{background:var(--soft);border-color:transparent;border-radius:8px}
+.work .state{top:12px;left:12px;padding:5px 9px}
+.tabs a{padding-bottom:max(14px,env(safe-area-inset-bottom))}
+.cta{bottom:calc(64px + env(safe-area-inset-bottom))}
+@media (hover:hover){
+  .obcard:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .work:hover{border-color:var(--accent)}
+}
+@media (min-width:900px){
+  .top{min-height:80px}
+  .top:has(#back[hidden]){grid-template-columns:auto 1fr}
+  .top #back[hidden]{display:none!important}
+  main{padding-top:36px}
+  main:is([data-view=onboard],[data-view=taste]) .one{padding:32px 40px;background:var(--surface);border:1px solid var(--line);border-radius:24px}
+  .obcards{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .browse-head{padding:44px}
+  main:is([data-view=works],[data-view=home])>.card.accent{grid-template-columns:1fr auto;column-gap:32px}
+  main:is([data-view=works],[data-view=home])>.card.accent>.btn{grid-column:2;grid-row:1/3;width:auto;align-self:center}
+  main:is([data-view=works],[data-view=home]) .grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
+}
+@media (max-width:599px){
+  main{padding-inline:18px}
+  .obcard{padding:16px 32px 16px 14px;font-size:14px;min-height:76px}
+  .obcard::after{right:10px;width:15px;height:15px}
+  .work .info{padding:12px}
+  .work .info b{font-size:16px}
+}
+
+/* 공연 정보와 비교 */
+main{line-height:1.65}
+main>*,:where(.one,.card,.head,.pick,.show,.row,.between,.actor .name)>*{min-width:0}
+h1{letter-spacing:-.035em}h2{letter-spacing:-.025em}
+.one{gap:20px}
+.card{padding:20px;gap:14px}
+.card>h3{font-size:17px;letter-spacing:-.02em}
+.card.accent{border-color:#D9ADB5}
+.head{padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:16px;gap:16px}
+.head.sm{grid-template-columns:56px minmax(0,1fr)}
+.head.sm .poster{width:56px}
+.head h1,.head h2{overflow-wrap:anywhere}
+.card .head{padding:0;border:0;background:transparent}
+.cands{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.cand{padding:14px;border-radius:12px;gap:10px}
+.cand .nm b,.pa .nm b{font-size:17px}
+.cand .q,.pa .q{line-height:1.65;padding:12px}
+.cbtns{margin-top:4px}
+.actor{padding:16px 0;gap:10px}
+.actor .name{flex-wrap:wrap;gap:6px 12px}
+.actor .name>span:first-child{white-space:normal}
+.actor .name>span:last-child{text-align:left}
+.tlab{font-size:12px;letter-spacing:.02em}
+.tl{gap:6px}
+.why{gap:12px;line-height:1.75}
+.why li{padding-left:12px}
+.whybox{padding:14px 16px}
+.tiles{gap:12px}
+.tile{padding:16px;border-radius:12px;gap:6px}
+.tile .go{min-height:40px}
+.tag{line-height:1.5}
+/* 날짜·회차·기록 */
+.month{min-width:0;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.cal .mh{font-size:16px;margin:0 0 14px}
+.dow{margin-bottom:8px}
+.day{min-width:0;min-height:60px}
+.day .n{font-size:12px;padding-top:3px}
+.day.has:hover{border-color:var(--accent)}
+.month .day:not(.hit):not(.pin):not(.empty):not(.none){background:var(--bg)}
+.peekbar{border-color:#D9ADB5}
+.seg{padding:5px;gap:5px}
+.mood{padding:16px 12px;gap:7px;border-radius:12px}
+.mood b,.mood small{word-break:keep-all}
+.mood.on{box-shadow:inset 0 0 0 1px var(--accent)}
+.okmark{width:88px;height:88px;margin-top:20px}
+.svh{font-size:30px;letter-spacing:-.035em}
+main:is([data-view=plans],[data-view=me])>h1{margin-bottom:8px}
+main[data-view=saved]{gap:24px}
+main[data-view=tag] .card{gap:16px}
+textarea{font:inherit;max-width:100%;border-radius:10px}
+.tmore>summary{padding:18px 20px;border-radius:14px;font-weight:600}
+.likebox{padding:14px 16px;border-radius:12px}
+.sheet{padding:24px;box-shadow:0 16px 64px #25212326}
+.sheet .grab{margin-bottom:10px}
+.notice{padding:14px 16px;border-radius:12px;background:#EEE9E5;line-height:1.65}
+.rec{padding:16px;gap:16px;border-radius:14px;grid-template-columns:64px minmax(0,1fr)}
+.rp{width:64px;border-radius:8px}
+.rec>div{gap:6px}
+.nb{border-radius:10px;min-height:40px}
+.duelc{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.duelc>b{font-size:17px}
+.fb .score .chip{min-height:48px}
+.prv{line-height:1.8}
+.prt{table-layout:fixed;overflow-wrap:anywhere;line-height:1.7}
+.prt th,.prt td{padding:12px}
+.prt th:first-child,.prt td:first-child{width:34%}
+.prv ul{padding-left:22px}
+.prv li+li{margin-top:6px}
+@media(min-width:900px){
+  .pside,main[data-view=detail] .side{top:100px}
+  .peekbar{top:92px}
+  .one{max-width:840px}
+  .pickgrid{grid-template-columns:300px minmax(0,1fr)}
+  main:is([data-view=plans],[data-view=me]){max-width:1000px}
+  main:is([data-view=saved],[data-view=tag]){max-width:680px}
+  main[data-view=home] .recs-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .day{min-height:76px}
+}
+@media(max-width:599px){
+  .card{padding:16px;gap:12px}
+  .head{padding:16px;gap:12px}
+  .cands{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .cand{padding:10px;gap:8px}
+  .cand .nm{flex-wrap:wrap}
+  .cand .q{padding:8px;font-size:12px}
+  .cbtns{grid-template-columns:1fr}
+  .cbtns .chip{justify-content:center}
+  .month{padding:10px}
+  .dow,.days{gap:3px}
+  .day .s{font-size:10px}
+  .between{flex-wrap:wrap}
+  .sheet{padding:18px 16px calc(24px + env(safe-area-inset-bottom))}
+  .duel{gap:8px}.duelc{padding:10px}
+  .prt th,.prt td{padding:8px}
+  .nbs{flex-wrap:wrap}
+}
+@media(max-width:359px){.cands{grid-template-columns:minmax(0,1fr)}.moods{grid-template-columns:1fr}.duelb{gap:4px}.duelb .chip{padding-inline:6px}}

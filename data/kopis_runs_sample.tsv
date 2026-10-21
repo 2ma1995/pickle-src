@@ -1,0 +1,4 @@
+작품	공연장	시작	끝	포스터URL	예매처링크	가격안내	출연진	mt20id	RUNS	비교
+뮤지컬 겨울왕국	샤롯데씨어터 (샤롯데씨어터)	2026-08-13	2027-03-01	https://example.com/sample/PFSAMPLE02.png	샘플예매처=https://example.com/sample/ticket/PFSAMPLE02	VIP석 150,000원, R석 120,000원	샘플배우A, 샘플배우B 외	PFSAMPLE02	겨울왕국/서울	일치
+뮤지컬 〈샘플 나이트〉	샘플아트홀 (대극장)	2026-11-01	2026-12-31	https://example.com/sample/PFSAMPLE03.png	샘플예매처=https://example.com/sample/ticket/PFSAMPLE03	VIP석 150,000원, R석 120,000원	샘플배우A, 샘플배우B 외	PFSAMPLE03		신규(새 작품)
+뮤지컬 〈엘리자벳〉 - 서울	블루스퀘어 (우리은행홀)	2026-08-16	2026-11-22	https://example.com/sample/PFSAMPLE01.png	샘플예매처=https://example.com/sample/ticket/PFSAMPLE01	VIP석 150,000원, R석 120,000원	샘플배우A, 샘플배우B 외	PFSAMPLE01	엘리자벳/서울	기간 변경

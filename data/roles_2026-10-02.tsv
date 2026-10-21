@@ -1,0 +1,69 @@
+작품	시즌	공연	배역	비중	멀티캐스팅	캐스트 배우	출처 링크
+엘리자벳	2026	서울	엘리자벳	주연	=IF(F2="","",IF(COUNTA(SPLIT(F2,","))>1,"Y","N"))	린아, 이지혜, 이지수, 박지연	https://www.topstarnews.net/news/articleView.html?idxno=16186314
+엘리자벳	2026	서울	죽음(토드)	주연	=IF(F3="","",IF(COUNTA(SPLIT(F3,","))>1,"Y","N"))	카이, 서경수, 고은성, 김준수	https://www.topstarnews.net/news/articleView.html?idxno=16186314
+엘리자벳	2026	서울	루케니	주연	=IF(F4="","",IF(COUNTA(SPLIT(F4,","))>1,"Y","N"))	박은태, 강홍석, 노윤	http://www.sctoday.co.kr/news/articleView.html?idxno=48039
+엘리자벳	2026	서울	프란츠 요제프	조연	=IF(F5="","",IF(COUNTA(SPLIT(F5,","))>1,"Y","N"))	민영기, 박민성	http://www.sctoday.co.kr/news/articleView.html?idxno=48039
+엘리자벳	2026	서울	소피	조연	=IF(F6="","",IF(COUNTA(SPLIT(F6,","))>1,"Y","N"))	서지영, 주아	http://www.sctoday.co.kr/news/articleView.html?idxno=48039
+엘리자벳	2026	서울	루돌프	조연	=IF(F7="","",IF(COUNTA(SPLIT(F7,","))>1,"Y","N"))	장윤석, 김우성	http://www.sctoday.co.kr/news/articleView.html?idxno=48039
+겨울왕국	2026	서울	엘사	주연	=IF(F8="","",IF(COUNTA(SPLIT(F8,","))>1,"Y","N"))	정선아, 정유지, 민경아	http://www.sctoday.co.kr/news/articleView.html?idxno=47732
+겨울왕국	2026	서울	안나	주연	=IF(F9="","",IF(COUNTA(SPLIT(F9,","))>1,"Y","N"))	박진주, 홍금비, 최지혜	http://www.sctoday.co.kr/news/articleView.html?idxno=47732
+겨울왕국	2026	서울	올라프	조연	=IF(F10="","",IF(COUNTA(SPLIT(F10,","))>1,"Y","N"))	정원영, 한규정, 이창호	http://www.sctoday.co.kr/news/articleView.html?idxno=47732
+겨울왕국	2026	서울	크리스토프	조연	=IF(F11="","",IF(COUNTA(SPLIT(F11,","))>1,"Y","N"))	차윤해, 신재범	http://www.sctoday.co.kr/news/articleView.html?idxno=47732
+겨울왕국	2026	서울	한스	조연	=IF(F12="","",IF(COUNTA(SPLIT(F12,","))>1,"Y","N"))	김원빈, 황건하	http://www.sctoday.co.kr/news/articleView.html?idxno=47732
+디어 에반 핸슨	2026	서울	에반 핸슨	주연	=IF(F13="","",IF(COUNTA(SPLIT(F13,","))>1,"Y","N"))	박강현, 임규형, 나현우	https://www.newspim.com/news/view/20260513000311
+디어 에반 핸슨	2026	서울	하이디 핸슨	조연	=IF(F14="","",IF(COUNTA(SPLIT(F14,","))>1,"Y","N"))	김선영, 신영숙	https://www.newspim.com/news/view/20260513000311
+디어 에반 핸슨	2026	서울	코너 머피	조연	=IF(F15="","",IF(COUNTA(SPLIT(F15,","))>1,"Y","N"))	조민호, 김수호	https://www.newspim.com/news/view/20260513000311
+디어 에반 핸슨	2026	서울	조이 머피	조연	=IF(F16="","",IF(COUNTA(SPLIT(F16,","))>1,"Y","N"))	강지혜, 장민제	https://www.newspim.com/news/view/20260513000311
+디어 에반 핸슨	2026	서울	래리 머피	조연	=IF(F17="","",IF(COUNTA(SPLIT(F17,","))>1,"Y","N"))	장현성, 정동근	https://www.newspim.com/news/view/20260513000311
+디어 에반 핸슨	2026	서울	신시아 머피	조연	=IF(F18="","",IF(COUNTA(SPLIT(F18,","))>1,"Y","N"))	안시하, 임민영	https://www.newspim.com/news/view/20260513000311
+디어 에반 핸슨	2026	서울	재러드 클라인먼	조연	=IF(F19="","",IF(COUNTA(SPLIT(F19,","))>1,"Y","N"))	김강진, 윤현선	https://www.newspim.com/news/view/20260513000311
+디어 에반 핸슨	2026	서울	알라나 벡	조연	=IF(F20="","",IF(COUNTA(SPLIT(F20,","))>1,"Y","N"))	강은세, 염희진	https://www.newspim.com/news/view/20260513000311
+드라큘라	2026	서울	드라큘라	주연	=IF(F21="","",IF(COUNTA(SPLIT(F21,","))>1,"Y","N"))	신성록, 김준수, 전동석, 고은성	https://enews.imbc.com/News/RetrieveNewsInfo/503892
+드라큘라	2026	서울	미나	주연	=IF(F22="","",IF(COUNTA(SPLIT(F22,","))>1,"Y","N"))	조정은, 박지연, 김환희	https://enews.imbc.com/News/RetrieveNewsInfo/503892
+드라큘라	2026	서울	반 헬싱	조연	=IF(F23="","",IF(COUNTA(SPLIT(F23,","))>1,"Y","N"))	강태을, 임정모	https://enews.imbc.com/News/RetrieveNewsInfo/503892
+드라큘라	2026	서울	조나단	조연	=IF(F24="","",IF(COUNTA(SPLIT(F24,","))>1,"Y","N"))	진태화, 임현준	https://enews.imbc.com/News/RetrieveNewsInfo/503892
+드라큘라	2026	서울	루시	조연	=IF(F25="","",IF(COUNTA(SPLIT(F25,","))>1,"Y","N"))	이예은, 이아름솔	https://enews.imbc.com/News/RetrieveNewsInfo/503892
+사의찬미	2026 2ND	서울	김우진	주연	=IF(F26="","",IF(COUNTA(SPLIT(F26,","))>1,"Y","N"))	김종구, 주민진, 홍승안	https://m.ticket.yes24.com/Perf/Detail/PerfInfo.aspx?IdPerf=59718
+사의찬미	2026 2ND	서울	윤심덕	주연	=IF(F27="","",IF(COUNTA(SPLIT(F27,","))>1,"Y","N"))	최수진, 김려원, 이정화	https://m.ticket.yes24.com/Perf/Detail/PerfInfo.aspx?IdPerf=59718
+사의찬미	2026 2ND	서울	사내	주연	=IF(F28="","",IF(COUNTA(SPLIT(F28,","))>1,"Y","N"))	최재웅, 김재범, 정민, 유승현	https://m.ticket.yes24.com/Perf/Detail/PerfInfo.aspx?IdPerf=59718
+시카고	2026	서울	벨마 켈리	주연	=IF(F29="","",IF(COUNTA(SPLIT(F29,","))>1,"Y","N"))	최정원, 윤공주, 린아	https://www.topstarnews.net/news/articleView.html?idxno=16194244
+시카고	2026	서울	록시 하트	주연	=IF(F30="","",IF(COUNTA(SPLIT(F30,","))>1,"Y","N"))	아이비, 티파니 영, 김수하	https://www.topstarnews.net/news/articleView.html?idxno=16194244
+시카고	2026	서울	빌리 플린	주연	=IF(F31="","",IF(COUNTA(SPLIT(F31,","))>1,"Y","N"))	박건형, 에녹	https://www.topstarnews.net/news/articleView.html?idxno=16194244
+시카고	2026	서울	마마 모튼	조연	=IF(F32="","",IF(COUNTA(SPLIT(F32,","))>1,"Y","N"))	김영주, 김경선	https://www.topstarnews.net/news/articleView.html?idxno=16194244
+시카고	2026	서울	에이모스 하트	조연	=IF(F33="","",IF(COUNTA(SPLIT(F33,","))>1,"Y","N"))	차정현	https://www.topstarnews.net/news/articleView.html?idxno=16194244
+광화문연가	2026	서울	명우	주연	=IF(F34="","",IF(COUNTA(SPLIT(F34,","))>1,"Y","N"))	손준호, 이석훈	https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=02961846645485000
+광화문연가	2026	서울	월하	주연	=IF(F35="","",IF(COUNTA(SPLIT(F35,","))>1,"Y","N"))	에녹, 차지연, 서은광	https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=02961846645485000
+광화문연가	2026	서울	수아	주연	=IF(F36="","",IF(COUNTA(SPLIT(F36,","))>1,"Y","N"))	류승주, 선예	https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=02961846645485000
+광화문연가	2026	서울	시영	조연	=IF(F37="","",IF(COUNTA(SPLIT(F37,","))>1,"Y","N"))	문진아, 박세미	https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=02961846645485000
+광화문연가	2026	서울	과거 명우	조연	=IF(F38="","",IF(COUNTA(SPLIT(F38,","))>1,"Y","N"))	기세중, 박희준	https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=02961846645485000
+광화문연가	2026	서울	과거 수아	조연	=IF(F39="","",IF(COUNTA(SPLIT(F39,","))>1,"Y","N"))	김서연, 이은정	https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=02961846645485000
+광화문연가	2026	서울	중곤	조연	=IF(F40="","",IF(COUNTA(SPLIT(F40,","))>1,"Y","N"))	김민수	https://edaily.co.kr/News/Read?mediaCodeNo=257&newsId=02961846645485000
+빨래	2026	서울	나영	주연	=IF(F41="","",IF(COUNTA(SPLIT(F41,","))>1,"Y","N"))	기영수, 오주언, 민하늘, 장혜민	http://www.sctoday.co.kr/news/articleView.html?idxno=47761
+빨래	2026	서울	솔롱고	주연	=IF(F42="","",IF(COUNTA(SPLIT(F42,","))>1,"Y","N"))	이진우, 정형석, 류찬열, 류석호	http://www.sctoday.co.kr/news/articleView.html?idxno=47761
+빨래	2026	서울	주인할매	조연	=IF(F43="","",IF(COUNTA(SPLIT(F43,","))>1,"Y","N"))	서나영, 최정화, 조영임, 이새롬	http://www.sctoday.co.kr/news/articleView.html?idxno=47761
+빨래	2026	서울	희정엄마	조연	=IF(F44="","",IF(COUNTA(SPLIT(F44,","))>1,"Y","N"))	김유정, 허순미, 김은지, 양미경	http://www.sctoday.co.kr/news/articleView.html?idxno=47761
+빨래	2026	서울	구씨	조연	=IF(F45="","",IF(COUNTA(SPLIT(F45,","))>1,"Y","N"))	안두호, 한우열, 유우헌	http://www.sctoday.co.kr/news/articleView.html?idxno=47761
+빨래	2026	서울	빵	조연	=IF(F46="","",IF(COUNTA(SPLIT(F46,","))>1,"Y","N"))	김지훈, 박준성, 황윤중	http://www.sctoday.co.kr/news/articleView.html?idxno=47761
+빨래	2026	서울	마이클	조연	=IF(F47="","",IF(COUNTA(SPLIT(F47,","))>1,"Y","N"))	서인권, 박존정민, 김승현, 이윤성	http://www.sctoday.co.kr/news/articleView.html?idxno=47761
+빨래	2026	서울	제일서점직원	조연	=IF(F48="","",IF(COUNTA(SPLIT(F48,","))>1,"Y","N"))	연승아, 김정윤, 최현희, 이가연	http://www.sctoday.co.kr/news/articleView.html?idxno=47761
+렛미플라이	2026	서울	노인 남원	주연	=IF(F49="","",IF(COUNTA(SPLIT(F49,","))>1,"Y","N"))	안재욱, 이희준, 오의식, 이형훈	https://www.topstarnews.net/news/articleView.html?idxno=16172897
+렛미플라이	2026	서울	선희	주연	=IF(F50="","",IF(COUNTA(SPLIT(F50,","))>1,"Y","N"))	배해선, 윤공주, 김지현	https://www.topstarnews.net/news/articleView.html?idxno=16172897
+렛미플라이	2026	서울	청년 남원	주연	=IF(F51="","",IF(COUNTA(SPLIT(F51,","))>1,"Y","N"))	안지환, 윤소호, 윤재호	https://www.themusical.co.kr/News/Detail?num=14710
+렛미플라이	2026	서울	정분	주연	=IF(F52="","",IF(COUNTA(SPLIT(F52,","))>1,"Y","N"))	나하나, 홍지희, 이수빈, 박슬기	https://www.themusical.co.kr/News/Detail?num=14710
+팬레터	2026	서울	김해진	주연	=IF(F53="","",IF(COUNTA(SPLIT(F53,","))>1,"Y","N"))	에녹, 김종구, 김경수, 이규형	https://www.gukjenews.com/news/articleView.html?idxno=3397731
+팬레터	2026	서울	정세훈	주연	=IF(F54="","",IF(COUNTA(SPLIT(F54,","))>1,"Y","N"))	문성일, 윤소호, 김리현, 원태민	https://www.gukjenews.com/news/articleView.html?idxno=3397731
+팬레터	2026	서울	히카루	주연	=IF(F55="","",IF(COUNTA(SPLIT(F55,","))>1,"Y","N"))	소정화, 김히어라, 강혜인, 김이후	https://www.gukjenews.com/news/articleView.html?idxno=3397731
+팬레터	2026	서울	이윤	조연	=IF(F56="","",IF(COUNTA(SPLIT(F56,","))>1,"Y","N"))	박정표, 정민, 이형훈, 김지철	https://www.gukjenews.com/news/articleView.html?idxno=3397731
+팬레터	2026	서울	이태준	조연	=IF(F57="","",IF(COUNTA(SPLIT(F57,","))>1,"Y","N"))	이한밀, 김승용, 김지욱	https://www.gukjenews.com/news/articleView.html?idxno=3397731
+팬레터	2026	서울	김수남	조연	=IF(F58="","",IF(COUNTA(SPLIT(F58,","))>1,"Y","N"))	이승현, 손유동, 장민수, 김태인	https://www.gukjenews.com/news/articleView.html?idxno=3397731
+팬레터	2026	서울	김환태	조연	=IF(F59="","",IF(COUNTA(SPLIT(F59,","))>1,"Y","N"))	김보현, 송상훈	https://www.gukjenews.com/news/articleView.html?idxno=3397731
+겨울왕국	2026	서울	위즐튼 공작	조연	=IF(F60="","",IF(COUNTA(SPLIT(F60,","))>1,"Y","N"))	정열, 임진웅	https://www.topstarnews.net/news/articleView.html?idxno=16165831
+드라큘라	2026	서울	렌필드	조연	=IF(G61="","",IF(COUNTA(SPLIT(G61,","))>1,"Y","N"))	지원선, 조성린	https://www.lgart.com/product/ko/performance/252966
+시카고	2026	서울	메리 선샤인	조연	=IF(G62="","",IF(COUNTA(SPLIT(G62,","))>1,"Y","N"))	S.J.Kim, H.J.Jeon	https://www.lgart.com/product/ko/performance/252983
+팬레터	2026	인천	김해진	주연	=IF(G63="","",IF(COUNTA(SPLIT(G63,","))>1,"Y","N"))	김경수, 이규형, 김종구	https://www.ticketlink.co.kr/help/notice/65618
+팬레터	2026	인천	정세훈	주연	=IF(G64="","",IF(COUNTA(SPLIT(G64,","))>1,"Y","N"))	문태유, 윤소호	https://www.ticketlink.co.kr/help/notice/65618
+팬레터	2026	인천	히카루	주연	=IF(G65="","",IF(COUNTA(SPLIT(G65,","))>1,"Y","N"))	강혜인, 김히어라	https://www.ticketlink.co.kr/help/notice/65618
+팬레터	2026	인천	이윤	조연	=IF(G66="","",IF(COUNTA(SPLIT(G66,","))>1,"Y","N"))	김지철, 이형훈	https://www.ticketlink.co.kr/help/notice/65618
+팬레터	2026	인천	이태준	조연	=IF(G67="","",IF(COUNTA(SPLIT(G67,","))>1,"Y","N"))	김지욱, 이한밀	https://www.ticketlink.co.kr/help/notice/65618
+팬레터	2026	인천	김수남	조연	=IF(G68="","",IF(COUNTA(SPLIT(G68,","))>1,"Y","N"))	김태인, 손유동	https://www.ticketlink.co.kr/help/notice/65618
+팬레터	2026	인천	김환태	조연	=IF(G69="","",IF(COUNTA(SPLIT(G69,","))>1,"Y","N"))	김효성, 김보현	https://www.ticketlink.co.kr/help/notice/65618

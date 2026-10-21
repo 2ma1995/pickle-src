@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PICKLE — 내 취향에 맞는 회차를, 근거와 함께</title>
+<meta name="description" content="한 배역에 서너 명이 번갈아 서는 뮤지컬. 취향을 고르면 PICK 회차를 찍어 주고, 왜 그 회차인지 리뷰 근거를 보여 줘요.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gothic+A1:wght@400;500;700;900&family=Nanum+Myeongjo:wght@800&display=swap">
+<link rel="stylesheet" href="web/style.css">
+<style>
+/* 랜딩: 앱(web/)과 같은 프로그램북 토큰·부품(web/style.css)을 쓴다. 여기엔 랜딩 배치만. */
+.l-wrap{width:100%;max-width:1080px;margin:0 auto;padding:0 20px}
+.l-mast{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:3px solid var(--ink)}
+.l-mast .l-wrap{height:56px;display:flex;align-items:center;gap:16px}
+.l-mast nav{display:none;gap:18px;margin-left:auto;font-size:13px;font-weight:700}
+.l-mast .btn{min-height:40px;padding:0 14px;font-size:13px;margin-left:auto}
+.l-hero{padding:40px 0 28px;display:grid;gap:18px}
+.l-hero h1{font-family:var(--disp);font-weight:400;font-size:clamp(40px,8vw,76px);line-height:1.02;letter-spacing:-.02em}
+.l-hero p{font-size:clamp(15px,1.6vw,18px);max-width:620px;color:#333}
+.l-cta{display:flex;flex-wrap:wrap;gap:10px}
+.l-cta .btn{min-width:180px}
+.l-sec{padding:34px 0;border-top:3px solid var(--ink)}
+.l-sec h2{font-family:var(--disp);font-weight:400;font-size:clamp(26px,4vw,40px);line-height:1.1;margin-bottom:18px}
+.l-demo{display:grid;gap:14px}
+.l-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.l-col{position:relative;display:flex;flex-direction:column;gap:6px}
+.l-col.pick{outline:2.5px solid var(--wine);outline-offset:3px}
+.l-colhead{text-align:center;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.l-col.pick .l-colhead{border-color:var(--wine);color:var(--wine)}
+.l-colhead .d{font-family:var(--disp);font-size:22px;line-height:1.1}
+.l-colhead .t{font-size:11px;font-weight:700}
+.l-col .stamp{position:absolute;right:-16px;top:-36px;width:44px;height:44px;font-size:13px}
+.l-demo .board{margin-top:18px}
+.l-role{font-size:11px;font-weight:900;letter-spacing:.14em;color:var(--wine);margin-top:4px}
+.l-steps{display:grid;gap:0}
+.l-step{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;padding:16px 0;border-top:1px solid var(--soft)}
+.l-step:first-child{border-top:1px solid var(--ink)}
+.l-step .n{font-family:var(--disp);font-size:30px;color:var(--wine);line-height:1}
+.l-step b{display:block;font-size:19px;font-weight:900;margin-bottom:4px}
+.l-step span{font-size:14px;color:var(--muted)}
+.l-facts{display:grid;gap:0}
+.l-fact{padding:14px 0;border-top:1px solid var(--soft);display:grid;gap:4px}
+.l-fact:first-child{border-top:1px solid var(--ink)}
+.l-fact b{font-size:16px;font-weight:900}
+.l-fact span{font-size:14px;color:var(--muted)}
+.l-beta .ticket{min-height:120px}
+.l-beta .ticket > :first-child{padding:18px 20px;display:grid;gap:6px;align-content:center}
+.l-beta .ticket > :last-child{display:flex;align-items:center;justify-content:center;background:var(--wine);color:#fff;font-weight:900;text-align:center;line-height:1.35;padding:10px}
+.l-foot{padding:24px 0 48px;font-size:12px;color:var(--muted);border-top:1px solid var(--ink)}
+@media (min-width:900px){
+  .l-mast nav{display:flex}
+  .l-mast .btn{margin-left:8px}
+  .l-hero{padding:72px 0 40px}
+  .l-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:start}
+  .l-demo .board{max-width:520px}
+}
+</style>
+</head>
+<body>
+<header class="l-mast"><div class="l-wrap">
+  <a class="disp" href="./" style="font-size:22px;color:var(--wine)">PICKLE</a>
+  <span class="label">2026 · 가을의 무대</span>
+  <nav><a href="#how">어떻게 쓰나</a><a href="#why">PICK의 근거</a><a href="#beta">베타</a></nav>
+  <a class="btn" href="web/">앱 열기</a>
+</div></header>
+
+<main class="l-wrap">
+  <section class="l-hero">
+    <span class="eyebrow">뮤지컬 캐스팅 PICK</span>
+    <h1>취향에 맞는 회차,<br>근거와 함께 PICK.</h1>
+    <p>한 배역에 서너 명이 번갈아 서는 뮤지컬. 이 작품에서 중요한 것(노래, 연기, 음색…)을 고르면 PICK 회차를 찍어 주고, 왜 그 회차인지 리뷰 근거를 보여 줘요. 갈 수 있는 날과 나란히 비교한 다음 예매하러 가요.</p>
+    <div class="l-cta"><a class="btn" href="web/">앱 열기 →</a><a class="btn line" href="#beta">5분 설문 · 베타 알림</a></div>
+    <div class="tiny muted" id="trust"></div>
+  </section>
+
+  <section class="l-sec l-two" id="demo">
+    <div class="stack">
+      <span class="eyebrow">지금 데이터로 계산한 예시</span>
+      <h2 id="demo-title">엘리자벳 캐스팅 보드</h2>
+      <p class="small muted" id="demo-sub"></p>
+      <p class="small" id="demo-why"></p>
+    </div>
+    <div class="l-demo"><div class="board"><div class="l-cols" id="demo-cols"></div></div></div>
+  </section>
+
+  <section class="l-sec" id="how">
+    <h2>세 번 누르면 끝</h2>
+    <div class="l-steps">
+      <div class="l-step"><span class="n">01</span><div><b>작품을 고르고, 중요한 걸 골라요</b><span>노래 · 연기 · 감정 표현 · 음색. 작품마다 따로 골라요. 고르는 순간 PICK 회차가 찍혀요.</span></div></div>
+      <div class="l-step"><span class="n">02</span><div><b>캐스팅 보드에서 비교해요</b><span>PICK 회차와 갈 수 있는 날의 회차가 열로 나란히. 배역마다 배우 얼굴과 영상, 취향과 맞는 배우엔 ✓.</span></div></div>
+      <div class="l-step"><span class="n">03</span><div><b>담고, 예매하러 가요</b><span>프로그램 페이지에서 리뷰 근거와 등급별 가격을 보고 담으면 예매처 · 좌석 배치도 · 내 캘린더로. 보고 나서 남긴 평가는 다음 PICK에 반영돼요.</span></div></div>
+    </div>
+  </section>
+
+  <section class="l-sec" id="why">
+    <h2>PICK의 근거</h2>
+    <div class="l-facts">
+      <div class="l-fact"><b>근거가 없으면 PICK을 찍지 않아요</b><span>리뷰가 아직 없는 배우는 "정보 없음"과 공식 영상으로. 그 배우가 취향과 안 맞는다는 뜻이 아니에요.</span></div>
+      <div class="l-fact"><b>근거는 전부 출처가 있어요</b><span>아트인사이트 · 아르떼 · 더뮤지컬 등 공개 리뷰에서 태그와 한 줄 요약, 출처 링크만 저장해요. 원문은 가져오지 않아요.</span></div>
+      <div class="l-fact"><b>캐스팅은 공식 스케줄 기준</b><span>제작사 · 공연장이 공개한 회차별 캐스팅. 바뀔 수 있어서 기준일을 함께 보여 줘요. 영상은 YouTube 공식 채널, 공연 정보는 KOPIS.</span></div>
+      <div class="l-fact"><b>예매처를 긁지 않아요</b><span>잔여석 · 예매는 예매처에서. 우리는 링크만 걸어요. 취향과 관람 기록은 내 브라우저에만 저장돼요.</span></div>
+    </div>
+  </section>
+
+  <section class="l-sec l-beta" id="beta">
+    <h2>먼저 써 볼 30명</h2>
+    <a class="ticket" href="https://forms.gle/CHVtXKUz3WxTShs16" target="_blank" rel="noopener">
+      <span><span class="label" style="color:var(--wine-light)">10월 베타 · 5분 설문</span><span class="disp" style="font-size:24px">1년에 서너 번 이상 보고, 캐스트 바꿔 다시 본 적 있다면</span><span class="tiny" style="color:#CFCFCF">답해 주시면 베타가 열릴 때 가장 먼저 알려 드려요</span></span>
+      <span>설문하고<br>베타 알림 ↗</span>
+    </a>
+  </section>
+</main>
+<footer class="l-wrap l-foot" id="foot">PICKLE · 뮤지컬 캐스팅 PICK · 팀 포트폴리오 프로젝트</footer>
+
+<script src="app/data.js"></script>
+<script src="web/core.js"></script>
+<script>
+// 예시 보드: 앱과 같은 추천 규칙(web/core.js)으로 계산한다. 예시 취향은 노래 + 맑은 음색.
+(() => {
+  if (!window.PICKLE_DATA) return;
+  const tags = Object.values(D.actorTags).reduce((n, w) => n + Object.values(w).flat().length, 0);
+  const vids = Object.values(D.videos || {}).reduce((n, w) => n + Object.values(w).flat().length, 0);
+  $("#trust").textContent = `공식 캐스팅 ${D.perfs.length}회차 · 시드 작품 ${D.works.length}개 · 리뷰 근거 ${tags}건 · 공식 영상 ${vids}건 · 데이터 기준 ${D.generated}`;
+  $("#foot").textContent += ` · 데이터 기준 ${D.generated} · 스케줄은 제작사 사정으로 바뀔 수 있어요`;
+
+  // 예시: 갈 수 있는 날이 10/18 · 10/24인 사람. 그 날들이 지나면 다가오는 PICK 3회차로 바꾼다.
+  const work = "엘리자벳", axes = ["가창", "맑은 음색"];
+  const fixed = [["2026-10-18", "15:00"], ["2026-10-24", "14:00"], ["2026-10-24", "19:00"]].map(([d, t]) => findPerf(work, d, t)).filter(p => p && p.date >= today());
+  const cols = (fixed.length === 3 ? fixed : picksFor(work, axes, 3).map(x => x.p)).sort(byWhen);
+  if (!cols.length) return;
+  const pi = pickIndex(work, cols, axes), best = pi >= 0 ? scorePerf(work, cols[pi], axes) : null;
+  $("#demo-sub").textContent = fixed.length === 3 ? `예시 · 취향 ${axes.map(axisLabel).join(" · ")} · 갈 수 있는 날 10/18, 10/24` : `예시 · 취향 ${axes.map(axisLabel).join(" · ")} · 다가오는 PICK ${cols.length}회차`;
+  if (best) $("#demo-why").innerHTML = `<b class="wine">PICK · ${md(cols[pi].date)} ${dowOf(cols[pi].date)} ${cols[pi].time}</b> — 취향과 맞는 리뷰 근거 ${best.pts}건: ${[...new Set(best.ev.map(e => e.actor))].map(a => `${esc(a)} ${best.ev.filter(e => e.actor === a).map(e => esc(e.tag)).join("·")}`).join(", ")}`;
+  $("#demo-cols").innerHTML = cols.map((p, i) => {
+    const s = scorePerf(work, p, axes);
+    return `<a class="l-col ${i === pi ? "pick" : ""}" href="web/#show/${encodeURIComponent(work)}/${p.date}/${p.time}">
+      <div class="l-colhead"><div class="d">${md(p.date)}</div><div class="t">${dowOf(p.date)} ${p.time}${specialNote(p) ? " · " + esc(specialNote(p).replace(/^.* /, "")) : ""}</div><div class="t ${i === pi ? "" : "muted"}">근거 ${s.pts}</div></div>
+      ${i === pi ? `<span class="stamp fill">PICK</span>` : ""}
+      ${leads(work, p.cast).map(([r, a]) => { const th = thumbOf(work, a); return `<span class="l-role">${esc(r)}</span>${th ? `<img class="thumb" src="${esc(th)}" alt="${esc(a)} 영상 장면" loading="lazy">` : `<span class="thumb none">영상 없음</span>`}<span class="plate ${i === pi ? "pick" : ""}">${esc(a)}${s.hit.has(a) ? ` <span class="ok">✓</span>` : ""}</span>`; }).join("")}
+    </a>`;
+  }).join("");
+})();
+</script>
+</body>
+</html>
