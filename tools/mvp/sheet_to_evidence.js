@@ -19,6 +19,7 @@ const TABS = {
 };
 const WORK_TABS = { "겨울왕국": 1712246639, "엘리자벳": 1712246640, "스위니토드": 1712246641, "레베카": 880300, "시카고": 880301 };
 const MVP_WORKS = Object.keys(WORK_TABS);
+const OTHER_WORK = "다른 작품";
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const OUT = path.join(ROOT, "data", "mvp");
@@ -136,6 +137,10 @@ function buildDict(rows) {
       const rowsOut = [...dict.values()].sort((a, b) => a.id.localeCompare(b.id))
         .map(d => [d.id, d.태그, d.대분류, d["하위 영역"], d.evalType, d["태그 상태"]]);
       writeTsv(idFile, ["태그 ID", "태그", "대분류", "하위 영역", "평가 유형", "사전 상태"], rowsOut);
+      // recommend.py DICT 로 읽는 사전. 시트 사전의 '검수 필요' 태그도 베타에서는 확정으로 쓴다(원래 상태 열에 남김)
+      const DH = ["대분류", "태그", "하위 영역", "뜻", "이런 표현이면 이 태그", "연결 취향축", "태그 상태", "원래 상태", "태그 ID"];
+      writeTsv(path.join(OUT, "tag_dict.tsv"), DH, rows.filter(r => r.태그).map(r => [r.대분류, r.태그, r["하위 영역"], r.뜻, r["이런 표현이면 이 태그"], r["연결 취향축"],
+        PROMOTE.has(r["태그 상태"]) ? "확정" : r["태그 상태"], r["태그 상태"], idOf.get(r.태그)]));
     },
   };
 }
@@ -171,8 +176,11 @@ class Collector {
       const key = [base.작품, base.대상유형, base.배역, base.배우, base.상대 || "", m.d.태그, srcId].join("|");
       if (this.seen.has(key)) continue;  // 같은 탭 안 같은 근거·같은 태그는 한 번만
       this.seen.add(key);
+      // 배우 일반(다른 작품에서 받은 평가)은 작품 칸을 '다른 작품'으로 둔다. recommend.py 는 작품 칸이 다른 행을 'OO 리뷰 기준'으로 빌려 오고(목소리 태그만),
+      // 이번 작품 행으로 세지 않는다. 어느 탭에서 왔는지는 원본 탭 열에 남는다
+      const work = base.범위 === "배우 일반" ? OTHER_WORK : (base.작품 || "");
       this.rows.push({
-        기록일: base.기록일 || "", 기록자: base.기록자 || "", 작품: base.작품 || "", 시즌: base.시즌 || "", 공연장: base.공연장 || "",
+        기록일: base.기록일 || "", 기록자: base.기록자 || "", 작품: work, 시즌: base.시즌 || "", 공연장: base.공연장 || "",
         회차: base.회차 || "", 대상유형: base.대상유형, 배역: base.배역 || "", 배우: base.배우 || "", 상대: base.상대 || "",
         태그: m.d.태그, 근거: clip(base.근거), 출처종류: base.출처종류 || "", 출처링크: links.join(" "), 상태: base.상태,
         근거수준: base.근거수준 || "", 대분류: m.d.대분류, 태그ID: m.d.id, 태그원문: raw, 매칭: m.how, 평가유형: m.d.evalType,
@@ -335,7 +343,7 @@ async function main() {
   // ---------- 검사 ----------
   const warn = [];
   for (const r of C.rows) {
-    if (r.작품 && r.배우 && r.대상유형 === "배우" && !cast.has(`${r.작품}|${r.배우}`)) warn.push(`캐스트에 없는 배우: ${r.작품} ${r.배우} (${r.원본탭} ${r.원본행}행)`);
+    if (r.작품 && r.작품 !== OTHER_WORK && r.배우 && r.대상유형 === "배우" && !cast.has(`${r.작품}|${r.배우}`)) warn.push(`캐스트에 없는 배우: ${r.작품} ${r.배우} (${r.원본탭} ${r.원본행}행)`);
     if (r.대상유형 === "조합" && r.상대 && r.작품 && !cast.has(`${r.작품}|${r.상대}`)) warn.push(`캐스트에 없는 상대 배우: ${r.작품} ${r.상대} (${r.원본탭} ${r.원본행}행)`);
   }
 
@@ -346,11 +354,35 @@ async function main() {
     r.근거, r.출처종류, r.출처링크, r.상태, r.근거수준, r.대분류, r.증거ID, r.태그ID, r.태그원문, r.매칭, r.평가유형, r.방향, r.주의점, r.출처ID, r.성격,
     r.범위, r.동회차, r.연결, r.원본탭, r.원본행, r.상태원문]));
   D.writeIds();
+  writeRoles(W);
   writeTsv(path.join(OUT, "unmatched_tags.tsv"), ["표기", "건수", "나온 곳(앞 5개)"],
     [...C.unmatched].sort((a, b) => b[1].n - a[1].n).map(([k, u]) => [k, u.n, [...u.where].slice(0, 5).join(", ")]));
   writeTsv(path.join(OUT, "skipped_rows.tsv"), ["원본 탭", "원본 행", "배우·작품", "이유"], C.skipped);
   fs.writeFileSync(path.join(OUT, "report.md"), report(C, warn), "utf8");
   console.log(`evidence_long.tsv ${C.rows.length}행 · 미매칭 표기 ${C.unmatched.size}개 · 건너뛴 행 ${C.skipped.length}개 · 경고 ${warn.length}개 → ${path.relative(ROOT, OUT)}`);
+}
+
+// 배역 표(recommend.py ROLES): 시트 작품 탭의 배역·캐스트가 기준. 예전 배역 표(roles_2026-10-02.tsv)에만 있는 배역(시카고 메리 선샤인 등 회차표에 나오는 조연)은 그대로 이어 붙인다.
+// 비중(주연/조연)은 예전 표 값을 쓰고, 새 작품은 LEADS 로 정한다
+const LEADS = { "레베카": ["막심 드 윈터", "댄버스 부인", "나(I)"], "스위니토드": ["스위니 토드", "러빗 부인"] };
+function writeRoles(W) {
+  const oldFile = path.join(ROOT, "data", "roles_2026-10-02.tsv");
+  const old = fs.existsSync(oldFile) ? readTsv(oldFile) : [];
+  const out = [];
+  for (const [w, rows] of Object.entries(W)) {
+    const byRole = new Map();
+    for (const r of rows) if (r.배우 && r["배역/구분"]) (byRole.get(r["배역/구분"]) || byRole.set(r["배역/구분"], { actors: [], src: r.자료출처 || r["자료 출처"] || "", season: r.시즌 }).get(r["배역/구분"])).actors.push(r.배우);
+    for (const [role, v] of byRole) {
+      const o = old.find(x => x.작품 === w && x.배역 === role);
+      const weight = o ? o.비중 : (LEADS[w] || []).includes(role) ? "주연" : "조연";
+      out.push([w, v.season, "서울", role, weight, v.actors.length > 1 ? "Y" : "N", v.actors.join(", "), urlsOf(v.src)[0] || ""]);
+    }
+    for (const o of old.filter(x => x.작품 === w && !byRole.has(x.배역))) {
+      const actors = o["캐스트 배우"].split(",").map(s => s.trim()).filter(Boolean);
+      out.push([w, o.시즌, o.공연, o.배역, o.비중, actors.length > 1 ? "Y" : "N", actors.join(", "), o["출처 링크"]]);
+    }
+  }
+  writeTsv(path.join(OUT, "roles.tsv"), ["작품", "시즌", "공연", "배역", "비중", "멀티캐스팅", "캐스트 배우", "출처 링크"], out);
 }
 
 function count(rows, f) { const m = new Map(); for (const r of rows) { const k = f(r); m.set(k, (m.get(k) || 0) + 1); } return [...m].sort((a, b) => b[1] - a[1]); }
@@ -381,7 +413,7 @@ function report(C, warn) {
 | 작품 | 태그 있는 배우 | 행 | 확정 | 행 단위 근거 | 조합 행 |
 |---|---|---|---|---|---|
 ${perWork.join("\n")}
-(작품 칸이 빈 '배우 일반' 행 ${actorRows.filter(r => !r.작품).length}개는 작품별 표에 안 들어감)
+('배우 일반' 행 ${actorRows.filter(r => r.작품 === OTHER_WORK).length}개는 작품 칸이 '${OTHER_WORK}'라 작품별 표에 안 들어감. recommend.py 는 이 중 목소리 태그만 빌려 온다)
 
 ## 원본 탭별
 ${count(R, r => r.원본탭).map(([k, n]) => `- ${k}: ${n}`).join("\n")}

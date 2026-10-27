@@ -517,7 +517,7 @@ function recommend(work, lo, hi, prefs, actors = [], top = 2, avoid = []) {
       for (const r of rows) if (want.has(r.tag)) { pts++; ev.push({who: a, role, ...r}); }
     }
     const names = Object.values(g.cast);
-    for (const c of (D.comboTags[work] || [])) if (names.includes(c.a) && names.includes(c.b) && want.has(c.tag)) { pts++; ev.push({who: `${c.a}×${c.b}`, role: "조합", ...c}); }
+    for (const c of (D.comboTags[work] || [])) if (names.includes(c.a) && names.includes(c.b) && want.has(c.tag)) { pts++; ev.push({...c, who: `${c.a}×${c.b}`, role: "조합"}); }
     g.shows.sort((x, y) => (x.date + x.time).localeCompare(y.date + y.time));
     ranked.push({...g, pts, known, ev, unknown});
   }
@@ -1179,7 +1179,7 @@ const wrongOf = (S, work) => S.proto?.wrong?.[work] || [];  // 사용자가 '설
 const comboEvidence = (D, prefs, work, cast, skip = []) => {
   const want = wantOf(D, prefs), lead = leadsOf(D, work, cast).filter(([, a]) => !skip.includes(a)), ev = [], names = lead.map(([, a]) => a);
   for (const [r, a] of lead) for (const x of tagsOfActor(D, work, a)) if (want.has(x.tag)) ev.push({who: a, role: r, ...x});
-  for (const c of (D.comboTags[work] || [])) if (names.includes(c.a) && names.includes(c.b) && want.has(c.tag) && !isOfficial(c)) ev.push({who: `${c.a}×${c.b}`, role: "조합", ...c});
+  for (const c of (D.comboTags[work] || [])) if (names.includes(c.a) && names.includes(c.b) && want.has(c.tag) && !isOfficial(c)) ev.push({...c, who: `${c.a}×${c.b}`, role: "조합"});
   const hit = new Set(ev.flatMap(e => (prefs || []).filter(p => (D.axis[p] || [p]).includes(e.tag)).map(p => e.who + "|" + p))).size;
   const oppBy = {};
   for (const p of prefs || []) for (const x of D.axes) if (x.left !== "가창" && (x.left === p || x.right === p)) oppBy[p] = new Set((D.axis[x.left === p ? x.right : x.left] || []).filter(t => !want.has(t)));

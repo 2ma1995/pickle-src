@@ -32,10 +32,12 @@ from datetime import date
 from pathlib import Path
 
 DATA = Path(__file__).parent / "data"
-TAGS = DATA / "tag_records_2026-10-06.tsv"       # 태그 기록 탭 (헤더 있어도 되고 없어도 됨)
-DICT = DATA / "tag_dict_2026-10-06.tsv"          # 태그 사전 탭 (헤더 있음). 취향 버튼 연결·태그 설명·다른 작품 대체 범위를 여기서 읽는다
-SCHED = DATA / "casting_schedule_2026-10-02.tsv"  # 회차 캐스팅 탭 (헤더 있음)
-ROLES = DATA / "roles_2026-10-02.tsv"             # 배역 탭 (헤더 있음)
+# 2026-10-27부터 MVP 5개 작품(엘리자벳·겨울왕국·레베카·스위니토드·시카고): 태그·사전·배역은 MVP 캐스트 태깅 시트에서 만든다
+# (node tools/mvp/sheet_to_evidence.js → data/mvp/). 예전 표(tag_records_2026-10-06.tsv 등)는 기록용으로 남겨 둔다
+TAGS = DATA / "mvp" / "evidence_long.tsv"        # 근거 1건 × 태그 1개 = 1행 (헤더 있음, 앞 17열이 TAG_COLS)
+DICT = DATA / "mvp" / "tag_dict.tsv"             # 태그 사전 탭 (헤더 있음). 취향 버튼 연결·태그 설명·다른 작품 대체 범위를 여기서 읽는다
+SCHED = DATA / "casting_schedule_2026-10-02.tsv"  # 회차 캐스팅 (data/schedules/*.tsv 를 --build 로 펼친 것, 헤더 있음)
+ROLES = DATA / "mvp" / "roles.tsv"               # 배역 탭 (헤더 있음)
 
 # 설문 양극 척도 5개 = 앱 취향 버튼 5쌍: (사전 '연결 취향축' 문구, 왼쪽 키, 오른쪽 키, 왼쪽 버튼, 오른쪽 버튼, 묶음 제목)
 AXES = [
@@ -371,29 +373,18 @@ def card(work, lo, hi, prefs, ranked, weights, pin=None, top=2):
 
 # 가안 앱(app/index.html)에 넣을 데이터. 시드 작품 메타는 여기에만 있다.
 # 한 작품이 서울·지방처럼 여러 '공연(run)'으로 돌 수 있어서 공연 단위로 적는다. 회차는 날짜가 어느 공연 기간에 들어가는지로 묶인다.
+# 2026-10-27 MVP 5개 작품으로 줄임(디어 에반 핸슨·렛미플라이·광화문연가·드라큘라·사의찬미·빨래·팬레터는 뺌. 회차표·포스터 원본은 git 기록에 남아 있다)
 RUNS = [  # (작품, 공연 이름, 공연장, 시작, 끝, 예매 링크, 강조색, 등급별 정가(원, 할인 전))
     ("엘리자벳", "서울", "블루스퀘어 우리은행홀", "2026-08-16", "2026-11-15", "https://nol.yanolja.com/ticket/products/26009314", "#5A2A85",
      [("VIP석", 180000), ("R석", 150000), ("S석", 120000), ("A석", 90000)]),
     ("겨울왕국", "서울", "샤롯데씨어터", "2026-08-13", "2027-03-01", "https://nol.yanolja.com/ticket/products/26007416", "#1F6DB5",
      [("VIP석", 190000), ("R석", 160000), ("S석", 130000), ("A석", 90000)]),
-    ("디어 에반 핸슨", "서울", "충무아트센터 대극장", "2026-08-01", "2026-11-01", "https://nol.yanolja.com/ticket/products/26007442", "#2F7FC1",
-     [("VIP석", 160000), ("R석", 130000), ("S석", 100000), ("A석", 70000)]),
-    ("렛미플라이", "서울", "두산아트센터 연강홀", "2026-10-06", "2027-01-03", "https://www.doosanartcenter.com/ko/performance/1686", "#C96A1F",
-     [("R석", 88000), ("S석", 66000)]),
-    ("광화문연가", "서울", "디큐브 링크아트센터", "2026-09-06", "2026-11-15", "https://nol.yanolja.com/ticket/products/26009625", "#B3432C",
-     [("VIP석", 160000), ("R석", 140000), ("S석", 110000), ("A석", 80000)]),
-    ("드라큘라", "서울", "LG아트센터 서울", "2026-07-10", "2026-10-18", "https://nol.yanolja.com/ticket/products/L0000142", "#8E1B2A",
-     [("OP석", 180000), ("VIP석", 180000), ("R석", 150000), ("S석", 110000), ("A석", 80000)]),
-    ("드라큘라", "대구", "계명아트센터", "2026-10-27", "2026-11-01", "", "#8E1B2A",
-     [("VIP석", 180000), ("R석", 150000), ("S석", 110000), ("A석", 80000)]),
-    ("사의찬미", "서울 · 2ND STAGE", "링크아트센터 페이코홀", "2026-09-08", "2026-10-25", "", "#2B3F6E",
-     [("R석", 77000), ("S석", 66000), ("A석", 55000)]),
-    ("빨래", "서울", "유니플렉스 2관", "2026-06-11", "2027-02-21", "", "#3F8FB5",
-     [("R석", 77000), ("S석", 55000), ("시야제한석", 20000)]),
+    ("레베카", "서울", "충무아트센터 대극장", "2026-11-24", "2027-03-14", "https://nol.yanolja.com/ticket/products/26013993", "#2F4A45",
+     [("VIP석", 180000), ("R석", 150000), ("S석", 120000), ("A석", 90000)]),  # NOL 상품 상세(2026-10-27 확인, 기간별 가격 다를 수 있음 안내)
+    ("스위니토드", "서울", "디큐브 링크아트센터", "2026-12-04", "2027-05-02", "https://nol.yanolja.com/ticket/products/26014509", "#7A1F1F",
+     [("VIP석", 180000), ("R석", 150000), ("S석", 110000), ("A석", 80000)]),  # NOL 상품 상세(2026-10-27 확인)
     ("시카고", "서울", "LG아트센터 서울", "2026-12-05", "2027-03-14", "https://www.ticketlink.co.kr/product/49613", "#9A7A1F",
      [("OP석", 170000), ("VIP석", 170000), ("시카고석", 160000), ("R석", 150000), ("S석", 110000), ("A석", 80000)]),
-    ("팬레터", "인천", "인천문화예술회관 대공연장", "2026-11-21", "2026-11-22", "https://nol.yanolja.com/ticket/products/26011840", "#6B4F3A",
-     [("R석", 110000), ("S석", 99000), ("A석", 77000), ("B석", 66000)]),
 ]
 # 공연장 좌석 배치도 링크(2026-10-03 확인). 공식 페이지가 우선이고, 없으면 더뮤지컬 공연장 정보로 대신한다.
 SEATMAPS = {
@@ -654,20 +645,22 @@ def link_work_tags(work_tags, seed, titles, known=()):
 
 def export_js(path, track=True, env_get=None):
     actor_tags, combo_tags, _ = load_tags()
-    perfs = load_schedule()
+    seed = {x[0] for x in RUNS}
+    perfs = {k: p for k, p in load_schedule().items() if k[0] in seed}
     roles = defaultdict(list)
     for r in csv.DictReader(open(ROLES, encoding="utf-8"), delimiter="\t"):
+        if r["작품"] not in seed:
+            continue
         roles[r["작품"]].append({"role": r["배역"], "weight": r["비중"], "cast": [a.strip() for a in r["캐스트 배우"].split(",")]})
     # 태그 행: 근거 문장(why)·출처 이름(src)·링크·회차는 data.js 에 싣지 않는다(공개 파일, 2026-10-13 사용자 지시 '근거를 사용자들이 못 보게'). 추천 계산에 쓰는 level 과 같은 출처를 세는 sk 만 남긴다
     row = lambda r: {"role": r[C_ROLE], "tag": r[C_TAG], "season": r[C_SEASON], "level": lvl(r), "sk": source_key(r)}
     at = defaultdict(dict)
-    seed = {x[0] for x in RUNS}
     for (w, a), rows in actor_tags.items():
         if w in seed:  # 다른 작품 리뷰 행은 시드 작품 배우 칸에 'from'을 달고 들어간다
             at[w][a] = [{**row(r), **({"from": r[C_WORK]} if r[C_WORK] != w else {})} for r in rows]
     ct = defaultdict(list)
     for (w, pair), rows in combo_tags.items():
-        for r in rows:
+        for r in (rows if w in seed else []):
             ct[w].append({"a": r[C_ACTOR], "b": r[C_PARTNER], **row(r)})
     works = {}
     for w, label, venue, start, end, ticket, accent, prices in RUNS:
@@ -760,8 +753,11 @@ def build_schedule():
     roles = {(r["작품"], r["배역"]): {a.strip() for a in r["캐스트 배우"].split(",")} for r in csv.DictReader(open(ROLES, encoding="utf-8"), delimiter="\t")}
     swing = {"디어 에반 핸슨": {"김영훈", "새봄", "박건우", "손설빈"}}
     out, bad = [], []
+    seed = {w for w, *_ in runs}
     for f in sorted(glob.glob(str(DATA / "schedules" / "*.tsv"))):
         work = Path(f).name.rsplit("_", 1)[0]
+        if work not in seed:  # MVP 밖 작품의 회차표는 파일만 남기고 앱 데이터에는 안 넣는다
+            continue
         src, header = "", None
         for line in open(f, encoding="utf-8"):
             line = line.rstrip("\n")
@@ -861,7 +857,7 @@ def selftest():
     finally:
         tag_rows = real_rows
     real_prof = load_actor_profiles()
-    assert "성량" in [x["tag"] for x in real_prof["최재림"]["voice"]] and not any(r["level"] == "제작진·공식" for p in real_prof.values() for k in ("voice", "role") for r in p[k]) and not any(r["level"] in OFFICIAL for p in real_prof.values() for r in p["voice"]), "최재림 시카고 성량이 있고, 제작진 공식 행과 배우 본인의 목소리 행은 프로필에 없다"
+    assert "성량" in [x["tag"] for x in real_prof["정선아"]["voice"]] and not any(r["level"] == "제작진·공식" for p in real_prof.values() for k in ("voice", "role") for r in p[k]) and not any(r["level"] in OFFICIAL for p in real_prof.values() for r in p["voice"]), "정선아 겨울왕국 성량이 있고, 제작진 공식 행과 배우 본인의 목소리 행은 프로필에 없다"
     assert all(x["tag"] in VOICE for p in real_prof.values() for x in p["voice"]) and not any(x["tag"] in VOICE for p in real_prof.values() for x in p["role"]), "목소리/나머지 구분이 사전 하위 영역과 같다"
     assert VOICE_AXIS["맑음"] == VOICE_AXIS["허스키"] == "음색" and VOICE_AXIS["성량"] == "성량", VOICE_AXIS
     # 작품 태그: 대상 유형 '작품'·확정만, 대분류(열)가 같이 나간다. 배우 점수에는 안 섞인다
@@ -925,7 +921,8 @@ def selftest():
     known = load_known_titles()
     assert "경고: 작품 태그의 작품 '" + first + "?'" in out.getvalue() and {w for w in real if w in {x[0] for x in RUNS}} <= set(exp["workTags"]), "이름이 다른 작품 태그는 경고, 시드 작품 태그는 그대로"
     assert not any(f"작품 '{w}'" in out.getvalue() for w in real if w in known), "최근 KOPIS 파일에 나온(끝난 공연 포함) 이름의 작품 태그는 경고하지 않는다(실제 시트의 끝난 공연 포함)"
-    assert any(w == "사의찬미" and "2ND STAGE" in label for w, label, *_ in RUNS), "지금 하는 사의찬미는 2ND STAGE(9/8~10/25), 끝난 1ST STAGE(6/16~9/6)와 헷갈리지 않게 공연 이름에 적는다"
+    assert {w for w, *_ in RUNS} == {"엘리자벳", "겨울왕국", "레베카", "스위니토드", "시카고"}, "MVP 5개 작품(2026-10-27)"
+    assert {w for w in exp["roles"]} == {w for w, *_ in RUNS} and {p["work"] for p in exp["perfs"]} <= {w for w, *_ in RUNS}, "앱 데이터의 배역·회차는 MVP 작품만"
     # KOPIS 현재 공연 → 앱 데이터: 시드(제목이 RUNS와 맞는 공연)·관람 연령 만 18세 이상·이미 끝난 공연은 빠지고, 출연진 없는 공연은 noCast 로 남고, 출연진은 7명까지, 포스터·링크는 https
     import tempfile
     head = ["mt20id", "작품", "공연장", "시작", "끝", "상태", "출연진", "포스터URL", "관람연령", "러닝타임", "공연시간", "예매처링크", "시드작품", "시드공연일치"]
