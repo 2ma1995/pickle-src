@@ -53,6 +53,29 @@ resetCombo(S, W); eq(top(S).length, 3, "되돌리기");
 // 본 조합 제외
 S = fresh({plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1", B: "b1", C: "c1"}, tagged: true}]});
 eq(top(S), ["a2+b1", "a1+b2"], "이미 본 조합은 뺀다");
+// 취향폼 1/3: 반드시 볼 배우(must)는 ⭐처럼, 피하고 싶은 배우(avoid)는 조연이어도 그 회차를 뺀다
+const withP = p => fresh({prefs: {axes: ["강한 성량"], works: [], favs: [], grade: "", ...p}});
+eq(top(withP({favs: ["a2"], must: ["a2"]})), ["a2+b1"], "반드시 포함 a2: a2 가 나오는 조합만(근거 없는 a2+b2 는 원래대로 빠진다)");
+eq(top(withP({favs: ["a2"]})), ["a1+b1", "a2+b1", "a1+b2"], "가능하면 포함(must 아님)은 거르지 않는다");
+eq(top(withP({must: ["없는배우"]})), ["a1+b1", "a2+b1", "a1+b2"], "이 작품에 안 나오는 반드시 배우는 이 작품을 거르지 않는다");
+eq(top(withP({avoid: ["b1"]})), ["a1+b2"], "피하고 싶은 주연 b1: b1 회차를 뺀다");
+eq(top(withP({avoid: ["c1"]})), [], "피하고 싶은 조연 c1: 모든 회차에 나와서 추천이 없다");
+eq(top(withP({avoid: []})), ["a1+b1", "a2+b1", "a1+b2"], "빈 목록은 아무것도 안 뺀다");
+// ① 우선순위 가중치: 1순위 영역(노래=음색·가창 질문, 연기=연기·해석 질문)의 태그는 (배우, 취향) 쌍마다 2점
+const D2 = JSON.parse(JSON.stringify(D)); D2.actorTags[W] = {a1: [{tag: "성량", src: "x"}], b1: [{tag: "성량", src: "x"}], a2: [{tag: "코믹 연기", src: "x"}], b2: [{tag: "코믹 연기", src: "x"}], c1: []};
+const scores = (Dx, p) => Object.fromEntries(comboRecs(Dx, fresh({prefs: {works: [], favs: [], grade: "", ...p}}), W, FROM).map(c => [Object.values(c.cast).join("+"), c.score]));
+const pk = ["tag:성량", "tag:코믹 연기"];
+eq(scores(D2, {axes: pk}), {"a1+b1": 2, "a1+b2": 2, "a2+b1": 2, "a2+b2": 2}, "우선순위가 없으면 쌍마다 1점");
+eq(scores(D2, {axes: pk, prio: "고루"}), {"a1+b1": 2, "a1+b2": 2, "a2+b1": 2, "a2+b2": 2}, "골고루도 1점");
+eq(scores(D2, {axes: pk, prio: "노래"}), {"a1+b1": 4, "a1+b2": 3, "a2+b1": 3, "a2+b2": 2}, "노래 1순위: 성량 쌍만 2점");
+eq(scores(D2, {axes: pk, prio: "연기"}), {"a1+b1": 2, "a1+b2": 3, "a2+b1": 3, "a2+b2": 4}, "연기 1순위: 코믹 연기 쌍만 2점");
+eq(comboRecs(D2, fresh({prefs: {axes: pk, prio: "연기", works: [], favs: []}}), W, FROM).map(c => Object.values(c.cast).join("+"))[0], "a2+b2", "가중치가 순서를 바꾼다");
+// 취향 키 tag: 는 그 태그 하나만(5축 키 '강한 성량'은 축의 태그 전부)
+eq(scores(D, {axes: ["tag:감정 전달형"]}), {"a1+b2": 1, "a2+b2": 1}, "tag: 키는 그 태그만 맞춘다");
+// 배역 싱크로: 묻지 않는 기본 가산점(배우마다 0.5). 취향 근거가 있는 조합에만 붙고, 이것만으로는 추천하지 않는다
+const D3 = JSON.parse(JSON.stringify(D)); D3.actorTags[W].a2 = [{tag: "배역 싱크로", src: "x"}]; D3.actorTags[W].b2 = [{tag: "배역 싱크로", src: "x"}];
+eq(scores(D3, {axes: ["tag:성량"]}), {"a1+b1": 2, "a2+b1": 1.5, "a1+b2": 1.5}, "싱크로 배우가 있으면 +0.5, 성량 근거가 없는 a2+b2 는 싱크로 둘이어도 빠진다");
+eq(comboRecs(D3, fresh({prefs: {axes: ["tag:성량"], works: [], favs: []}, proto: {wrong: {[W]: ["b2"]}}}), W, FROM).find(c => c.cast.B === "b2" && c.cast.A === "a1").score, 1, "'설명이 틀렸어요'로 뺀 배우의 싱크로는 안 센다");
 
 // ---- 평가 칩 초안: 점수에 따라 방향이 바뀐다
 eq([chipDirs(5), chipDirs(4), chipDirs(3), chipDirs(2), chipDirs(1), chipDirs(0)], [["+"], ["+"], ["+", "-"], ["-"], ["-"], []], "4~5 +, 1~2 −, 3 둘 다");
@@ -802,6 +825,45 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const spec9 = fs.readFileSync(path.join(__dirname, "../docs/data_spec_combo_fit_2026-10-10.md"), "utf8"), draft9 = fs.readFileSync(path.join(__dirname, "../docs/privacy_notice_draft_2026-10-10.md"), "utf8");
     ok(/### 6\. `video_reaction`/.test(spec9) && /event in \([^)]*'video_reaction'[^)]*\)/.test(spec9) && /막지 프로젝트의 `public\.events`/.test(spec9) && /서울 리전에 저장/.test(spec9) && /실행 완료/.test(spec9), "정의서: video_reaction·체크 목록·막지 프로젝트 public.events·서울 리전·SQL 실행 완료");
     ok(/영상 반응/.test(draft9) && /서울 리전\(ap-northeast-2\)/.test(draft9) && /문의처 없이 켬\(사용자 결정, 2026-10-13\)/.test(draft9) && !/\[문의처: 사용자 확인 필요\]/.test(draft9), "안내문 초안: 영상 반응·서울 리전, '문의처 없이 켬(사용자 결정, 2026-10-13)'");
+    // ===== 취향폼 개편(2026-10-27): 1/3 배우(반드시·가능하면·피하고 싶은 배우) · 3/3 우선순위 + 질문(2개까지) =====
+    {
+      const D9o = JSON.parse(JSON.stringify(D9)); D9o.actorProfiles = {...(D9o.actorProfiles || {}), "프로필만": {voice: [], role: [{tag: "관계 중심", work: "x"}, {tag: "춤·안무 표현", work: "x"}]}};  // 선택 질문(해석·움직임)에 근거가 있게
+      const aO = loadApp(D9o, {...opts3, hash: "#taste/1", storage: {pickle_v2: JSON.stringify({prefs: null, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aO.route();
+      const v1 = aO.q("#view").innerHTML;
+      ok(/보고 싶은 배우가 있나요\?/.test(v1) && /취향 고르기 1\/3/.test(v1) && /피하고 싶은 배우/.test(v1), "1/3 은 배우 단계(보고 싶은·피하고 싶은 배우)");
+      aO.q("#fav").value = "a1"; aO.click({act: "addFav"});
+      ok(/반드시 포함/.test(aO.q("#view").innerHTML) && /가능하면 포함/.test(aO.q("#view").innerHTML), "추가한 배우마다 반드시/가능하면 포함");
+      aO.click({act: "obMust", a: "a1", m: "1"}); eq(aO.S.prefs.must, ["a1"], "반드시 포함");
+      aO.click({act: "obMust", a: "a1", m: ""}); eq(aO.S.prefs.must, [], "가능하면 포함으로 되돌림");
+      aO.click({act: "obMust", a: "a1", m: "1"}); aO.q("#avoidIn").value = "a1"; aO.click({act: "addAvoid"});
+      ok(!aO.S.prefs.favs.includes("a1") && !aO.S.prefs.must.includes("a1") && aO.S.prefs.avoid.includes("a1"), "피하고 싶은 배우로 옮기면 보고 싶은 배우·반드시에서 빠진다");
+      aO.q("#fav").value = "a1"; aO.click({act: "addFav"}); ok(aO.S.prefs.favs.includes("a1") && !aO.S.prefs.avoid.includes("a1"), "다시 보고 싶은 배우로 넣으면 피하고 싶은 배우에서 빠진다");
+      aO.click({act: "obMust", a: "a1", m: "1"}); aO.click({act: "rmFav", a: "a1"}); ok(!aO.S.prefs.must.includes("a1"), "보고 싶은 배우에서 빼면 반드시도 풀린다");
+      aO.q("#avoidIn").value = "b1"; aO.click({act: "addAvoid"}); aO.click({act: "rmAvoid", a: "b1"}); eq(aO.S.prefs.avoid, [], "피하고 싶은 배우 빼기");
+      aO.location.hash = "#taste/3"; aO.route(); const v3 = aO.q("#view").innerHTML;
+      ok(/이번 관람에서 무엇을 기대하나요\?/.test(v3) && /가장 기대하는 것은/.test(v3) && /어떤 목소리에 더 끌리나요\?/.test(v3) && /노래를 들을 때/.test(v3) && /어떤 감정 표현에/.test(v3), "3/3 은 우선순위 + 필수 질문 셋");
+      ok(/선명하고 쨍한/.test(v3) && /유쾌하고 코믹한/.test(v3) && !/날카로운/.test(v3), "선택지: 선명하고 쨍한(날카로운 아님)·코믹 연기");
+      aO.click({act: "obPrio", v: "노래"}); eq(aO.S.prefs.prio, "노래", "우선순위 하나");
+      aO.click({act: "obPrio", v: "연기"}); eq(aO.S.prefs.prio, "연기", "다른 걸 누르면 바뀐다");
+      aO.click({act: "obPrio", v: "연기"}); eq(aO.S.prefs.prio, "", "다시 누르면 풀린다");
+      aO.click({act: "obPick", q: "tone", t: "맑음"}); aO.click({act: "obPick", q: "tone", t: "허스키"}); aO.click({act: "obPick", q: "tone", t: "부드러움"});
+      eq(aO.S.prefs.axes, ["tag:맑음", "tag:허스키"], "한 질문에 2개까지(3번째는 안 들어간다)");
+      aO.click({act: "obPick", q: "sing", t: "성량"}); eq(aO.S.prefs.axes, ["tag:맑음", "tag:허스키", "tag:성량"], "다른 질문은 따로 센다");
+      aO.click({act: "obPick", q: "tone", t: ""}); eq(aO.S.prefs.axes, ["tag:성량"], "상관없어요는 그 질문만 비운다");
+      ok(/class="chip on"[^>]*data-t="성량"/.test(aO.q("#view").innerHTML), "고른 선택지가 켜져 보인다");
+      ok(/data-act="obGo" data-to="4">추천 보러 가기/.test(aO.q("#view").innerHTML), "하나라도 고르면 '추천 보러 가기'");
+      const st = JSON.parse(aO.store.get("pickle_v2")).prefs; ok(st.prio === "" && st.axes.join() === "tag:성량", "고른 즉시 저장된다");
+      const hasQ = re => re.test(aO.q("#view").innerHTML);
+      ok(hasQ(/data-act="obMore"/) && !hasQ(/움직임에서는/) && !hasQ(/인물을 어떤 방식으로/), "선택 질문은 처음엔 접혀 있다");
+      aO.click({act: "obMore"}); ok(!hasQ(/data-act="obMore"/) && hasQ(/인물을 어떤 방식으로/), "'조금 더 골라 보기'를 누르면 펼쳐진다");
+      aO.click({act: "obPrio", v: "노래"}); ok(hasQ(/인물을 어떤 방식으로/), "다른 칩을 눌러 화면을 다시 그려도 펼친 채로 남는다");
+      const aM = loadApp(D9o, {...opts3, hash: "#taste/3", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: [], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aM.route();
+      const body = () => /움직임에서는/.test(aM.q("#view").innerHTML), hasBodyData = /움직임에서는/.test((aM.click({act: "obMore"}), aM.q("#view").innerHTML));
+      ok(hasBodyData, "근거가 있는 움직임 질문은 펼치면 보인다");
+      if (hasBodyData) { const aM2 = loadApp(D9o, {...opts3, hash: "#taste/3", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: [], grade: "", prio: "몸"}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aM2.route();
+        ok(/움직임에서는/.test(aM2.q("#view").innerHTML), "춤·몸짓을 1순위로 고르면 움직임 질문은 접지 않고 바로 보인다"); }
+      else ok(!body(), "움직임 근거가 하나도 없는 데이터에선 움직임 질문을 숨긴다");
+    }
     // ===== taste_snapshot: 취향폼을 저장하거나 고칠 때 =====
     const mkT = (hash = "#taste/3") => { const a = loadApp(D9, {...opts3, hash, storage: {pickle_v2: JSON.stringify({prefs: null, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); a.route(); return a; };
     const aT = mkT(), snEv = () => aT.TRK.queue().filter(q => q.event === "taste_snapshot").map(q => q.payload);
@@ -1126,7 +1188,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         ok(/관람 기록 남기기/.test(scrP["#plans"]) && /관람 기록 남기기|관람 기록/.test(scrP["#tag/1"]) && /오늘 공연 어땠어요\?/.test(scrP["#tag/1"]) && /인상 깊었던 배우/.test(scrP["#tag/1"]) && !/가장 인상/.test(scrP["#tag/1"]), "보고 난 뒤 기록은 '관람 기록 남기기'로 통일, 높임말 통일('어땠어요?'), '가장 인상 깊었던' → '인상 깊었던'");
         const tg = bootT(undefined); tg.location.hash = "#tag/1"; tg.V.tag("1"); tg.click({act: "tActor", a: Object.values(past[1].cast)[0], r: Object.keys(past[1].cast)[0]}); const tgH = tg.V.tag("1");
         ok(/내 취향에 가까웠던 쪽/.test(tgH) && /다음 추천에 반영돼요/.test(tgH) && !/더 좋았던 쪽|비교 카드|PICK CAST/.test(tgH), "같은 배역 비교 안내(배우를 고르면 나오는 카드): '더 좋았던 쪽' → '내 취향에 가까웠던 쪽'");
-        ok(/취향 고르기 1\/3/.test(scrP["#taste/1"]) && /다음 뮤지컬 찾기/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "영어 장식 문구(STEP·FIND YOUR NEXT MUSICAL)는 한국어로, '우열' 문장은 '평가하지 않고 … 특징만'");
+        ok(/취향 고르기 1\/3/.test(scrP["#taste/1"]) && /다음 뮤지컬 찾기/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/3"]), "영어 장식 문구(STEP·FIND YOUR NEXT MUSICAL)는 한국어로, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
         ok(/추천은 근거가 있는 것만 보여 드려요\./.test(scrP["#home"]) && !/점수·순위/.test(scrP["#home"]), "홈 맨 아래: 점수·순위 말 없이 한 줄, 출처는 따로 한 줄");
         ok(/진한 날에 이 조합이 나와요\. ★는 첫공·막공이에요\./.test(scrP["#show/" + W0 + "(날짜)"]) && /공식 캐스팅 일정이라 바뀔 수 있어요\./.test(scrP["#show/" + W0 + "(날짜)"]), "달력 아래 안내는 두 줄로 나눠 읽기 쉽게");

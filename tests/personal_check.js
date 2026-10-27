@@ -3,8 +3,8 @@
 const fs = require("fs"), path = require("path"), assert = require("assert");
 const html = fs.readFileSync(path.join(__dirname, "../app/index.html"), "utf8");
 const block = name => { const m = html.match(new RegExp("// <" + name + ">([\\s\\S]*?)// </" + name + ">")); assert(m, "app/index.html 에 <" + name + "> 블록이 없다"); return m[1]; };
-const {personalWeights: pw, personalCounts: pc, suggestTags: suggest, opinionDist, voiceSplit, mergeTags, isOfficial, TASTE_CARDS, MUSIC_CARDS, TASTE_AXES, toggleCard, toggleAxis, cardHit, likeWorks, actorChips, followBase, hasTaste, similarWorks, traitsOf, similarTo, knownActor, addRequest, eul, roleRows, isPrivate, runningLeads, liveShows, minAge} =
-  new Function(block("personal-weights") + block("taste-first") + "; return {personalWeights, personalCounts, suggestTags, opinionDist, voiceSplit, mergeTags, isOfficial, TASTE_CARDS, MUSIC_CARDS, TASTE_AXES, toggleCard, toggleAxis, cardHit, likeWorks, actorChips, followBase, hasTaste, similarWorks, traitsOf, similarTo, knownActor, addRequest, eul, roleRows, isPrivate, runningLeads, liveShows, minAge};")();
+const {personalWeights: pw, personalCounts: pc, suggestTags: suggest, opinionDist, voiceSplit, mergeTags, isOfficial, TASTE_CARDS, MUSIC_CARDS, TASTE_AXES, toggleCard, toggleAxis, cardHit, likeWorks, actorChips, followBase, hasTaste, similarWorks, traitsOf, similarTo, knownActor, addRequest, eul, roleRows, isPrivate, runningLeads, liveShows, minAge, ONBOARD_QS, togglePick, prefWeight, prefT, prefLabel, tagCounts} =
+  new Function(block("personal-weights") + block("taste-first") + "; return {personalWeights, personalCounts, suggestTags, opinionDist, voiceSplit, mergeTags, isOfficial, TASTE_CARDS, MUSIC_CARDS, TASTE_AXES, toggleCard, toggleAxis, cardHit, likeWorks, actorChips, followBase, hasTaste, similarWorks, traitsOf, similarTo, knownActor, addRequest, eul, roleRows, isPrivate, runningLeads, liveShows, minAge, ONBOARD_QS, togglePick, prefWeight, prefT, prefLabel, tagCounts};")();
 
 const W = "작품X", cast = {A역: "a1", B역: "b1", 조연역: "s1"};
 const D = {
@@ -418,5 +418,22 @@ const cmpOrder = D2 => sim("무명코믹팬3", ["코믹 연기"], "2026-10-01", 
 assert.deepStrictEqual(cmpOrder(Dcmp), ["시카고", "엘리자벳", "겨울왕국"], "본인 해석만 있는 겨울왕국은 관객 근거 1개인 엘리자벳·시카고보다 약하게 반영(순서만, 둘은 같은 점수라 이름순)");
 const Dno = clone(Dcmp); Dno.actorProfiles["본인만"] = {voice: [], role: []};
 assert.deepStrictEqual(cmpOrder(Dno), ["시카고", "엘리자벳"], "본인 해석이 없으면 그 후보는 아예 겹치지 않는다(본인 해석이 특징 비교에 들어간다는 뜻)");
+
+// 취향 질문(3/3): 질문마다 2개까지, 상관없어요는 그 질문만 비운다. 취향 키는 tag: 접두어라 5축 키('묵직한 음색' = 허스키+묵직)와 안 겹친다
+const qTone = ONBOARD_QS.find(q => q.id === "tone"), qSing = ONBOARD_QS.find(q => q.id === "sing");
+assert.deepStrictEqual(togglePick([], qTone, "맑음"), ["tag:맑음"]);
+assert.strictEqual(togglePick(["tag:맑음", "tag:허스키"], qTone, "부드러움"), null, "한 질문에서 3번째는 안 된다");
+assert.deepStrictEqual(togglePick(["tag:맑음", "tag:허스키", "tag:성량"], qTone, ""), ["tag:성량"], "상관없어요는 그 질문만 비운다");
+assert.deepStrictEqual(togglePick(["tag:맑음"], qTone, "맑음"), [], "다시 누르면 풀림");
+assert.deepStrictEqual(togglePick(["tag:맑음", "tag:허스키"], qSing, "성량"), ["tag:맑음", "tag:허스키", "tag:성량"], "다른 질문은 따로 센다");
+assert.deepStrictEqual(prefT({axis: {"묵직한 음색": ["허스키", "묵직한 음색"]}}, "tag:묵직한 음색"), ["묵직한 음색"]);
+assert.deepStrictEqual(prefT({axis: {"묵직한 음색": ["허스키", "묵직한 음색"]}}, "묵직한 음색"), ["허스키", "묵직한 음색"], "예전 5축 키는 그대로");
+assert.strictEqual(prefLabel("tag:선명하고 쨍한 음색"), "선명하고 쨍한");
+// ① 우선순위: 1순위 영역 질문의 태그만 2배
+assert.strictEqual(prefWeight("노래", "tag:성량"), 2); assert.strictEqual(prefWeight("연기", "tag:성량"), 1);
+assert.strictEqual(prefWeight("연기", "tag:관계 중심"), 2); assert.strictEqual(prefWeight("고루", "tag:성량"), 1); assert.strictEqual(prefWeight("노래", "강한 성량"), 1, "예전 5축 키는 1");
+assert.strictEqual(prefWeight("노래", "tag:음색·보컬 조화"), 1, "조합 질문은 영역이 없다");
+assert.deepStrictEqual(tagCounts({actorProfiles: {a: {voice: [{tag: "성량"}], role: [{tag: "관계 중심"}]}, b: {voice: [{tag: "성량"}], role: []}}, comboTags: {W: [{tag: "대비 시너지"}]}}), {"성량": 2, "관계 중심": 1, "대비 시너지": 1});
+for (const q of ONBOARD_QS) for (const [l, t] of q.opts) assert.ok(l && t && !t.startsWith("tag:"), "선택지는 [보이는 말, 태그]");
 
 console.log("personal ok");
