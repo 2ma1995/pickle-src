@@ -586,6 +586,7 @@ const V = {};
 // 첫 화면 3단계 '취향 먼저': 1/3 보고 싶은 배우 · 2/3 어떤 공연이 끌려요? · 3/3 취향 질문. 고르는 즉시 S.prefs 에 저장해서(중간에 나가도 남는다) 단계마다 '건너뛰기'가 있고, 내 취향에서 다시 연다.
 // S.prefs = {works: [카드 id], axes: [취향 키], prio, favs: [배우], must: [반드시 볼 배우(favs 안)], avoid: [피하고 싶은 배우], grade}. 처음 온 사람(S.prefs 없음)에게만 자동으로 보인다.
 const prefsOf = () => { const p = (S.prefs ||= {axes: [], grade: "", favs: []}); p.works ||= []; p.axes ||= []; p.favs ||= []; return p; };  // must·avoid 는 쓸 때만 생긴다(예전 저장 값을 그대로 두려고)
+let OB_MORE = false;  // 3/3 '조금 더 골라 보기'를 펼쳤는지(화면을 다시 그려도 펼친 채로 둔다. 저장은 안 한다)
 const onboardBody = step => {
   const n = ["1", "2", "3"].includes(step) ? +step : 1, p = S.prefs || {}, ids = p.works || [], axes = p.axes || [], favs = p.favs || [], must = p.must || [], avoid = p.avoid || [];
   const nav = `<div class="obg">${[favs.length + avoid.length, ids.length, axes.length + (p.prio ? 1 : 0)][n - 1] ? `<button class="btn" data-act="obGo" data-to="${n + 1}">${n < 3 ? "다음" : "추천 보러 가기"}</button>` : ""}<button class="btn ghost" data-act="obGo" data-to="${n + 1}">건너뛰기</button></div>`;
@@ -602,7 +603,7 @@ const onboardBody = step => {
   if (n === 3) {
     const cnt = tagCounts(D), on = t => axes.includes(tagKey(t));
     const qCard = (q, onlyData) => { const opts = onlyData ? q.opts.filter(o => cnt[o[1]]) : q.opts;
-      return `<div class="card"><h3>${esc(q.q)} <span class="small muted">${PICK_MAX}개까지</span></h3><div class="chips">${opts.map(([l, t]) => `<button class="chip ${on(t) ? "on" : ""}" data-act="obPick" data-q="${q.id}" data-t="${esc(t)}" aria-pressed="${on(t)}">${esc(l)}${cnt[t] ? "" : ` <span class="tiny muted">· 아직 데이터 없음</span>`}</button>`).join("")}
+      return `<div class="card"><h3>${esc(q.q)} <span class="small muted" style="white-space:nowrap">${PICK_MAX}개까지</span></h3><div class="chips">${opts.map(([l, t]) => `<button class="chip ${on(t) ? "on" : ""}" data-act="obPick" data-q="${q.id}" data-t="${esc(t)}" aria-pressed="${on(t)}">${esc(l)}${cnt[t] ? "" : ` <span class="tiny muted">· 아직 데이터 없음</span>`}</button>`).join("")}
         <button class="chip x ${q.opts.some(o => on(o[1])) ? "" : "on"}" data-act="obPick" data-q="${q.id}" data-t="">상관없어요</button></div></div>`; };
     // 선택 질문은 근거가 있는 선택지만, 하나도 없으면 질문째 숨긴다. ①에서 춤·몸짓을 골랐으면 움직임 질문은 접지 않고 바로 보인다
     const extra = ONBOARD_QS.filter(q => q.opt && q.opts.some(o => cnt[o[1]])), shown = extra.filter(q => q.id === "body" && p.prio === "몸"), folded = extra.filter(q => !shown.includes(q));
@@ -611,7 +612,8 @@ const onboardBody = step => {
     <div class="card"><h3>가장 기대하는 것은 무엇인가요?</h3><div class="chips">${PRIO.map(([v, l]) => `<button class="chip ${p.prio === v ? "on" : ""}" data-act="obPrio" data-v="${v}" aria-pressed="${p.prio === v}">${esc(l)}</button>`).join("")}</div></div>
     ${ONBOARD_QS.filter(q => !q.opt).map(q => qCard(q)).join("")}
     ${shown.map(q => qCard(q, true)).join("")}
-    ${folded.length ? `<details class="card"${folded.some(q => q.opts.some(o => on(o[1]))) ? " open" : ""}><summary><b>조금 더 골라 보기</b> <span class="small muted">선택</span></summary>${folded.map(q => qCard(q, true)).join("")}</details>` : ""}
+    ${folded.length ? (OB_MORE || folded.some(q => q.opts.some(o => on(o[1]))) ? folded.map(q => qCard(q, true)).join("")
+      : `<button class="chip x" data-act="obMore" aria-expanded="false">＋ 조금 더 골라 보기 <span class="small muted">선택</span></button>`) : ""}
     ${nav}`;
   }
   const actors = [...new Set(Object.values(D.roles).flat().flatMap(r => r.cast))].sort();
@@ -2070,6 +2072,7 @@ document.addEventListener("click", e => {
       for (const st of Object.values(S.cal)) followBase(st, P.axes);  // obAxis 와 같이: 직접 바꾼 작품은 두고 나머지는 새 기본 취향을 따른다
       P.axes = next; for (const st of Object.values(S.cal)) followBase(st, next);
       save(); route(); break; }
+    case "obMore": OB_MORE = true; route(); break;
     case "obPrio": { const P = prefsOf(); P.prio = P.prio === d.v ? "" : d.v; save(); route(); break; }
     case "obMust": { const P = prefsOf(); P.must = (P.must || []).filter(a => a !== d.a); if (d.m) P.must.push(d.a); save(); route(); break; }
     case "addAvoid": { const v = $("#avoidIn").value.trim(), P = prefsOf(); if (!v) return; P.favs = P.favs.filter(a => a !== v); if (P.must) P.must = P.must.filter(a => a !== v); if (!(P.avoid ||= []).includes(v)) P.avoid.push(v); save(); route(); $("#avoidIn")?.focus(); break; }
