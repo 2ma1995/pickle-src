@@ -1126,7 +1126,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         ok(/관람 기록 남기기/.test(scrP["#plans"]) && /관람 기록 남기기|관람 기록/.test(scrP["#tag/1"]) && /오늘 공연 어땠어요\?/.test(scrP["#tag/1"]) && /인상 깊었던 배우/.test(scrP["#tag/1"]) && !/가장 인상/.test(scrP["#tag/1"]), "보고 난 뒤 기록은 '관람 기록 남기기'로 통일, 높임말 통일('어땠어요?'), '가장 인상 깊었던' → '인상 깊었던'");
         const tg = bootT(undefined); tg.location.hash = "#tag/1"; tg.V.tag("1"); tg.click({act: "tActor", a: Object.values(past[1].cast)[0], r: Object.keys(past[1].cast)[0]}); const tgH = tg.V.tag("1");
         ok(/내 취향에 가까웠던 쪽/.test(tgH) && /다음 추천에 반영돼요/.test(tgH) && !/더 좋았던 쪽|비교 카드|PICK CAST/.test(tgH), "같은 배역 비교 안내(배우를 고르면 나오는 카드): '더 좋았던 쪽' → '내 취향에 가까웠던 쪽'");
-        ok(/취향 고르기 1\/3/.test(scrP["#taste/1"]) && /다음 뮤지컬 찾기/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "영어 장식 문구(STEP·FIND YOUR NEXT MUSICAL)는 한국어로, '우열' 문장은 '평가하지 않고 … 특징만'");
+        ok(/취향 고르기 1\/3/.test(scrP["#taste/1"]) && /다음 뮤지컬 찾기/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/3"]), "영어 장식 문구(STEP·FIND YOUR NEXT MUSICAL)는 한국어로, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
         ok(/추천은 근거가 있는 것만 보여 드려요\./.test(scrP["#home"]) && !/점수·순위/.test(scrP["#home"]), "홈 맨 아래: 점수·순위 말 없이 한 줄, 출처는 따로 한 줄");
         ok(/진한 날에 이 조합이 나와요\. ★는 첫공·막공이에요\./.test(scrP["#show/" + W0 + "(날짜)"]) && /공식 캐스팅 일정이라 바뀔 수 있어요\./.test(scrP["#show/" + W0 + "(날짜)"]), "달력 아래 안내는 두 줄로 나눠 읽기 쉽게");
