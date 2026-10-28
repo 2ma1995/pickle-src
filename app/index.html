@@ -1025,9 +1025,15 @@ V.saved = i => {
       <a class="btn ghost" download="${esc(file)}" href="${icsHref(x, run)}">내 캘린더에 추가</a>
       <button class="btn ghost" data-go="#home">홈으로</button>
     </div>
+    ${S.proto?.notify ? "" : `<div class="card"><p class="small">관람일이 지나면 알려 드릴까요?</p><div class="nbgrid"><button class="nb" data-act="notifyAsk" data-y="1">알림 받기</button><button class="nb" data-act="notifyAsk" data-y="0">괜찮아요</button></div></div>`}
     <p class="tiny muted" style="text-align:center">공연 다음 날 '내 공연'에서 관람 기록을 남길 수 있어요.</p>`;
 };
 
+const likedCard = () => { const L = likedCombos(S); return L.length ? `<div class="card"><h3>좋아한 조합 <span class="small muted">${L.length}개</span></h3>${L.map(x => `<p class="small"><b>${esc(x.work)}</b> · ${Object.entries(x.cast).map(([r, a]) => `${esc(r)} ${esc(a)}`).join(" · ")} <a href="#find/${esc(x.work)}/actor">다시 찾기</a></p>`).join("")}</div>` : ""; };
+const notifyCard = () => !S.proto?.notify || S.proto.notify === "granted" ? "" : `<div class="card"><h3>관람 후 알림</h3><p class="small muted">관람 후 알림은 앱을 열 때 보여 드릴게요.</p><button class="btn ghost" data-act="notifyAsk" data-y="1">브라우저 알림 켜기</button></div>`;
+// 허용했으면 관람일이 지난 회차를 앱을 열 때 한 번 브라우저 알림으로(누르면 그 리뷰). 못 쓰는 브라우저면 홈·내 공연의 알림 카드만
+const notifyDue = () => { const i = dueVisit(S, today()), x = S.plans[i]; if (i < 0 || x.notified || S.proto?.notify !== "granted" || typeof Notification === "undefined") return;
+  try { const n = new Notification(`${x.work} 공연 어땠어요?`, {body: "배우마다 느낀 점을 남겨 주세요"}); n.onclick = () => { location.hash = "#tag/" + i; }; x.notified = true; save(); } catch (e) {} };
 V.plans = () => {
   const card = (x, i) => `<div class="card">
       <div class="between"><b>${esc(x.work)}</b><span class="small muted">${md(x.date)}(${esc(x.dow)}) ${esc(x.time)}</span></div>
@@ -1044,7 +1050,7 @@ V.plans = () => {
   }).join("");
   const tab = S.plansTab || (up.length || !done.length ? "up" : "done");
   return `
-  <div><p class="eyebrow">내 관람 기록</p><h1>내 공연</h1></div>
+  <div><p class="eyebrow">내 관람 기록</p><h1>내 공연</h1></div>${likedCard()}
   ${S.plans.length ? `
   <div class="seg"><button class="${tab === "up" ? "on" : ""}" data-act="plansTab" data-t="up">볼 예정<b>${up.length}</b></button><button class="${tab === "done" ? "on" : ""}" data-act="plansTab" data-t="done">본 공연<b>${done.length}</b></button></div>
   ${tab === "up" ? `<div class="cards2">${up.map(([x, i]) => card(x, i)).join("") || `<div class="card"><p class="small muted">볼 예정인 공연이 없어요.</p></div>`}</div>`
@@ -1123,6 +1129,8 @@ V.me = () => {
       </div>
     <section class="sec">${onboardBody("1", true)}</section>
     <section class="sec">${onboardBody("2", true)}</section>
+    ${likedCard()}
+    ${notifyCard()}
     ${persCard}
     ${likeCard}
     <div class="card"><h3>내가 남긴 관람 기록 ${S.tags.length}건${S.votes.length ? ` <span class="small muted">· 비교 투표 ${S.votes.length}건</span>` : ""}</h3>
@@ -1352,12 +1360,13 @@ const resetCombo = (S, work) => { const P = S.proto; if (!P) return; for (const 
 
 // ---- 기록 한 줄 만들기(정의서 6종). 여기서 만든 값은 기록기(track)가 한 번 더 걸러서 쌓는다
 // 취향 스냅숏: 5축 값(왼쪽을 골랐으면 -1, 오른쪽 +1, 안 골랐으면 0 · 지금 화면은 3지선다라 ±1 만 쓴다), 좋아하는 배우, 고른 카드의 태그
-const tasteSnapshot = (D, S) => { const p = S.prefs || {}, ax = p.axes || [], cards = p.works || [];
-  return {axes: Object.fromEntries(D.axes.map(a => [a.left, ax.includes(a.left) ? -1 : ax.includes(a.right) ? 1 : 0])), favs: (p.favs || []).slice(0, 3), tags: [...new Set(cards.flatMap(id => cardOf(id)?.tags || []))].slice(0, 12)}; };
+const tasteSnapshot = (D, S) => { const p = S.prefs || {}, ax = p.axes || [], cards = p.works || [];  // tags: 공연 카드 태그 + 온보딩 2/2 에서 고른 태그(tag: 키), prio: 가장 기대하는 것
+  return {axes: Object.fromEntries(D.axes.map(a => [a.left, ax.includes(a.left) ? -1 : ax.includes(a.right) ? 1 : 0])), favs: (p.favs || []).slice(0, 3), tags: [...new Set([...cards.flatMap(id => cardOf(id)?.tags || []), ...ax.filter(k => k.startsWith("tag:")).map(k => k.slice(4))])].slice(0, 12), ...(p.prio ? {prio: p.prio} : {})}; };
 // taste_snapshot: 좋아하는 배우는 앱 데이터에 있는 이름(actors Set)만 — 이름 칸에 아무 글이나 쓸 수 있어서. 취향 5축 값·고른 태그는 tasteSnapshot 그대로
 const tasteSnapRecord = (D, S, actors) => { const ts = tasteSnapshot(D, S), likes = ((S.prefs || {}).favs || []).filter(a => actors.has(a)).slice(0, 10), labels = D.actorTagLabels || {}, likeTags = {};
   for (const a of likes) { const t = [...new Set(likeTagsFor(S, a))].filter(x => labels[x]).slice(0, 8); if (t.length) likeTags[a] = t; }  // 좋아하는 배우별로 고른 특징 태그(사전 확정 태그만). '왜 좋아요' 글은 안 넣는다
-  return {likes, axes: ts.axes, tags: ts.tags, likeTags}; };
+  const p = S.prefs || {}, only = xs => (xs || []).filter(a => actors.has(a)).slice(0, 10);
+  return {likes, axes: ts.axes, tags: ts.tags, likeTags, ...(ts.prio ? {prio: ts.prio} : {}), ...(only(p.must).length ? {must: only(p.must)} : {}), ...(only(p.avoid).length ? {avoid: only(p.avoid)} : {})}; };  // 비었으면 키를 안 남긴다
 // 홈 '비슷한 배우' 줄이 비는 이유가 좋아하는 배우의 특징 없음일 때 묻는 칸: 앞 3명 중 특징 태그가 하나도 없고 아직 안 물어본(건너뛰지 않은) 첫 배우 한 명. 건너뜀·답은 S.likes 의 그 배우 항목에 저장(asked)
 const askActorOf = (D, S) => ((S.prefs || {}).favs || []).slice(0, 3).find(a => { const t = traitsOf(D, a, likeTagsFor(S, a)); return !t.voice.length && !t.role.length && !(S.likes || []).some(l => l.actor === a && l.asked); }) || null;
 // 묻는 칸의 칩 6~8개: 비교에 쓰는 태그(목소리 6 + 연기·해석 가장 흔한 2), 사전 확정 태그(D.actorTagLabels)만
@@ -1555,6 +1564,7 @@ const recAgain = (D, S, work, from, inDates = null) => {
   const have = new Set(sh.list.map(x => x.key)), next = comboRecs(D, S, work, from, inDates).find(c => !have.has(c.key)); if (!next) return null;
   sh.list.push({key: next.key, cast: next.cast}); sh.again = true; return next;
 };
+const likedCombos = S => Object.entries(S.proto?.sat || {}).flatMap(([work, o]) => Object.values(o).filter(e => e.a === "like").map(e => ({work, cast: e.cast})));  // '좋아한 조합'(내 공연·내 취향에서 본다)
 const satRecord = (D, S, work, key) => { const e = satOf(S, work)[key]; if (!e) return null;
   return {work, run: e.run || undefined, cast: e.cast, answer: e.a, ...(e.order ? {order: e.order} : {}), ...(e.why ? {why: e.why} : {}), ...(e.actor ? {actor: e.actor} : {})}; };
 
@@ -1684,7 +1694,7 @@ const R_SIDE = R.obj({actor: R.inSet("actors"), tags: R.arr(8, R.inSet("tags"))}
 const EVENTS = {
   combo_rating: {req: ["stage", "work", "cast", "algo", "score"], shape: {
     stage: R.oneOf(["expected", "experienced"]),  // expected 추천 직후 / experienced 관람 후
-    taste: R.obj({axes: R.dict(R.inSet("axisKeys"), R.int(-2, 2), 5), favs: R.arr(3, R.inSet("actors")), tags: R.arr(12, R.inSet("tags"))}),  // 그때 취향: 5축 값, 좋아하는 배우, 고른 태그
+    taste: R.obj({axes: R.dict(R.inSet("axisKeys"), R.int(-2, 2), 5), favs: R.arr(3, R.inSet("actors")), tags: R.arr(12, R.inSet("tags")), prio: R.oneOf(["노래", "연기", "몸", "고루"])}),  // 그때 취향: 5축 값, 좋아하는 배우, 고른 태그
     work: R_WORK, run: R_RUN, date: R.date, time: R.time, cast: R_CAST,
     reasons: R.obj({actors: R.dict(R.inSet("actors"), R.arr(8, R.inSet("tags")), 8), combo: R.arr(6, R.inSet("comboTags"))}),  // 배우별로 맞춘 태그, 조합 태그
     algo: R.code, score: R.int(1, 5), chips: R_CHIPS}},
@@ -1696,7 +1706,7 @@ const EVENTS = {
   role_duel: {req: ["work", "role", "left", "right", "result"], shape: {work: R_WORK, role: R.inSet("roles"), left: R_SIDE, right: R_SIDE, result: R.oneOf(["left", "right", "tie"])}},  // 좌우 위치는 무작위, 그때 놓인 대로 남긴다
   actor_rating: {req: ["show_id", "actor", "score"], shape: {show_id: R.inSet("shows"), actor: R.inSet("actors"), score: R.int(1, 5), chips: R_CHIPS}},
   video_reaction: {req: ["work", "role", "actor", "video", "reaction"], shape: {work: R_WORK, role: R.inSet("roles"), actor: R.inSet("actors"), video: R.ytid, reaction: R.oneOf(["like", "unsure", "dislike"]), traits: R.arr(6, R.inSet("actorTags"))}},  // 배우 영상 썸네일을 누른 뒤 '이 영상 어땠어요?'에 답할 때(답을 바꿀 때마다 한 줄). traits: '마음에 들어요'(like)일 때 '어떤 점이 좋았어요?'에서 고른 특징 태그(사전 확정 태그만, 최대 6, 칩을 바꿀 때마다 한 줄·비면 [])
-  taste_snapshot: {req: ["likes", "axes", "tags"], shape: {likes: R.arr(10, R.inSet("actors")), axes: R.dict(R.inSet("axisKeys"), R.int(-2, 2), 5), tags: R.arr(12, R.inSet("tags")), likeTags: R.dict(R.inSet("actors"), R.arr(8, R.inSet("actorTags")), 10)}},  // 취향폼을 저장하거나 고칠 때·홈에서 좋아하는 배우의 특징을 골라 [찾기]를 누를 때: 좋아하는 배우(앱 데이터에 있는 이름만), 취향 5축 값, 고른 태그, 좋아하는 배우별로 고른 특징 태그(사전 확정 태그만). '왜 좋아요' 글은 안 보낸다
+  taste_snapshot: {req: ["likes", "axes", "tags"], shape: {likes: R.arr(10, R.inSet("actors")), axes: R.dict(R.inSet("axisKeys"), R.int(-2, 2), 5), tags: R.arr(12, R.inSet("tags")), likeTags: R.dict(R.inSet("actors"), R.arr(8, R.inSet("actorTags")), 10), prio: R.oneOf(["노래", "연기", "몸", "고루"]), must: R.arr(10, R.inSet("actors")), avoid: R.arr(10, R.inSet("actors"))}},  // 취향폼을 저장하거나 고칠 때·홈에서 좋아하는 배우의 특징을 골라 [찾기]를 누를 때: 좋아하는 배우(앱 데이터에 있는 이름만), 취향 5축 값, 고른 태그, 좋아하는 배우별로 고른 특징 태그(사전 확정 태그만). '왜 좋아요' 글은 안 보낸다
   rec_feedback: {req: ["show", "row", "action"], shape: {show: R.inSet("shows"), row: R.oneOf(["fav", "similar", "taste"]), action: R.oneOf(["seen", "not_interested", "undo"])}},  // 홈 추천 줄 카드의 [이미 봤어요]·[관심 없어요]·되돌리기. row: fav 좋아하는 배우 출연작 / similar 비슷한 배우 출연작 / taste 내 취향 추천
   combo_fit: {req: ["work", "cast", "answer"], shape: {work: R_WORK, run: R_RUN, cast: R_CAST, answer: R.oneOf(["like", "dislike", "unsure", "clear"]), order: R.int(1, 3), why: R.oneOf(["actor", "combo", "reason", "skip"]), actor: R.inSet("actors")}},  // 추천 조합 카드의 '이 조합 어때요?'(docs/261027_2 10.2절). 답·'누구 때문인가요?'를 바꿀 때마다 한 줄, clear = 답을 풀었다
   after_review: {req: ["work", "date", "time", "actors"], shape: {work: R_WORK, run: R_RUN, date: R.date, time: R.time, entry: R.oneOf(["plan", "log"]),
@@ -2408,6 +2418,9 @@ document.addEventListener("click", e => {
       save(); route(); break; }
     case "dfMonth": { const st = (S.cal[d.work] ||= {actors: [], period: "all"}); st.dm = d.m; save(); route(); break; }
     case "dfMore": { const st = S.cal[d.work]; if (st) st.more = !st.more; save(); route(); break; }  // 고른 날짜 밖 회차도 보기(결정 20)
+    case "notifyAsk": { const P = (S.proto ||= {}); if (d.y !== "1") { P.notify = "no"; save(); route(); break; }
+      if (typeof Notification === "undefined" || !Notification.requestPermission) { P.notify = "unsupported"; save(); route(); toast("관람 후 알림은 앱을 열 때 보여 드릴게요"); break; }
+      Promise.resolve(Notification.requestPermission()).then(r => { P.notify = r === "granted" ? "granted" : "denied"; save(); route(); if (r !== "granted") toast("관람 후 알림은 앱을 열 때 보여 드릴게요"); }); break; }
     case "acSet": { const r = setActorCond(D, S, d.work, d.a, d.k || ""); if (r === false) { toast("피하고 싶은 배우예요. '내 취향'에서 바꿀 수 있어요"); return; } if (r === null) return; save(); route(); break; }  // 배우 먼저(8절): 이 작품에만
     case "acMove": if (moveActor(D, S, d.work, d.a, +d.d)) { save(); route(); } break;
     case "acReset": resetActorConds(S, d.work); save(); route(); break;
@@ -2562,6 +2575,7 @@ document.addEventListener("keydown", e => { if (e.key === "Enter" && ["fav", "av
 if (!location.hash) history.replaceState(null, "", entryRoute(S.prefs, S));  // 처음 온 사람(취향 없음)의 첫 화면은 3단계 취향. #pick/… 같은 주소로 바로 들어온 사람은 그대로 둔다
 route();
 renderDebug();
+notifyDue();
 </script>
 </body>
 </html>

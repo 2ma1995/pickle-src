@@ -511,6 +511,15 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       df.click({act: "dfDay", work: W, d: "2026-11-04"}); eq(df.S.cal[W].dates, ["2026-11-02", "2026-11-03", "2026-11-04"], "기간: 시작~끝 사이 회차 있는 날 모두(결정 19)");
       const dm = boot({storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: ["a2"], must: ["a2"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {[W]: {actors: [], period: "all", dates: ["2026-11-01"]}}, proto: {}})}});
       const hm = dm.V.find(W, "date"); ok(/이 날짜엔 맞는 조합이 없어요/.test(hm) && /a2 배우는 고른 날짜에 나오지 않아요\. 다음 출연은 11\/3이에요/.test(hm) && /class="day has pin dim"/.test(hm), "반드시 포함 배우가 고른 날짜에 안 나오면: 0개 + 다음 출연일, 그날은 흐리게(13절)"); }
+    // 좋아한 조합(10.3절) · 관람 후 알림 권한(결정 42) · 취향 스냅숏(16절 할 일)
+    { const nx = boot(); nx.location.hash = "#show/" + W; nx.route(); nx.click({act: "sat", work: W, i: "0", a: "like"});
+      ok(/좋아한 조합 <span class="small muted">1개<\/span>/.test(nx.V.plans()) && /좋아한 조합/.test(nx.V.me()) && /href="#find\/극\/actor">다시 찾기/.test(nx.V.plans()), "마음에 들어요 조합은 내 공연·내 취향의 '좋아한 조합'에");
+      nx.click({act: "plan", work: W, date: "2026-11-01", time: "14:00"}); let sv = nx.V.saved("0");
+      ok(/관람일이 지나면 알려 드릴까요\?/.test(sv) && /data-act="notifyAsk" data-y="1">알림 받기/.test(sv), "처음 저장할 때 관람 후 알림을 묻는다");
+      nx.click({act: "notifyAsk", y: "1"}); ok(nx.S.proto.notify === "unsupported" && !/관람일이 지나면 알려 드릴까요/.test(nx.V.saved("0")) && /관람 후 알림은 앱을 열 때 보여 드릴게요/.test(nx.V.me()), "브라우저 알림을 못 쓰면 앱 안 알림 카드로 대신하고 다시 묻지 않는다(내 취향에서 켤 수 있다)");
+      const sx = {prefs: {axes: ["tag:성량", "강한 성량"], prio: "노래", works: [], favs: ["a1"], must: ["a1"], avoid: ["b2"], grade: ""}};
+      const ts = tasteSnapshot(D, sx); ok(ts.prio === "노래" && ts.tags.includes("성량") && ts.axes["강한 성량"] === -1, "취향 스냅숏에 우선순위와 새 질문 답(tag:)이 실린다");
+      const tr = tasteSnapRecord(D, sx, buildVocab(D).actors); ok(tr.prio === "노래" && tr.must.join() === "a1" && tr.avoid.join() === "b2" && nx.TRK.track("taste_snapshot", tr) !== undefined && nx.TRK.stats().dropped === 0, "taste_snapshot 기록: 우선순위·반드시 포함·피하고 싶은 배우까지, 검사 통과"); }
     // v0.9 관람 후 리뷰(11.1절) · 본 공연 기록하기(11.2절): 담지 않은 지난 회차도 누구나
     { const ra = loadApp(HD, {...opts, now: "2026-11-03T12:00:00", hash: "#log"}); ra.route();
       ok(/어떤 작품을 봤어요\?/.test(ra.V.log()) && /href="#log\/극"/.test(ra.V.log()), "본 공연 기록하기: 지난 회차가 있는 작품");
