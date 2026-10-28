@@ -222,6 +222,27 @@ def load_weights():
     return {(r["작품"], r["배역"]): r["비중"] for r in csv.DictReader(open(ROLES, encoding="utf-8"), delimiter="\t")}
 
 
+# 앱(app/index.html)과 같은 규칙(docs/261027_2_MVP_사용자흐름.md 5.4·10.1절): 주연/조연(비중)을 쓰지 않고 roles.tsv 의 배역 전체를 같은 무게로.
+# 시카고 에이모스 하트·메리 선샤인은 추천 단위에서 뺀다(결정 28)
+NOT_UNIT = {"시카고": {"에이모스 하트", "메리 선샤인"}}
+
+
+def unit_roles(work):
+    """추천 단위 배역(roles.tsv 순서)."""
+    return [r["배역"] for r in csv.DictReader(open(ROLES, encoding="utf-8"), delimiter="\t") if r["작품"] == work and r["배역"] not in NOT_UNIT.get(work, set())]
+
+
+# 온보딩 2/2 질문의 태그 → 영역(앱 ONBOARD_QS 의 area). --prio 로 고른 영역의 태그는 (배우, 취향) 쌍마다 2점, 나머지는 1점
+PRIO_AREA = {**{t: "노래" for t in ["맑음", "부드러움", "허스키", "묵직한 음색", "선명하고 쨍한 음색", "고음", "성량", "딕션", "발성 안정성", "감정 전달형", "섬세한 가창 표현"]},
+             **{t: "연기" for t in ["감정 크게 표현", "절제된 연기", "코믹 연기", "현실적·생활감", "강한 캐릭터성", "섬세한 내면형", "관계 중심"]},
+             **{t: "몸" for t in ["춤·안무 표현", "액션 표현", "자세·동작 디테일", "표정·시선 디테일"]}}
+SYNC = "배역 싱크로"  # 묻지 않는 기본 가산점: 취향 근거가 있는 조합에서 배우마다 +0.5
+
+
+def pref_weight(prio, p):
+    return 2 if prio and PRIO_AREA.get(p) == prio else 1
+
+
 def pref_tags(prefs, all_tags):
     """취향마다 맞는 태그 집합 {취향: {태그}}. 축 이름이면 그 축의 태그들, 태그 이름이면 그 태그 하나."""
     out = {}
@@ -241,8 +262,9 @@ def opposite_tags(prefs, want):
             for _, left, right, *_ in AXES if left != "가창" for p in prefs if p in (left, right)}
 
 
-def score(cast, work, prefs, actor_tags, combo_tags):
-    """prefs = pref_tags() 결과. 점수 = 서로 다른 (배우, 취향) 쌍 + (조합, 취향) 쌍의 수. 같은 태그가 여러 번 나와도 취향 하나당 1점."""
+def score(cast, work, prefs, actor_tags, combo_tags, prio=""):
+    """prefs = pref_tags() 결과. 점수 = 서로 다른 (배우, 취향) 쌍 + (조합, 취향) 쌍의 가중 합(우선순위 영역 태그는 2점) + 배역 싱크로(배우마다 0.5, 근거가 있을 때만).
+    같은 태그가 여러 번 나와도 취향 하나당 한 번. cast 는 추천 단위 배역만(주연/조연 구분 없음)."""
     want = set().union(*prefs.values())
     opp = opposite_tags(prefs, want)
     hits, evidence, unknown, bad = set(), [], [], []
@@ -270,7 +292,10 @@ def score(cast, work, prefs, actor_tags, combo_tags):
                     hits.update((frozenset([a, b]), p) for p, tags in prefs.items() if r[C_TAG] in tags)
                     evidence.append((f"{a}×{b}(조합)", r[C_TAG], r[C_WHY], r[C_SRC], r[C_LINK], lvl(r)))
     known = sum(len(actor_tags.get((work, a), [])) for a in names)  # 순서에는 안 쓴다(태그가 많다 = 리뷰가 많다일 뿐). 참고용으로만 남긴다
-    return len(hits), known, evidence, unknown, bad
+    pts = sum(pref_weight(prio, p) for _, p in hits)
+    if pts > 0:
+        pts += 0.5 * sum(1 for a in names if any(r[C_TAG] == SYNC and not is_official(r) for r in actor_tags.get((work, a), [])))
+    return pts, known, evidence, unknown, bad
 
 
 def level_mix(evidence):
@@ -282,34 +307,26 @@ def level_mix(evidence):
     return {k: len(by[k]) for k in LEVEL_ORDER if k in by}
 
 
-def pins_by_role(work, actors):
-    """고정 배우들을 배역별로 묶는다. 같은 배역 안에서는 '또는', 배역끼리는 '그리고'로 본다."""
-    pins = defaultdict(set)
-    for r in csv.DictReader(open(ROLES, encoding="utf-8"), delimiter="\t"):
-        if r["작품"] != work:
-            continue
-        for a in (x.strip() for x in r["캐스트 배우"].split(",")):
-            if a in actors:
-                pins[r["배역"]].add(a)
-    return pins
-
-
-def recommend(work, lo, hi, prefs, pin=None, top=2):
+def recommend(work, lo, hi, prefs, pin=None, top=2, prio=""):
+    """pin = 반드시 포함 배우. 배역과 상관없이 모두 나오는 회차만(결정 12). 이 작품에 안 나오는 배우는 거르지 않는다."""
     actor_tags, combo_tags, all_tags = load_tags()
     perfs, weights = load_schedule(), load_weights()
     pm = pref_tags(prefs, all_tags)
     want = set().union(*pm.values())
-    pins = pins_by_role(work, set([pin] if isinstance(pin, str) else (pin or [])))
+    units = unit_roles(work)
+    here = {a for r in csv.DictReader(open(ROLES, encoding="utf-8"), delimiter="\t") if r["작품"] == work and r["배역"] in units for a in (x.strip() for x in r["캐스트 배우"].split(","))}
+    must = [a for a in ([pin] if isinstance(pin, str) else (pin or [])) if a in here]
     groups = {}
     for (w, d, t), p in perfs.items():
         if w != work or not (lo <= date.fromisoformat(d) <= hi):
             continue
-        if any(p["cast"].get(role) not in actors for role, actors in pins.items()):
+        unit = {r: p["cast"][r] for r in units if p["cast"].get(r)}  # 추천 단위(핵심 배역 전체, roles.tsv 순서)
+        if any(a not in unit.values() for a in must):
             continue
-        g = groups.setdefault(tuple(sorted(p["cast"].items())), {"cast": p["cast"], "shows": []})
+        g = groups.setdefault(tuple(sorted(unit.items())), {"cast": unit, "all": p["cast"], "shows": []})
         g["shows"].append((d, p["요일"], t, p["notes"]))
     for g in groups.values():
-        g["pts"], g["known"], g["evidence"], g["unknown"], g["bad"] = score(g["cast"], work, pm, actor_tags, combo_tags)
+        g["pts"], g["known"], g["evidence"], g["unknown"], g["bad"] = score(g["cast"], work, pm, actor_tags, combo_tags, prio)
         g["shows"].sort()
     return sorted(groups.values(), key=rank_key), want, weights
 
@@ -326,9 +343,11 @@ def fmt_show(s):
 
 
 def fmt_cast(cast, work, weights):
-    lead = [f"{r} {a}" for r, a in cast.items() if weights.get((work, r)) == "주연"]
-    rest = [f"{r} {a}" for r, a in cast.items() if weights.get((work, r)) != "주연"]
-    return " · ".join(lead), " · ".join(rest)
+    """(추천 단위 배역, 그 밖의 배역). 주연/조연 구분 없이 roles.tsv 순서."""
+    units = unit_roles(work)
+    main = [f"{r} {cast[r]}" for r in units if r in cast]
+    rest = [f"{r} {a}" for r, a in cast.items() if r not in units]
+    return " · ".join(main), " · ".join(rest)
 
 
 def card(work, lo, hi, prefs, ranked, weights, pin=None, top=2):
@@ -339,7 +358,7 @@ def card(work, lo, hi, prefs, ranked, weights, pin=None, top=2):
         return "\n".join(L + ["", "이 기간에 조건에 맞는 회차가 없어요."])
     picks = [g for g in ranked if g["pts"] > 0][:top]
     for i, g in enumerate(picks, 1):
-        lead, rest = fmt_cast(g["cast"], work, weights)
+        lead, rest = fmt_cast(g.get("all", g["cast"]), work, weights)
         L += ["", f"{i}순위{' ⭐' if i == 1 else ''}  {lead}", f"   회차: {' / '.join(fmt_show(s) for s in g['shows'])}"]
         if rest:
             L.append(f"   그 외: {rest}")
@@ -363,10 +382,8 @@ def card(work, lo, hi, prefs, ranked, weights, pin=None, top=2):
             lead, _ = fmt_cast(g["cast"], work, weights)
             L.append(f"   - {lead}: {' / '.join(fmt_show(s) for s in g['shows'])}")
     no_data = sorted({u for g in ranked for u in g["unknown"]})
-    leads = [u for u in no_data if weights.get((work, u[u.index("(") + 1:-1])) == "주연"]
     if no_data:
-        tail = f" 외 {len(no_data) - len(leads)}명" if len(no_data) > len(leads) else ""
-        L += ["", f"참고: 아직 데이터가 없는 배우 — {', '.join(leads) or '조연'}{tail}. 순위에서 밀린 건 데이터가 없어서지, 취향과 안 맞는다는 뜻이 아니에요."]
+        L += ["", f"참고: 아직 데이터가 없는 배우 — {', '.join(no_data)}. 순위에서 밀린 건 데이터가 없어서지, 취향과 안 맞는다는 뜻이 아니에요."]
     L.append(f"스케줄은 변경될 수 있어요 · 데이터 기준 {date.today().isoformat()}")
     return "\n".join(L)
 
@@ -796,6 +813,14 @@ def selftest():
     assert all(r[i]["pts"] >= r[i + 1]["pts"] for i in range(len(r) - 1))
     r, _, _ = recommend("엘리자벳", date(2026, 10, 4), date(2026, 10, 31), ["가창"], pin="김준수")
     assert all("김준수" in g["cast"].values() for g in r)
+    # 앱과 같은 규칙(결정 13·28·38): 조합은 핵심 배역 전체, 시카고 두 배역은 뺀다, 우선순위 영역 태그는 2점
+    assert all(set(g["cast"]) <= set(unit_roles("엘리자벳")) and len(g["cast"]) >= 3 for g in r), r[0]["cast"]
+    assert "에이모스 하트" not in unit_roles("시카고") and "메리 선샤인" not in unit_roles("시카고") and "마마 모튼" in unit_roles("시카고")
+    r1, _, _ = recommend("겨울왕국", date(2026, 10, 30), date(2026, 11, 1), ["성량"])
+    r2, _, _ = recommend("겨울왕국", date(2026, 10, 30), date(2026, 11, 1), ["성량"], prio="노래")
+    by1 = {tuple(sorted(g["cast"].items())): g["pts"] for g in r1}
+    assert all(g["pts"] >= by1[tuple(sorted(g["cast"].items()))] for g in r2) and any(g["pts"] > by1[tuple(sorted(g["cast"].items()))] for g in r2), "우선순위 노래면 성량 근거가 2점"
+    assert pref_weight("노래", "성량") == 2 and pref_weight("연기", "성량") == 1 and pref_weight("", "성량") == 1 and pref_weight("노래", "가창") == 1
     assert r[0]["pts"] > 0 and all(r[i]["pts"] >= r[i + 1]["pts"] for i in range(len(r) - 1))
     row = lambda tag: ["", "", "W", "", "", "", "배우", "", "A", "", tag, "", "", "", "확정"]
     assert carries(row("맑음")) and carries(row("성량")) and not carries(row("코믹 연기")) and not carries(row("감정 전달형"))
@@ -1108,7 +1133,8 @@ if __name__ == "__main__":
     ap.add_argument("--from", dest="lo")
     ap.add_argument("--to", dest="hi")
     ap.add_argument("--prefs", nargs="+", default=[])
-    ap.add_argument("--actor", nargs="*", help="이 배우들이 나오는 회차만. 같은 배역이면 '또는', 다른 배역이면 '그리고'")
+    ap.add_argument("--actor", nargs="*", help="반드시 포함: 이 배우들이 모두 나오는 회차만(배역과 상관없이)")
+    ap.add_argument("--prio", choices=["노래", "연기", "몸", "고루"], default="", help="가장 기대하는 것: 이 영역 질문의 태그는 2점")
     ap.add_argument("--top", type=int, default=2)
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--export", metavar="PATH", help="가안 앱용 데이터(JS)를 이 경로에 쓴다. 예: app/data.js")
@@ -1127,5 +1153,5 @@ if __name__ == "__main__":
     if not (a.work and a.lo and a.hi and a.prefs):
         ap.error("--work, --from, --to, --prefs 가 필요해요")
     lo, hi = date.fromisoformat(a.lo), date.fromisoformat(a.hi)
-    ranked, _, weights = recommend(a.work, lo, hi, a.prefs, a.actor, a.top)
+    ranked, _, weights = recommend(a.work, lo, hi, a.prefs, a.actor, a.top, a.prio)
     print(card(a.work, lo, hi, a.prefs, ranked, weights, a.actor, a.top))
