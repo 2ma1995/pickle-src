@@ -2182,13 +2182,20 @@ const actorDetail = (work, role, a, want) => {
 // 추천 조합 카드(docs/261027_2 10절): 카드마다 [이 조합 고르기] + '이 조합 어때요?' 만족도. 별로예요 → '누구 때문인가요?' → 배우를 고르면 이 작품의 피하고 싶은 배우에 넣을지 묻는다(동의할 때만)
 const satCards = (work, sel, inDates = null) => {
   const from = today(), sh = shownRecs(D, S, work, from, inDates), sat = satOf(S, work), W = esc(work), DD = inDates ? ` data-dd="1"` : "";  // 날짜 먼저 카드는 data-dd 로 구분
+  const recBy = new Map(comboRecs(D, S, work, from, inDates).map(r => [r.key, r]));
+  const whyLines = c => { const r = recBy.get(c.key); if (!r) return "";  // 근거 있는 배우 2명 + 조합 태그 한 줄, 그래도 없으면 배우 조건으로 고른 조합
+    const got = Object.entries(r.evByActor || {}).filter(([, ts]) => ts.length).slice(0, 2).map(([a, ts]) => `${esc(a)} · ${ts.slice(0, 2).map(x => esc(reviewLabel(x))).join(", ")}`);
+    if (r.comboTags?.length) got.push(`두 배우의 합 · ${r.comboTags.slice(0, 2).map(esc).join(", ")}`);
+    const few = Object.values(c.cast).filter(a => !tagsOfActor(D, work, a).length).slice(0, 2);
+    const lines = got.length ? got : [actorConds(D, S, work).pick.length ? "고른 배우 조건에 맞는 조합이에요" : "고른 조건에 맞는 조합이에요"];
+    return `<ul class="why">${lines.slice(0, 3).map(l => `<li class="small">${l}</li>`).join("")}</ul>${few.length ? `<p class="tiny muted">${few.map(esc).join("·")} 배우는 아직 모인 정보가 적어요</p>` : ""}`; };
   const nPerf = key => D.perfs.filter(p => p.work === work && p.date >= from && !isPrivate(p) && (!inDates || inDates.includes(p.date)) && comboKey(D, work, p.cast) === key).length;
   const sameCast = (a, b) => Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, v]) => b[k] === v);
   const card = (c, i) => { const e = sat[c.key], on = sameCast(c.cast, sel), names = Object.values(c.cast);
     const why = e?.a !== "dislike" ? "" : `<p class="tiny muted">누구 때문인가요? <span>(선택)</span></p><div class="chips">${names.map(a => `<button type="button" class="chip x ${e.actor === a ? "on" : ""}" data-act="satWhy" data-work="${W}"${DD} data-i="${i}" data-who="${esc(a)}" aria-pressed="${e.actor === a}">${esc(a)}</button>`).join("")}${SAT_WHY.map(([k, l]) => `<button type="button" class="chip x ${e.why === k ? "on" : ""}" data-act="satWhy" data-work="${W}"${DD} data-i="${i}" data-k="${k}" aria-pressed="${e.why === k}">${esc(l)}</button>`).join("")}</div>
       ${e.actor && !e.ask ? `<div class="pinask"><p class="small">${esc(e.actor)} 배우를 피하고 싶은 배우에 추가할까요? <span class="muted">이 작품에서만 빠져요.</span></p><div class="nbgrid"><button class="nb" data-act="satAvoid" data-work="${W}"${DD} data-i="${i}" data-y="1">추가</button><button class="nb" data-act="satAvoid" data-work="${W}"${DD} data-i="${i}" data-y="0">아니요</button></div></div>`
         : e.actor && e.ask === "yes" ? `<p class="tiny muted">${esc(e.actor)} 배우를 이 작품에서 뺐어요.</p>` : ""}`;
-    return `<div class="card rcard"><p class="small">${Object.entries(c.cast).map(([r, a]) => `<b>${esc(r)}</b> ${esc(a)}`).join(" · ")}</p><p class="tiny muted">${inDates ? "고른 날짜 중 " : "남은 "}회차 ${nPerf(c.key)}개</p>
+    return `<div class="card rcard"><p class="small">${Object.entries(c.cast).map(([r, a]) => `<b>${esc(r)}</b> ${esc(a)}`).join(" · ")}</p><p class="tiny muted">${inDates ? "고른 날짜 중 " : "남은 "}회차 ${nPerf(c.key)}개</p>${whyLines(c)}
       <button class="chip x ${on ? "on" : ""}" data-act="selCombo" data-work="${W}"${DD} data-i="${i}" aria-pressed="${on}">${on ? "고른 조합" : "이 조합 고르기"}</button>
       <p class="tiny muted">이 조합 어때요?</p><div class="chips">${SAT.map(([k, l]) => `<button type="button" class="chip x ${e?.a === k ? "on" : ""}" data-act="sat" data-work="${W}"${DD} data-i="${i}" data-a="${k}" aria-pressed="${e?.a === k}">${esc(l)}</button>`).join("")}</div>
       ${e?.a === "like" ? `<p class="tiny muted">좋아한 조합으로 기억할게요. 이 배우들이 나오는 조합을 앞에 보여 드려요.</p>` : ""}${why}</div>`; };

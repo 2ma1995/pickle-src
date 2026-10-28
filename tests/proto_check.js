@@ -467,7 +467,8 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     for (const old of ["왜 추천했어요?", "공연 정보</h3>", "작품 분위기", "다음 추천 조합</h3>", "추천 조합 <span", ">주연<"]) ok(!html2.includes(old), "옛 섹션이 없다: " + old);
     ok(!/이상형 월드컵/.test(html2) && !/class="card fb"/.test(html2), "공연 화면에 월드컵도 별점 평가 카드도 없다");
     { const nCard = (html2.match(/class="card rcard"/g) || []).length;  // v0.9(docs/261027_2 10.2절): 추천 조합 카드마다 '이 조합 어때요?' 3지선다, 답 안 해도 된다
-      ok(nCard >= 1 && nCard <= 2 && (html2.match(/이 조합 어때요\?/g) || []).length === nCard && (html2.match(/data-act="sat" /g) || []).length === nCard * 3 && /이 조합이 마음에 들어요/.test(html2) && !/누구 때문인가요/.test(html2), "추천 조합 카드(2개까지)마다 '이 조합 어때요?' 마음에 들어요/별로예요/모르겠어요"); }
+      ok(nCard >= 1 && nCard <= 2 && (html2.match(/이 조합 어때요\?/g) || []).length === nCard && (html2.match(/data-act="sat" /g) || []).length === nCard * 3 && /이 조합이 마음에 들어요/.test(html2) && !/누구 때문인가요/.test(html2), "추천 조합 카드(2개까지)마다 '이 조합 어때요?' 마음에 들어요/별로예요/모르겠어요");
+      ok(/<ul class="why"><li class="small">a1 · 공간을 채우는 성량<\/li>/.test(html2) && /c1 배우는 아직 모인 정보가 적어요/.test(html2) && !/\d+%|\d+점/.test((html2.match(/<ul class="why">[\s\S]*?<\/ul>/g) || []).join("")), "카드마다 추천 이유(배우 · 맞는 특징, 온보딩 문구), 근거 없는 배우는 '정보가 적어요', 이유에 점수·퍼센트 없음(10절)"); }
     ok((html2.match(/pickc on/g) || []).length === 3 && !/PICK/.test(html2) && (html2.match(/class="pickb">추천 조합</g) || []).length === 1 && /class="chip x on" data-act="selCombo" data-work="극" data-i="0"/.test(html2), "추천 조합(1순위)이 미리 선택돼 있고, 배우 칩엔 PICK 배지가 없고 '추천 조합' 표시는 조합 선택 칸에 한 번만");
     // v0.9 조합 만족도 화면(10.2·10.3절): 별로예요 → 누구 때문인가요? → 배우 → 피하고 싶은 배우 추가(동의할 때만)
     { const sa = boot(); sa.location.hash = "#show/" + W; sa.route();
