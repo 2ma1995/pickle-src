@@ -604,10 +604,10 @@ const V = {};
 // S.prefs = {works: [카드 id], axes: [취향 키], prio, favs: [배우], must: [반드시 볼 배우(favs 안)], avoid: [피하고 싶은 배우], grade}. 처음 온 사람(S.prefs 없음)에게만 자동으로 보인다.
 const prefsOf = () => { const p = (S.prefs ||= {axes: [], grade: "", favs: []}); p.works ||= []; p.axes ||= []; p.favs ||= []; return p; };  // must·avoid 는 쓸 때만 생긴다(예전 저장 값을 그대로 두려고)
 let OB_MORE = false;  // 3/3 '조금 더 골라 보기'를 펼쳤는지(화면을 다시 그려도 펼친 채로 둔다. 저장은 안 한다)
-const onboardBody = step => {
+const onboardBody = (step, embed = false) => {  // embed: '내 취향' 화면 안에서 바로 편집(결정 39) — 단계 머리·다음 버튼 없이
   const n = step === "2" ? 2 : 1, p = S.prefs || {}, axes = p.axes || [], favs = p.favs || [], must = p.must || [], avoid = p.avoid || [];
-  const nav = `<div class="obg">${[favs.length + avoid.length, axes.length + (p.prio ? 1 : 0)][n - 1] ? `<button class="btn" data-act="obGo" data-to="${n + 1}">${n < 2 ? "다음" : "내 취향 카드 완성하기"}</button>` : ""}<button class="btn ghost" data-act="obGo" data-to="${n + 1}">건너뛰기</button></div>`;
-  const head = `<div class="onboard-head"><p class="eyebrow">취향 고르기 ${n}/2${n > 1 ? ` · <a href="#taste/${n - 1}">이전</a>` : ""}</p><h1>${["보고 싶은 배우가 있나요?", "공연을 볼 때 무엇을 기대하나요?"][n - 1]}</h1></div>`;
+  const nav = embed ? "" : `<div class="obg">${[favs.length + avoid.length, axes.length + (p.prio ? 1 : 0)][n - 1] ? `<button class="btn" data-act="obGo" data-to="${n + 1}">${n < 2 ? "다음" : "내 취향 카드 완성하기"}</button>` : ""}<button class="btn ghost" data-act="obGo" data-to="${n + 1}">건너뛰기</button></div>`;
+  const head = embed ? `<h2>${["꼭 보고 싶은 배우 · 피하고 싶은 배우", "공연을 볼 때 기대하는 것"][n - 1]}</h2>` : `<div class="onboard-head"><p class="eyebrow">취향 고르기 ${n}/2${n > 1 ? ` · <a href="#taste/${n - 1}">이전</a>` : ""}</p><h1>${["보고 싶은 배우가 있나요?", "공연을 볼 때 무엇을 기대하나요?"][n - 1]}</h1></div>`;
   if (n === 2) {
     const cnt = tagCounts(D), on = t => axes.includes(tagKey(t));
     const qCard = (q, onlyData) => { const opts = onlyData ? q.opts.filter(o => cnt[o[1]]) : q.opts;
@@ -634,7 +634,7 @@ const onboardBody = step => {
     <div class="card"><h3>피하고 싶은 배우 <span class="small muted">선택</span></h3><div class="row"><input id="avoidIn" list="actors" placeholder="배우 이름" autocomplete="off" style="flex:1"><button class="chip" data-act="addAvoid">추가</button></div>
       <div class="chips">${avoid.map(a => `<button class="chip x on" data-act="rmAvoid" data-a="${esc(a)}">${esc(a)} ×</button>`).join("")}</div>
       <p class="tiny muted">이 배우가 나오는 회차는 추천에서 빼요.</p></div>
-    ${favs.length ? `<div class="card"><h3>어떤 점이 좋아요? <span class="small muted">전부 선택</span></h3><p class="small muted">쓴 글에서 태그 후보를 찾아 보여 줘요. 누른 것만 내 취향에 반영돼요.</p>${likeBoxes(favs)}</div>` : ""}
+    ${favs.length && !embed ? `<div class="card"><h3>어떤 점이 좋아요? <span class="small muted">전부 선택</span></h3><p class="small muted">쓴 글에서 태그 후보를 찾아 보여 줘요. 누른 것만 내 취향에 반영돼요.</p>${likeBoxes(favs)}</div>` : ""}
     ${nav}`;
 };
 
@@ -1117,7 +1117,9 @@ V.me = () => {
     <div class="card">
       <div class="chips">${hasTaste(S.prefs) ? [...(S.prefs.works || []).map(id => cardOf(id)?.l), ...(S.prefs.axes || []).map(v => D.axes.flatMap(a => [[a.left, a.l], [a.right, a.r]]).find(([k]) => k === v)?.[1] || prefLabel(v) || v)].filter(Boolean).map(a => `<span class="tag hit">${esc(a)}</span>`).join("") : `<span class="tag">아직 안 골랐어요</span>`}${(S.prefs?.favs || []).map(a => `<span class="tag">${esc(a)}</span>`).join("")}</div>
       <div class="chips"><span class="small muted">주로 보는 좌석 등급</span>${["VIP석", "R석", "S석", "A석"].map(g => `<button class="chip x ${S.prefs?.grade === g ? "on" : ""}" data-act="setGrade" data-g="${g}" aria-pressed="${S.prefs?.grade === g}">${g}</button>`).join("")}</div>
-      <button class="btn ghost" data-go="#taste/1">취향 다시 고르기</button></div>
+      </div>
+    <section class="sec">${onboardBody("1", true)}</section>
+    <section class="sec">${onboardBody("2", true)}</section>
     ${persCard}
     ${likeCard}
     <div class="card"><h3>내가 남긴 관람 기록 ${S.tags.length}건${S.votes.length ? ` <span class="small muted">· 비교 투표 ${S.votes.length}건</span>` : ""}</h3>
@@ -1960,18 +1962,19 @@ V.home = () => {
   const card = CARD_BACK
     ? `<section class="tcard back" aria-label="내 취향 카드 뒷면"><p class="tctitle">내 취향에 맞는 배우 조합을 찾아볼까요?</p>
         <button class="btn" data-go="#find">배우 조합 추천받기</button>
-        <div class="row"><a class="small" href="#taste/1">답 고치기</a><button type="button" class="chip x" data-act="cardFlip">앞면으로</button></div></section>`
+        <div class="row"><a class="small" href="#me">답 고치기</a><button type="button" class="chip x" data-act="cardFlip">앞면으로</button></div></section>`
     : `<button type="button" class="tcard" data-act="cardFlip" aria-label="내 취향 카드. 눌러서 뒤집기"><span class="tclabel">MY PICKLE TASTE</span>
         <span class="tctitle">${esc(tasteTitle(p))}</span>
         ${tags.length ? `<span class="tctags">${tags.map(t => `<span class="tag">${esc(t)}</span>`).join("")}</span>` : ""}${who}
         <span class="tchint">카드를 눌러 배우 조합을 추천받아요 ↻</span></button>`;
   return `${noticeLine()}<div class="tcwrap"><p class="eyebrow">나의 PICKLE 취향</p>${card}
-    ${CARD_BACK ? "" : `<a class="btn ghost" href="#find">배우 조합 추천받기</a>`}</div>${visit}
+    </div>${visit}
     ${privacyLink() ? `<p class="tiny muted">${privacyLink().replace(/^\s*·\s*/, "")}</p>` : ""}`;
 };
 // 작품 고르기(#find) → 찾는 방법 고르기(#find/작품) → 날짜 먼저(#find/작품/date = 기존 달력) · 배우 먼저(#find/작품/actor = 기존 '누구로 볼까요?')
 // 두 경로의 세부 로직(기간 지정·순위·추천 2개 등)은 다음 단계. 지금은 기존 화면으로 이어 준다
-const MVP_WORKS = () => (D.works || []).slice().sort((a, b) => (a.runs?.[0]?.start || "").localeCompare(b.runs?.[0]?.start || "") || a.name.localeCompare(b.name, "ko"));  // 공연 시작일 순(D-11 기본안)
+const leftPerfs = (w, from) => D.perfs.filter(x => x.work === w.name && !isPrivate(x) && x.date >= from).length;
+const MVP_WORKS = (from = today()) => (D.works || []).filter(w => !ended(w, from)).sort((a, b) => (leftPerfs(a, from) || Infinity) - (leftPerfs(b, from) || Infinity) || a.name.localeCompare(b.name, "ko"));  // 남은 회차가 적은 순(결정 32), 회차 미공개(0회)는 맨 뒤, 공연이 끝난 작품은 뺀다(결정 35)
 const workState = (w, from) => {
   if (ended(w, from)) return {ok: false, text: "공연 종료"};
   const ps = D.perfs.filter(x => x.work === w.name && !isPrivate(x) && x.date >= from), last = ps.reduce((m, x) => x.date > m ? x.date : m, "");
@@ -1992,10 +1995,10 @@ V.find = (work, how) => {
         <a class="btn" href="#find/${esc(w.name)}/date">날짜 먼저 고르기<small>볼 수 있는 날짜가 정해져 있다면</small></a>
         <a class="btn ghost" href="#find/${esc(w.name)}/actor">배우 먼저 고르기<small>꼭 보고 싶은 배우가 있다면</small></a></div>`
       : `<div class="card"><p class="small">${st.text === "공연 종료" ? "공연이 끝났어요." : "아직 공개된 회차가 없어요."}</p><a class="btn ghost" href="#find">다른 작품 고르기</a></div>`}</div>`; }
-  const item = x => { const st = workState(x, from), m = notInWork(x, must), period = runsOf(x.name).map(r => `${esc(r.venue)} · ${fmtPeriod(r)}`).join(" / ");
-    const inner = `${posterEl(x, "wposter")}<span class="winfo"><b>${esc(x.name)}</b><span class="tiny muted">${period}</span>${st.text ? `<span class="wstate">${esc(st.text)}</span>` : ""}${m.length ? `<span class="tiny muted">${esc(m.join("·"))} 배우는 이 작품에 나오지 않아요</span>` : ""}</span>`;
+  const item = x => { const st = workState(x, from), period = runsOf(x.name).map(r => `${esc(r.venue)} · ${fmtPeriod(r)}`).join(" / ");
+    const inner = `${posterEl(x, "wposter")}<span class="winfo"><b>${esc(x.name)}</b><span class="tiny muted">${period}</span>${st.text ? `<span class="wstate">${esc(st.text)}</span>` : ""}</span>`;  // 배우 조건 안내는 이 화면에 넣지 않는다(결정 25)
     return st.ok ? `<a class="wcard" href="#find/${esc(x.name)}">${inner}</a>` : `<div class="wcard off" aria-disabled="true">${inner}</div>`; };
-  return `<div class="one"><div><p class="eyebrow">배우 조합 추천받기</p><h1>어떤 작품의 조합을 찾아볼까요?</h1></div><div class="wlist">${MVP_WORKS().map(item).join("")}</div>
+  return `<div class="one"><div><p class="eyebrow">배우 조합 추천받기</p><h1>어떤 작품의 조합을 찾아볼까요?</h1></div><div class="wlist">${MVP_WORKS(from).map(item).join("")}</div>
     <p class="tiny muted">공연 정보·포스터: 공연예술통합전산망(KOPIS) · 데이터 기준 ${esc(D.generated)}</p></div>`;
 };
 

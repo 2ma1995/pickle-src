@@ -1215,16 +1215,21 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         eq(entryRoute(null), "#home", "entryRoute 는 상태 없이도 동작(옛 호출 방식)");
         // ===== MVP 뼈대(2026-10-28): 홈 취향 카드 뒤집기 · 작품 고르기 · 찾는 방법 고르기 =====
         { const m = boot(L0); m.location.hash = "#home"; m.route(); const front = m.q("#view").innerHTML;
-          ok(/<button type="button" class="tcard" data-act="cardFlip"/.test(front) && /MY PICKLE TASTE/.test(front) && !/지금 하는 공연 전체|내 취향 추천/.test(front), "홈 앞면: 버튼 하나인 취향 카드(탭·Enter·Space), 작품 추천 목록 없음");
+          ok(/<button type="button" class="tcard" data-act="cardFlip"/.test(front) && /MY PICKLE TASTE/.test(front) && !/지금 하는 공연 전체|내 취향 추천/.test(front) && !/배우 조합 추천받기<\/a>/.test(front), "홈 앞면: 버튼 하나인 취향 카드(탭·Enter·Space), 작품 추천 목록·카드 밖 바로가기 없음(결정 31)");
           m.click({act: "cardFlip"}); const back = m.q("#view").innerHTML;
-          ok(/class="tcard back"/.test(back) && /data-go="#find">배우 조합 추천받기/.test(back) && /data-act="cardFlip">앞면으로/.test(back) && /href="#taste\/1">답 고치기/.test(back), "카드를 누르면 뒷면: 배우 조합 추천받기 · 답 고치기 · 앞면으로");
+          ok(/class="tcard back"/.test(back) && /data-go="#find">배우 조합 추천받기/.test(back) && /data-act="cardFlip">앞면으로/.test(back) && /href="#me">답 고치기/.test(back), "카드를 누르면 뒷면: 배우 조합 추천받기 · 답 고치기(내 취향 화면, 결정 39) · 앞면으로");
           m.click({act: "cardFlip"}); ok(/<button type="button" class="tcard"/.test(m.q("#view").innerHTML), "다시 누르면 앞면");
           m.click({act: "cardFlip"}); m.location.hash = "#plans"; m.route(); m.location.hash = "#home"; m.route(); ok(!/class="tcard back"/.test(m.q("#view").innerHTML), "다른 화면에 다녀오면 앞면");
           const fl = m.V.find();
           ok((fl.match(/class="wcard/g) || []).length >= 1 && /href="#find\/[^"]+"/.test(fl) && /어떤 작품의 조합을 찾아볼까요\?/.test(fl), "작품 고르기: 작품 카드가 나오고, 고를 수 있는 작품은 #find/작품으로");
           const how = m.V.find(W0); ok(/href="#find\/[^"]+\/date">날짜 먼저 고르기/.test(how) && /href="#find\/[^"]+\/actor">배우 먼저 고르기/.test(how), "찾는 방법 고르기: 날짜 먼저 · 배우 먼저");
           ok(/id="dates"/.test(m.V.find(W0, "date")) && /id="cast"/.test(m.V.find(W0, "actor")), "날짜 먼저 → 기존 달력, 배우 먼저 → 기존 '누구로 볼까요?'로 이어진다");
-          const mm = boot({...L0, prefs: {...(L0.prefs || {}), favs: ["없는배우X"], must: ["없는배우X"]}}); ok(/없는배우X 배우는 이 작품에 나오지 않아요/.test(mm.V.find()) && /이 작품에는 없는배우X 배우가 나오지 않아요/.test(mm.V.find(W0)), "반드시 포함 배우가 작품에 없으면 안내"); }
+          const mm = boot({...L0, prefs: {...(L0.prefs || {}), favs: ["없는배우X"], must: ["없는배우X"]}}); ok(!/없는배우X/.test(mm.V.find()) && /이 작품에는 없는배우X 배우가 나오지 않아요/.test(mm.V.find(W0)), "반드시 포함 배우가 작품에 없으면 작품을 고른 뒤 안내(작품 고르기 화면에는 없다, 결정 25)");
+          const left = w => m.D.perfs.filter(p => p.work === w.name && !(p.notes || []).some(n => /대관/.test(n)) && p.date >= NOW).length, shown = [...fl.matchAll(/<b>([^<]+)<\/b>/g)].map(x => x[1]);
+          const want = m.D.works.filter(w => w.runs.some(r => r.end >= NOW)).sort((a, b) => (left(a) || Infinity) - (left(b) || Infinity) || a.name.localeCompare(b.name, "ko")).map(w => w.name);
+          eq(shown, want, "작품 고르기: 남은 회차가 적은 순, 회차 미공개는 맨 뒤, 공연이 끝난 작품은 없다(결정 32·35)");
+          const me = m.V.me(); ok(/data-act="obPick"/.test(me) && /data-act="addFav"/.test(me) && /data-act="obPrio"/.test(me) && !/취향 다시 고르기|data-act="obGo"/.test(me), "내 취향 화면 안에서 배우 조건·기대 답을 바로 고친다(결정 39)");
+          m.location.hash = "#me"; m.route(); m.click({act: "obPrio", v: "몸"}); ok(m.S.prefs.prio === "몸" && m.location.hash === "#me", "내 취향에서 고쳐도 그 화면에 머문다"); }
         // 화면들이 예전 상태로 깨지지 않는다
         const a1 = boot(L0), views = [["#home", /MY PICKLE TASTE/], ["#browse", /지금 하는 공연 전체|좋아하는 배우가 나와요/], ["#find", /어떤 작품의 조합을 찾아볼까요\?/], ["#plans", /엘리자벳/], ["#me", /카이/], ["#saved/0", /엘리자벳/], ["#tag/1", /엘리자벳|어땠어요/], ["#detail/" + W0 + "/" + fut[0].date + "/" + fut[0].time, /엘리자벳|이 회차/], ["#show/" + W0, /id="summary"/]];
         for (const [h, re] of views) { const [name, ...args] = decodeURIComponent(h.slice(1)).split("/"); let out; try { out = a1.V[name](...args); } catch (e) { throw new Error("예전 상태로 " + h + " 가 깨졌다: " + e.message); } ok(typeof out === "string" && out.length > 200 && re.test(out), "예전 상태로 " + h + " 가 그려진다"); }
