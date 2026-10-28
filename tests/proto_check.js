@@ -516,8 +516,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     { const nx = boot(); nx.location.hash = "#show/" + W; nx.route(); nx.click({act: "sat", work: W, i: "0", a: "like"});
       ok(/좋아한 조합 <span class="small muted">1개<\/span>/.test(nx.V.plans()) && /좋아한 조합/.test(nx.V.me()) && /href="#find\/극\/actor">다시 찾기/.test(nx.V.plans()), "마음에 들어요 조합은 내 공연·내 취향의 '좋아한 조합'에");
       nx.click({act: "plan", work: W, date: "2026-11-01", time: "14:00"}); let sv = nx.V.saved("0");
-      ok(/관람일이 지나면 알려 드릴까요\?/.test(sv) && /data-act="notifyAsk" data-y="1">알림 받기/.test(sv), "처음 저장할 때 관람 후 알림을 묻는다");
-      nx.click({act: "notifyAsk", y: "1"}); ok(nx.S.proto.notify === "unsupported" && !/관람일이 지나면 알려 드릴까요/.test(nx.V.saved("0")) && /관람 후 알림은 앱을 열 때 보여 드릴게요/.test(nx.V.me()), "브라우저 알림을 못 쓰면 앱 안 알림 카드로 대신하고 다시 묻지 않는다(내 취향에서 켤 수 있다)");
+      ok(!/알려 드릴까요|notifyAsk/.test(sv) && /관람일이 지나면 홈에서 '어땠어요\?'를 물어볼게요/.test(sv) && !/Notification\./.test(html) && !/브라우저 알림 켜기/.test(nx.V.me()), "관람 후 알림은 홈 배너만: 푸시 권한을 묻지 않고 브라우저 알림 코드도 없다(사용자 결정 2026-10-28)");
       const sx = {prefs: {axes: ["tag:성량", "강한 성량"], prio: "노래", works: [], favs: ["a1"], must: ["a1"], avoid: ["b2"], grade: ""}};
       const ts = tasteSnapshot(D, sx); ok(ts.prio === "노래" && ts.tags.includes("성량") && ts.axes["강한 성량"] === -1, "취향 스냅숏에 우선순위와 새 질문 답(tag:)이 실린다");
       const tr = tasteSnapRecord(D, sx, buildVocab(D).actors); ok(tr.prio === "노래" && tr.must.join() === "a1" && tr.avoid.join() === "b2" && nx.TRK.track("taste_snapshot", tr) !== undefined && nx.TRK.stats().dropped === 0, "taste_snapshot 기록: 우선순위·반드시 포함·피하고 싶은 배우까지, 검사 통과"); }
@@ -605,7 +604,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const svn = appN.V.saved("0"), cn2 = (appN.click({act: "calDay", work: W, d: "2026-11-01"}), appN.V.show(W));
     ok(/<button class="btn" disabled>예매 링크 준비 중<\/button>/.test(svn) && /<a class="btn" href="#saved\/0">볼 예정에 담았어요 · 담은 공연 보기 →<\/a>/.test(cn2), "링크 없는 회차를 담으면: 담은 뒤 화면에 '예매 링크 준비 중', 날짜 카드는 '담은 공연 보기 →'(막다른 길 없음)");
     // 월드컵은 공연 화면 밖
-    ok(/끌리는 배우 고르기/.test(app.V.me()) && /data-go="#duel\/극"/.test(app.V.me()) && !/월드컵/.test(app.V.me()), "내 취향 탭에 끌리는 배우 고르기(작품 고르기)");
+    ok(!/끌리는 배우 고르기|#duel\//.test(app.V.me()) && !/월드컵/.test(app.V.me()), "내 취향 탭에서 끌리는 배우 고르기는 뺐다(사용자 요청 2026-10-28). #duel 화면은 주소로만 남는다");
     ok(/data-act="duel"/.test(app.V.duel(W)) && /<h1>극<\/h1>/.test(app.V.duel(W)), "#duel/작품 화면");
     app = boot(); app.click({act: "obGo", to: "3"}); ok(app.location.hash === "#home", "온보딩 마지막 버튼(2단계 끝): 바로 #home");
     app.S.prefs = {axes: ["강한 성량"], works: [], favs: ["a1"], grade: ""}; app.click({act: "obGo", to: "3"}); ok(app.location.hash === "#home", "추천 1순위 작품(끌리는 배우 고르기가 가능한 작품)이 있어도 바로 #home");
@@ -1272,9 +1271,17 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         { const m = boot(L0); m.location.hash = "#home"; m.route(); const front = m.q("#view").innerHTML;
           ok(/<button type="button" class="tcard" data-act="cardFlip"/.test(front) && /MY PICKLE TASTE/.test(front) && !/지금 하는 공연 전체|내 취향 추천/.test(front) && !/배우 조합 추천받기<\/a>/.test(front), "홈 앞면: 버튼 하나인 취향 카드(탭·Enter·Space), 작품 추천 목록·카드 밖 바로가기 없음(결정 31)");
           m.click({act: "cardFlip"}); const back = m.q("#view").innerHTML;
-          ok(/class="tcard back"/.test(back) && /data-go="#find">배우 조합 추천받기/.test(back) && /data-act="cardFlip">앞면으로/.test(back) && /href="#me">답 고치기/.test(back), "카드를 누르면 뒷면: 배우 조합 추천받기 · 답 고치기(내 취향 화면, 결정 39) · 앞면으로");
+          ok(/class="tk tcard back"/.test(back) && /data-go="#find">배우 조합 추천받기/.test(back) && /data-act="cardFlip">앞면으로/.test(back) && !/답 고치기|수정하기/.test(back), "카드를 누르면 뒷면: 배우 조합 추천받기 · 앞면으로(답 고치기는 뒷면에서 뺐다, 2026-10-28)");
+          // 티켓 카드(2026-10-28 사용자 요청): 맨 위 '나의 뮤지컬 관극 취향' → 한 줄 요약(가장 크게) → 분류별 태그 칸 → 왼쪽 아래 수정하기(온보딩 처음부터) · 맨 아래 업데이트 날짜
+          { const iT = front.indexOf("나의 뮤지컬 관극 취향"), iB = front.indexOf('class="tkcell tkbig'), iG = front.indexOf('class="tkgrid"'), iE = front.indexOf('class="tkedit" data-go="#taste/1">수정하기');
+            ok(iT > 0 && iT < iB && iB < iG && iG < iE && /<svg class="tkcurtain"/.test(front), "앞면 티켓: 제목 → 요약 → 분류별 태그 → 수정하기(#taste/1) 순서, 커튼 그림");
+            const t = boot({...L0, prefs: {axes: ["tag:맑음", "tag:성량"], prio: "노래", favs: ["카이"], must: ["카이"], avoid: [], grade: "", works: [], at: "2026-10-28"}}); t.location.hash = "#home"; t.route(); const tf = t.q("#view").innerHTML;
+            ok(/<span class="tkk">목소리<\/span><span class="tkv">맑고 깨끗한<\/span>/.test(tf) && /<span class="tkk">노래<\/span><span class="tkv">공간을 채우는 성량<\/span>/.test(tf) && /<span class="tkk">가장 기대하는 것<\/span><span class="tkv">노래<\/span>/.test(tf) && /보고 싶은 배우<\/span><span class="tkv">카이 \(반드시\)/.test(tf), "고른 태그는 질문별 칸(목소리·노래·가장 기대하는 것·보고 싶은 배우)으로 나눠 보인다");
+            ok(/<span class="tkdate">2026\.10\.28 업데이트<\/span>/.test(tf) && tf.indexOf("tkdate") > tf.indexOf("tkedit"), "맨 아래 작은 글씨로 마지막 업데이트 날짜");
+            t.click({act: "obPrio", v: "연기"}); ok(t.S.prefs.at === NOW, "취향을 고치면 업데이트 날짜가 오늘로"); }
           m.click({act: "cardFlip"}); ok(/<button type="button" class="tcard"/.test(m.q("#view").innerHTML), "다시 누르면 앞면");
-          m.click({act: "cardFlip"}); m.location.hash = "#plans"; m.route(); m.location.hash = "#home"; m.route(); ok(!/class="tcard back"/.test(m.q("#view").innerHTML), "다른 화면에 다녀오면 앞면");
+          m.click({act: "cardFlip"}); m.location.hash = "#plans"; m.route(); m.location.hash = "#home"; m.route(); ok(!/tcard back"/.test(m.q("#view").innerHTML), "다른 화면에 다녀오면 앞면");
+          { const e0 = boot(null).q("#view").innerHTML; ok(/class="tkveilbg"[^]*나의 뮤지컬 관극 취향/.test(e0) && /class="tkveil"><button class="btn tkset" data-go="#taste\/1">내 취향 설정하기<\/button>/.test(e0) && !/data-act="cardFlip"/.test(e0), "처음 온 사람: 흐리게 비치는 '나의 뮤지컬 관극 취향' 위에 가장 큰 '내 취향 설정하기'(→ 온보딩)"); }
           const fl = m.V.find();
           ok((fl.match(/class="wcard/g) || []).length >= 1 && /href="#find\/[^"]+"/.test(fl) && /어떤 작품의 조합을 찾아볼까요\?/.test(fl), "작품 고르기: 작품 카드가 나오고, 고를 수 있는 작품은 #find/작품으로");
           const how = m.V.find(W0, "how"); ok(/href="#find\/[^"]+\/date">날짜 먼저 고르기/.test(how) && /href="#find\/[^"]+\/actor">배우 먼저 고르기/.test(how), "찾는 방법 고르기: 날짜 먼저 · 배우 먼저");
@@ -1341,14 +1348,17 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         ok(/이 앱은 지금 아무 기록도 서버로 보내지 않아요/.test(scrP["#privacy"]) && !/\[문의처|\[공개일|시행 전 안내/.test(scrP["#privacy"]), "연습 모드에서 #privacy 로 직접 들어가도 초안·빈칸은 안 보이고 '아무 기록도 서버로 보내지 않아요'만");
         // 기록 설정이 있으면: 지금처럼 다 보인다
         ok(/data-act="trackToggle">기록 끄기<\/button>/.test(scrL["#home"]) && /href="#privacy"/.test(scrL["#home"]) && /data-act="trackToggle">기록 끄기<\/button>/.test(scrL["#taste/1"]), "기록 설정이 있으면 첫 화면(홈·취향폼)에 기록 배너와 [자세히][기록 끄기]가 보인다");
-        ok(/data-act="trackClear">이 기기 기록 지우기/.test(scrL["#me"]) && /href="#privacy">기록·개인정보 안내 보기/.test(scrL["#me"]), "기록 설정이 있으면 내 취향에 기록 끄기·지우기 카드와 안내 링크가 보인다");
+        ok(!/data-act="trackClear"|기록·개인정보/.test(scrL["#me"]) && /data-act="trackClear">이 기기 기록 지우기/.test(scrL["#privacy"]) && /href="#privacy"/.test(scrL["#home"]), "기록 끄기·지우기 카드는 내 취향에서 빼고(사용자 요청 2026-10-28) 안내 화면(#privacy)에 남는다. 홈 아래 안내 링크로 들어간다");
         ok(/<h1>기록·개인정보 안내<\/h1>/.test(scrL["#privacy"]) && !/시행 전 안내|문의처/.test(scrL["#privacy"]) && /시행일: <b>2026년 10월 13일<\/b>/.test(scrL["#privacy"]) && !/\[[^\]\n<>]*(?:확인|기재|필요)[^\]\n<>]*\]/.test(scrL["#privacy"]), "안내 화면: 제목만(시행 전 안내 없음), 문의처 없음, 시행일 2026년 10월 13일, 자리표시 대괄호 없음");
         ok(/<h3>7\) 내 기록은 어떻게 관리하나요\?<\/h3><p class="small">기록은 이름 없이 번호로만 남아서, 어떤 기록이 내 것인지 우리도 찾을 수 없어요\. 그래서 끄기와 지우기를 직접 하실 수 있게 해 두었어요\.<\/p>/.test(scrL["#privacy"]) && /보호자와 함께 <b>\[기록 끄기\]<\/b>를 누르세요\. 끈다고 앱을 못 쓰게 되지는 않아요/.test(scrL["#privacy"]) && !/궁금한 점이 있으면|위 문의/.test(scrL["#privacy"]), "7) 내 기록은 어떻게 관리하나요? · 8) 보호자와 함께 [기록 끄기]를 누르세요(문의처 말 없음)");
         ok(/그때 보여 준 추천 조합 3개/.test(scrL["#privacy"]) && /끌리는 배우 고르기에서 고를 때/.test(scrL["#privacy"]) && /접속 기록을 자체적으로 둘 수 있어요/.test(scrL["#privacy"]) && !/법적 근거|국가 목록/.test(scrL["#privacy"]), "안내 화면 문구: '위 3개' 없음, 월드컵 → 끌리는 배우 고르기, 로그 줄은 값 없이, 법적 근거 줄은 뺌");
         // ?debug=1: 팀 시트 내보내기·TSV, 연습 모드의 기록 확인 버튼
         const dbg = bootT(undefined, "?debug=1"); dbg.location.hash = "#me"; const meD = dbg.V.me();
         ok(/팀 시트로 내보내기/.test(meD) && /TSV 복사/.test(meD) && !/팀 시트로 내보내기|TSV/.test(scrP["#me"]) && !/팀 시트로 내보내기|TSV/.test(scrL["#me"]), "'팀 시트로 내보내기'·TSV 는 ?debug=1 일 때만 보인다");
-        ok(/취향과 기록은 이 브라우저에만 저장돼요\./.test(scrP["#me"]) && /취향과 기록은 이 브라우저에만 저장돼요\./.test(meD) && !/recommend|가안|팀 시트와/.test(meD), "내 취향 맨 아래는 사용자 말 한 줄(내부 파일 이름 없음)");
+        ok(!/이 브라우저에만 저장돼요|주로 보는 좌석 등급|내가 남긴 관람 기록/.test(scrP["#me"]) && !/recommend|가안|팀 시트와/.test(meD), "내 취향: 맨 아래 저장 안내 문구·좌석 등급·관람 기록 상자는 뺐다(사용자 요청 2026-10-28), 내부 파일 이름 없음");
+        { const mp = scrP["#me"], i1 = mp.indexOf("꼭 보고 싶은 배우 · 피하고 싶은 배우"), i2 = mp.indexOf("공연을 볼 때 기대하는 것"), i3 = mp.indexOf('data-act="meDone">확인');
+          ok(i1 > 0 && i1 < i2 && i2 < i3 && /class="mecol"/.test(mp) && !/class="cards2"/.test(mp), "내 취향: ① 배우 ② 기대 ③ 확인 순서로 한 줄(한 칸)");
+          ok(!/class="chip x on" data-act="obPick"/.test(mp), "기대 질문의 '상관없어요'는 기본으로 켜져(빨간 버튼) 있지 않다"); }
         dbg.route(); ok(/dbgb/.test(dbg.q("#dbg").innerHTML), "?debug=1 이면 연습 모드에서 📝 기록 확인 버튼이 보인다");
         // 문구 통일 세부
         const meP = scrP["#me"]; ok(/노래|맑고 부드러운 음색/.test(meP) && !/<span class="tag hit">(가창|맑은 음색|강한 성량|감정 크게)<\/span>/.test(meP), "내 취향에 고른 취향이 홈과 같은 말(노래·맑고 부드러운 음색)로 보인다");
@@ -1359,7 +1369,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
           tg.click({act: "rvRate", r: roles[0], v: "good"}); const h1 = tg.V.tag("1");
           ok(/어떤 점이 좋았나요\?/.test(h1) && /＋ 다른 점/.test(h1) && /다른 배우였어요/.test(h1), "실제 데이터: 좋았어요 → '어떤 점이 좋았나요?' 칩 + ＋ 다른 점 + 다른 배우였어요");
           tg.click({act: "rvMore", r: roles[0]}); const h2x = tg.V.tag("1"); ok(/캐릭터 해석|신체 표현|가창|연기/.test(h2x) && !/data-act="rvTag"[^>]*data-t="(연기합·티키타카|음색·보컬 조화)"/.test(h2x), "실제 데이터: ＋ 다른 점은 배우 태그 영역별 전체(조합 태그는 배우 줄에 없다)"); }
-        ok(/취향 고르기 1\/2/.test(scrP["#taste/1"]) && /나의 PICKLE 취향|아직 비어 있는 내 취향 카드/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "온보딩은 1/2·2/2, 홈은 내 취향 카드, '우열' 문장은 '평가하지 않고 … 특징만'");
+        ok(/취향 고르기 1\/2/.test(scrP["#taste/1"]) && /나의 뮤지컬 관극 취향|아직 비어 있는 내 취향 카드/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "온보딩은 1/2·2/2, 홈은 내 취향 카드, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
         ok(!/점수·순위/.test(scrP["#home"]) && /MY PICKLE TASTE/.test(scrP["#home"]) && !/지금 하는 공연 전체|내 취향 추천/.test(scrP["#home"]), "홈: 점수·순위 말이 없고, 작품 추천 목록(내 취향 추천·지금 하는 공연 전체) 없이 취향 카드만");
         ok(/진한 날에 이 조합이 나와요\. ★는 첫공·막공이에요\./.test(scrP["#show/" + W0 + "(날짜)"]) && /공식 캐스팅 일정이라 바뀔 수 있어요\./.test(scrP["#show/" + W0 + "(날짜)"]), "달력 아래 안내는 두 줄로 나눠 읽기 쉽게");
