@@ -604,20 +604,20 @@ const V = {};
 // S.prefs = {works: [카드 id], axes: [취향 키], prio, favs: [배우], must: [반드시 볼 배우(favs 안)], avoid: [피하고 싶은 배우], grade}. 처음 온 사람(S.prefs 없음)에게만 자동으로 보인다.
 const prefsOf = () => { const p = (S.prefs ||= {axes: [], grade: "", favs: []}); p.works ||= []; p.axes ||= []; p.favs ||= []; return p; };  // must·avoid 는 쓸 때만 생긴다(예전 저장 값을 그대로 두려고)
 let OB_MORE = false;  // 3/3 '조금 더 골라 보기'를 펼쳤는지(화면을 다시 그려도 펼친 채로 둔다. 저장은 안 한다)
-const onboardBody = (step, embed = false) => {  // embed: '내 취향' 화면 안에서 바로 편집(결정 39) — 단계 머리·다음 버튼 없이
-  const n = step === "2" ? 2 : 1, p = S.prefs || {}, axes = p.axes || [], favs = p.favs || [], must = p.must || [], avoid = p.avoid || [];
+const onboardBody = (step, embed = false, w = "") => {  // embed: '내 취향' 화면 안에서 바로 편집(결정 39) — 단계 머리·다음 버튼 없이. w: 작품 취향 확인(6.3절) — 그 작품의 값을 고친다
+  const n = step === "2" ? 2 : 1, p = w ? workPrefs(S, w) : S.prefs || {}, axes = p.axes || [], favs = p.favs || [], must = p.must || [], avoid = p.avoid || [];
   const nav = embed ? "" : `<div class="obg">${[favs.length + avoid.length, axes.length + (p.prio ? 1 : 0)][n - 1] ? `<button class="btn" data-act="obGo" data-to="${n + 1}">${n < 2 ? "다음" : "내 취향 카드 완성하기"}</button>` : ""}<button class="btn ghost" data-act="obGo" data-to="${n + 1}">건너뛰기</button></div>`;
   const head = embed ? `<h2>${["꼭 보고 싶은 배우 · 피하고 싶은 배우", "공연을 볼 때 기대하는 것"][n - 1]}</h2>` : `<div class="onboard-head"><p class="eyebrow">취향 고르기 ${n}/2${n > 1 ? ` · <a href="#taste/${n - 1}">이전</a>` : ""}</p><h1>${["보고 싶은 배우가 있나요?", "공연을 볼 때 무엇을 기대하나요?"][n - 1]}</h1></div>`;
   if (n === 2) {
     const cnt = tagCounts(D), on = t => axes.includes(tagKey(t));
     const qCard = (q, onlyData) => { const opts = onlyData ? q.opts.filter(o => cnt[o[1]]) : q.opts;
-      return `<div class="card"><h3>${esc(q.q)} <span class="small muted" style="white-space:nowrap">${PICK_MAX}개까지</span></h3><div class="chips">${opts.map(([l, t]) => `<button class="chip ${on(t) ? "on" : ""}" data-act="obPick" data-q="${q.id}" data-t="${esc(t)}" aria-pressed="${on(t)}">${esc(l)}${cnt[t] ? "" : ` <span class="tiny muted">· 아직 데이터 없음</span>`}</button>`).join("")}
-        <button class="chip x ${q.opts.some(o => on(o[1])) ? "" : "on"}" data-act="obPick" data-q="${q.id}" data-t="">상관없어요</button></div></div>`; };
+      return `<div class="card"><h3>${esc(q.q)} <span class="small muted" style="white-space:nowrap">${PICK_MAX}개까지</span></h3><div class="chips">${opts.map(([l, t]) => `<button class="chip ${on(t) ? "on" : ""}" data-act="obPick" data-q="${q.id}" data-t="${esc(t)}"${w ? ` data-w="${esc(w)}"` : ""} aria-pressed="${on(t)}">${esc(l)}${cnt[t] ? "" : ` <span class="tiny muted">· 아직 데이터 없음</span>`}</button>`).join("")}
+        <button class="chip x ${q.opts.some(o => on(o[1])) ? "" : "on"}" data-act="obPick" data-q="${q.id}" data-t=""${w ? ` data-w="${esc(w)}"` : ""}>상관없어요</button></div></div>`; };
     // 선택 질문은 근거가 있는 선택지만, 하나도 없으면 질문째 숨긴다. ①에서 춤·몸짓을 골랐으면 움직임 질문은 접지 않고 바로 보인다
     const extra = ONBOARD_QS.filter(q => q.opt && q.opts.some(o => cnt[o[1]])), shown = extra.filter(q => q.id === "body" && p.prio === "몸"), folded = extra.filter(q => !shown.includes(q));
     return `${head}
     <p class="muted small">배우를 평가하지 않고, 끌리는 특징만 골라요. 잘 모르겠으면 상관없어요를 누르면 돼요.</p>
-    <div class="card"><h3>가장 기대하는 것은 무엇인가요?</h3><div class="chips">${PRIO.map(([v, l]) => `<button class="chip ${p.prio === v ? "on" : ""}" data-act="obPrio" data-v="${v}" aria-pressed="${p.prio === v}">${esc(l)}</button>`).join("")}</div></div>
+    <div class="card"><h3>가장 기대하는 것은 무엇인가요?</h3><div class="chips">${PRIO.map(([v, l]) => `<button class="chip ${p.prio === v ? "on" : ""}" data-act="obPrio" data-v="${v}"${w ? ` data-w="${esc(w)}"` : ""} aria-pressed="${p.prio === v}">${esc(l)}</button>`).join("")}</div></div>
     ${ONBOARD_QS.filter(q => !q.opt).map(q => qCard(q)).join("")}
     ${shown.map(q => qCard(q, true)).join("")}
     ${folded.length ? (OB_MORE || folded.some(q => q.opts.some(o => on(o[1]))) ? folded.map(q => qCard(q, true)).join("")
@@ -844,6 +844,9 @@ const actorChips = (D, work, axes, from) => {
   }).filter(Boolean);
 };
 // 작품별 취향은 이 작품에서 직접 바꾸기 전(edited 아님)엔 기본 취향을 그대로 따라간다. edited 표시가 없던 예전 작품은 기본과 다르면 직접 바꾼 것으로 본다
+// 작품별 기대 값(9.3절): 6.3절에서 이 작품만 고쳤으면(S.cal[작품].edited) 그 값, 아니면 온보딩 2/2 값. 온보딩 값·취향 카드는 바뀌지 않는다
+const workPrefs = (S, work) => { const st = (S.cal || {})[work], base = S.prefs || {}; return st?.edited ? {axes: st.axes || [], prio: st.prio ?? base.prio ?? ""} : {axes: base.axes || [], prio: base.prio || ""}; };
+const workEdited = (S, work) => { const st = (S.cal || {})[work], base = S.prefs || {}; return !!st?.edited && (!sameSet(st.axes || [], base.axes || []) || (st.prio ?? base.prio ?? "") !== (base.prio || "")); };  // 실제로 다를 때만 '이 작품에만 적용돼요'
 const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
 const followBase = (st, base) => { if (st.edited === undefined) st.edited = st.axes ? !sameSet(st.axes, base) : false; if (!st.edited) st.axes = [...base]; return st.axes; };
 // 기본 취향이 있는지(홈에 추천을 보일지). 좋아하는 배우도 취향의 예시라서 하나라도 있으면 있다
@@ -1260,8 +1263,8 @@ const pinsOf = (S, work) => { const P = S.proto?.pins?.[work] || {}; return {sta
 const duelsOf = (S, work) => (S.proto?.duels || []).filter(d => d.work === work);
 const duelBonus = (S, work, cast) => { let n = 0; for (const d of duelsOf(S, work)) { if (d.result === "tie") continue; const a = cast[d.role]; if (a === d.win) n++; else if (a === d.lose) n--; } return Math.max(-2, Math.min(2, n)); };
 const comboRecs = (D, S, work, from) => {
-  const prefs = S.prefs?.axes || [], pw = personalWeights(S, D), hasPW = Object.keys(pw).length > 0, {star, avoid} = pinsOf(S, work), hide = new Set(S.proto?.hide?.[work] || []), wrong = wrongOf(S, work);
-  const prio = S.prefs?.prio || "", must = S.prefs?.must || [], never = S.prefs?.avoid || [];  // 취향폼 1/3: '반드시 볼 배우'는 ⭐처럼, '피하고 싶은 배우'는 조연이어도 그 회차를 뺀다
+  const wp = workPrefs(S, work), prefs = wp.axes, pw = personalWeights(S, D), hasPW = Object.keys(pw).length > 0, {star, avoid} = pinsOf(S, work), hide = new Set(S.proto?.hide?.[work] || []), wrong = wrongOf(S, work);
+  const prio = wp.prio, must = S.prefs?.must || [], never = S.prefs?.avoid || [];  // 취향폼 1/3: '반드시 볼 배우'는 ⭐처럼, '피하고 싶은 배우'는 조연이어도 그 회차를 뺀다
   const seen = new Set((S.plans || []).filter(x => x.work === work && (x.tagged || x.date < from)).map(x => comboKey(D, work, x.cast)));
   const starByRole = {};  // 같은 배역의 ⭐는 '또는', 배역끼리는 '그리고'
   for (const r of unitRoles(D, work)) for (const a of r.cast) if (star.includes(a) || must.includes(a)) (starByRole[r.role] ||= []).push(a);
@@ -1983,8 +1986,16 @@ const workState = (w, from) => {
   return {ok: true, text: last < runEnd ? `${md(last)}까지 회차 공개` : ""};
 };
 const notInWork = (w, names) => names.filter(a => !(D.roles[w.name] || []).some(r => r.cast.includes(a)));
+const workEdit = w => { const st = (S.cal[w] ||= {actors: [], period: "all"}), base = S.prefs || {}; if (!st.edited) { st.axes = [...(base.axes || [])]; st.prio = base.prio || ""; st.edited = true; } return st; };  // 처음 고칠 때 온보딩 값을 복사(결정 24)
+const workTaste = w => `<div class="one"><div><p class="eyebrow">${esc(w.name)}</p><h1>이번 ${esc(w.name)} 공연에서 중요한 게 무엇인가요?</h1></div>
+  <p class="small muted">평소 취향을 채워 뒀어요. 이 작품에서만 다르게 보고 싶다면 바꿔 주세요.</p>
+  ${onboardBody("2", true, w.name).replace(/^<h2>[^<]*<\/h2>/, "")}
+  ${workEdited(S, w.name) ? `<p class="small">이 작품에만 적용돼요</p>` : ""}
+  <a class="btn" href="#find/${esc(w.name)}/how">이대로 찾기</a>
+  ${S.cal[w.name]?.edited ? `<button class="chip x" data-act="wtReset" data-w="${esc(w.name)}">평소 취향으로 되돌리기</button>` : ""}</div>`;
 V.find = (work, how) => {
   const from = today(), w = work && workOf(work);
+  if (w && !how && workState(w, from).ok) return workTaste(w);  // 작품을 고르면 먼저 작품 취향 확인(6.3절)
   if (w && how === "date") return V.cal(work);
   if (w && how === "actor") { SCROLL_TO = "#cast"; return V.show(work); }
   const must = S.prefs?.must || [], miss = w ? notInWork(w, must) : [];
@@ -2286,13 +2297,16 @@ document.addEventListener("click", e => {
       for (const st of Object.values(S.cal)) followBase(st, P.axes);  // 바꾸기 전 기본 취향으로 먼저 '직접 바꿨나'를 가려 두고
       P.axes = next; for (const st of Object.values(S.cal)) followBase(st, next);  // 안 바꾼 작품은 새 기본 취향을 따라가게 저장 값도 맞춘다
       save(); route(); break; }
-    case "obPick": { const P = prefsOf(), q = ONBOARD_QS.find(x => x.id === d.q); if (!q) break; const next = togglePick(P.axes, q, d.t);
+    case "obPick": { const q = ONBOARD_QS.find(x => x.id === d.q); if (!q) break;
+      if (d.w) { const st = workEdit(d.w), next = togglePick(st.axes, q, d.t); if (!next) { toast(`${PICK_MAX}개까지 고를 수 있어요`); return; } st.axes = next; save(); route(); break; }  // 작품 취향 확인: 이 작품만
+      const P = prefsOf(), next = togglePick(P.axes, q, d.t);
       if (!next) { toast(`${PICK_MAX}개까지 고를 수 있어요`); return; }
       for (const st of Object.values(S.cal)) followBase(st, P.axes);  // obAxis 와 같이: 직접 바꾼 작품은 두고 나머지는 새 기본 취향을 따른다
       P.axes = next; for (const st of Object.values(S.cal)) followBase(st, next);
       save(); route(); break; }
     case "obMore": OB_MORE = true; route(); break;
-    case "obPrio": { const P = prefsOf(); P.prio = P.prio === d.v ? "" : d.v; save(); route(); break; }
+    case "obPrio": { if (d.w) { const st = workEdit(d.w); st.prio = st.prio === d.v ? "" : d.v; save(); route(); break; } const P = prefsOf(); P.prio = P.prio === d.v ? "" : d.v; save(); route(); break; }
+    case "wtReset": { const st = S.cal[d.w]; if (st) { st.edited = false; delete st.prio; followBase(st, S.prefs?.axes || []); } save(); route(); break; }  // 평소 취향으로 되돌리기
     case "obMust": { const P = prefsOf(); P.must = (P.must || []).filter(a => a !== d.a); if (d.m) P.must.push(d.a); save(); route(); break; }
     case "addAvoid": { const v = $("#avoidIn").value.trim(), P = prefsOf(); if (!v) return; P.favs = P.favs.filter(a => a !== v); if (P.must) P.must = P.must.filter(a => a !== v); if (!(P.avoid ||= []).includes(v)) P.avoid.push(v); save(); route(); $("#avoidIn")?.focus(); break; }
     case "rmAvoid": { const P = prefsOf(); P.avoid = (P.avoid || []).filter(a => a !== d.a); save(); route(); break; }
