@@ -485,8 +485,8 @@ a.wcard:hover{border-color:var(--hl)}
 .howlist .btn{display:grid;gap:2px;justify-items:start;text-align:left;padding:16px}
 .howlist .btn small{font-weight:400;opacity:.85}
 </style>
-<link rel="stylesheet" href="theme.css?v=20261014a">
-<link rel="stylesheet" href="app.css?v=20261014a">  <!-- 스타일을 고칠 때마다 theme.css·app.css 의 ?v= 숫자를 같이 올린다(브라우저가 옛 스타일을 기억하지 않게) -->
+<link rel="stylesheet" href="theme.css?v=20261028a">
+<link rel="stylesheet" href="app.css?v=20261028a">  <!-- 스타일을 고칠 때마다 theme.css·app.css 의 ?v= 숫자를 같이 올린다(브라우저가 옛 스타일을 기억하지 않게) -->
 </head>
 <body>
 <div class="shell">
@@ -498,17 +498,17 @@ a.wcard:hover{border-color:var(--hl)}
       <a href="#plans" data-tab="plans">내 공연</a>
       <a href="#me" data-tab="me">내 취향</a>
     </nav>
+    <button id="themebtn" class="themebtn" type="button" data-act="themeToggle"></button>
   </header>
   <main id="view"></main>
   <div class="cta" id="cta" hidden></div>
   <nav class="tabs" id="tabs">
-    <a href="#home" data-tab="home"><span class="ico">🎭</span>홈</a>
-    <a href="#plans" data-tab="plans"><span class="ico">🎟️</span>내 공연</a>
-    <a href="#me" data-tab="me"><span class="ico">✦</span>내 취향</a>
+    <a href="#home" data-tab="home"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20h-5v-5.5H9V20H4z"/></svg>홈</a>
+    <a href="#plans" data-tab="plans"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>내 공연</a>
+    <a href="#me" data-tab="me"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.4-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.6-7.5 10-7.5 10z"/></svg>내 취향</a>
   </nav>
   <div class="toast" id="toast"></div>
   <div class="undobar" id="undo" hidden></div>
-  <button id="themebtn" class="themebtn" type="button" data-act="themeToggle"></button>
 </div>
 <div id="dbg"></div>
 <div class="sheet-bg" id="sheetbg"></div>
@@ -1028,68 +1028,97 @@ V.detail = (work, date, time) => {
 const MOODS = {good: "좋았어요", meh: "그저 그랬어요", bad: "아쉬웠어요"};
 const MOOD_UI = {good: ["😊", "여운이 길게 남아요"], meh: ["😐", "평이한 편이에요"], bad: ["🙁", "기대와 달랐어요"]};  // 관람 후 기분. 한 번만 눌러도 저장할 수 있게 3지선다
 
-// 캘린더 파일(.ics)을 의존성 없이 data: URL로 만든다. DTSTART는 시간대 없는 로컬 시각이라 보는 사람 기기의 시간대로 들어간다. 길이는 2시간 30분으로 고정.
-// ponytail: 공연마다 러닝타임이 다르다. 데이터에 러닝타임이 생기면 그 값으로
-function icsHref(x, run) {
-  const p2 = n => String(n).padStart(2, "0");
-  const loc = d => fmt(d).replace(/-/g, "") + "T" + p2(d.getHours()) + p2(d.getMinutes()) + "00";
-  const start = new Date(`${x.date}T${x.time}:00`), end = new Date(start.getTime() + 150 * 60000), u = new Date();
-  const stamp = `${u.getUTCFullYear()}${p2(u.getUTCMonth() + 1)}${p2(u.getUTCDate())}T${p2(u.getUTCHours())}${p2(u.getUTCMinutes())}${p2(u.getUTCSeconds())}Z`;
-  const e = s => String(s).replace(/[\\;,]/g, "\\$&").replace(/\r?\n/g, "\\n");
-  const who = leads(x.work, x.cast).map(([, a]) => a).join("·");
-  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PICKLE//KO", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
-    `UID:pickle-${x.date}-${x.time.replace(":", "")}-${x.work.replace(/\s+/g, "")}@pickle`, `DTSTAMP:${stamp}`, `DTSTART:${loc(start)}`, `DTEND:${loc(end)}`,
-    `SUMMARY:${e(who ? `${x.work} (${who})` : x.work)}`, ...(run?.venue ? [`LOCATION:${e(run.venue)}`] : []), "END:VEVENT", "END:VCALENDAR"].join("\r\n") + "\r\n";
-  return "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
-}
-
-// 볼 예정에 담은 직후 화면: 담겼다는 확인 + 다음 행동(예매·좌석·캘린더)
+// 볼 예정에 담은 직후 화면: 캘린더에 '미정일정'으로 들어갔다는 확인 + 다음 행동(예매 → 관람예정으로 바꾸기)
 V.saved = i => {
   const x = S.plans[+i]; if (!x) return V.plans();
-  const run = runOf(x.work, x.date) || {}, file = `pickle-${x.work.replace(/\s+/g, "")}-${x.date}.ics`;
+  const run = runOf(x.work, x.date) || {}, w = workOf(x.work), booked = planStatus(x) === "booked";
   return `
-    <div class="okmark">✓</div>
-    <h1 class="svh">볼 예정에 담았어요</h1>
+    <div class="svtop">${w?.poster ? `<img class="svposter${booked ? "" : " gray"}" src="${esc(w.poster)}" alt="${esc(x.work)} 포스터">` : ""}
+      <p class="eyebrow">${booked ? "관람예정" : "미정일정"}</p><h1 class="svh">캘린더에 담았어요</h1>
+      <p class="small muted">${booked ? "관람예정으로 표시돼 있어요." : "아직 예매 전이라 포스터를 흑백으로 표시해요. 예매하고 나면 관람예정으로 바꿔 주세요."}</p></div>
     <div class="card">
       <div class="between"><b>${esc(x.work)}</b><span class="small muted">${md(x.date)}(${esc(x.dow)}) ${esc(x.time)}</span></div>
       ${run.venue ? `<p class="small muted">${esc(run.venue)}</p>` : ""}
       <div class="chips">${castChips(x.work, x.cast)}</div></div>
     <div class="svact">
-      ${run.ticket ? `<a class="btn" data-act="ticketSaved" data-i="${+i}" href="${esc(run.ticket)}" target="_blank" rel="noopener">예매처로 이동 ↗</a>
+      ${run.ticket ? `<a class="btn${booked ? " ghost" : ""}" data-act="ticketSaved" data-i="${+i}" href="${esc(run.ticket)}" target="_blank" rel="noopener">예매처로 이동 ↗</a>
       <p class="tiny muted">예매처에서 <b>${md(x.date)} ${esc(x.time)}</b> 날짜를 다시 골라 주세요(날짜는 자동으로 안 넘어가요).</p>` : `<button class="btn" disabled>예매 링크 준비 중</button>`}
-      ${run.seatmap?.url ? `<a class="btn ghost" href="${esc(run.seatmap.url)}" target="_blank" rel="noopener">좌석 배치도 ↗</a>` : ""}
-      <a class="btn ghost" download="${esc(file)}" href="${icsHref(x, run)}">내 캘린더에 추가</a>
+      ${booked ? "" : `<button class="btn ghost" data-act="planStatus" data-i="${+i}" data-s="booked">예매했어요 · 관람예정으로 바꾸기</button>`}
+      <a class="btn ghost" href="#plans/${x.date}">캘린더에서 보기</a>
       <button class="btn ghost" data-go="#home">홈으로</button>
     </div>
     <p class="tiny muted" style="text-align:center">관람일이 지나면 홈에서 '어땠어요?'를 물어볼게요.</p>`;
 };
 
 const likedCard = () => { const L = likedCombos(S); return L.length ? `<div class="card"><h3>좋아한 조합 <span class="small muted">${L.length}개</span></h3>${L.map(x => `<p class="small"><b>${esc(x.work)}</b> · ${Object.entries(x.cast).map(([r, a]) => `${esc(r)} ${esc(a)}`).join(" · ")} <a href="#find/${esc(x.work)}/actor">다시 찾기</a></p>`).join("")}</div>` : ""; };
+// 내 공연(#plans) = 서비스 안 캘린더. 날짜 칸은 그날 담은 공연의 포스터로 채우고(미정일정 흑백 · 관람예정 컬러), 날짜를 누르면 그날 공연 정보(#plans/YYYY-MM-DD)
 // 관람 후 알림은 홈 배너만(사용자 결정 2026-10-28): 브라우저 푸시 권한을 묻지 않는다
-V.plans = () => {
-  const card = (x, i) => `<div class="card">
-      <div class="between"><b>${esc(x.work)}</b><span class="small muted">${md(x.date)}(${esc(x.dow)}) ${esc(x.time)}</span></div>
-      <div class="chips">${castChips(x.work, x.cast)}</div>
-      ${x.tagged ? `<p class="small" style="color:var(--ok)">기록 남김 ✓ ${reviewOf(S, x.work, x.date, x.time) ? `<a href="#tag/${i}">고치기</a>` : ""}</p>` : `<button class="btn" data-go="#tag/${i}">관람 기록 남기기</button>`}
-      <button class="chip x" data-act="unplan" data-i="${i}">삭제</button></div>`;
-  const items = S.plans.map((x, i) => [x, i]), up = items.filter(([x]) => !isSeen(x)), done = items.filter(([x]) => isSeen(x));
-  const works = [...new Set(done.map(([x]) => x.work))];
-  const progress = works.map(work => {
+let PCAL_M = "";  // 보고 있는 달(저장 안 함. 처음엔 다가오는 일정이 있는 달)
+const DOWS = ["일", "월", "화", "수", "목", "금", "토"];
+const dowOf = d => DOWS[new Date(d + "T00:00:00").getDay()];
+const ymdDot = d => `${d.slice(0, 4)}.${d.slice(5, 7)}.${d.slice(8, 10)}`;
+const statusPill = x => `<span class="spill ${planStatus(x)}">${PLAN_STATUS[planStatus(x)]}</span>`;
+const pcalCell = (d, from) => {
+  if (!d) return `<span class="cday out" aria-hidden="true"></span>`;
+  const ps = plansOn(S, d), x = ps[0]?.[0], poster = x && workOf(x.work)?.poster, n = +d.slice(8), dw = new Date(d + "T00:00:00").getDay();
+  const cls = ["cday", ps.length ? `has ${planStatus(x)}` : "", d === from ? "today" : "", d < from ? "past" : "", dw === 0 ? "sun" : dw === 6 ? "sat" : ""].filter(Boolean).join(" ");
+  const label = `${+d.slice(5, 7)}월 ${n}일${ps.length ? " · " + ps.map(([y]) => `${y.work} ${y.time} ${PLAN_STATUS[planStatus(y)]}`).join(", ") : ""}`;
+  return `<a class="${cls}" href="#plans/${d}" aria-label="${esc(label)}">${poster ? `<img src="${esc(poster)}" alt="" loading="lazy">` : x ? `<span class="cw">${esc(x.work)}</span>` : ""}<span class="cn">${n}</span>${ps.length > 1 ? `<span class="cmore">+${ps.length - 1}</span>` : ""}</a>`;
+};
+const agendaRow = ([x, i]) => { const w = workOf(x.work);
+  return `<a class="agrow ${planStatus(x)}" href="#plans/${x.date}">${w?.poster ? `<img src="${esc(w.poster)}" alt="" loading="lazy">` : `<span class="agph"></span>`}
+    <span class="agd"><b>${+x.date.slice(8)}</b><span>${dowOf(x.date)}</span></span>
+    <span class="agi"><b>${esc(x.work)}</b><span class="tiny muted">${esc(x.time)} · ${esc(runOf(x.work, x.date)?.venue || "")}</span></span>${statusPill(x)}</a>`; };
+V.plans = day => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(day || "")) return planDay(day);
+  const from = today(); if (!/^\d{4}-\d{2}$/.test(PCAL_M)) PCAL_M = pcalStart(S, from);
+  const ym = PCAL_M, inMonth = S.plans.map((x, i) => [x, i]).filter(([x]) => x.date.startsWith(ym)).sort(([a], [b]) => (a.date + a.time).localeCompare(b.date + b.time));
+  const nB = inMonth.filter(([x]) => planStatus(x) === "booked").length;
+  return `
+  <div class="pchead"><div><p class="eyebrow">내 공연</p><h1>관극 캘린더</h1></div>
+    <div class="pclegend"><span><i class="lg booked"></i>관람예정</span><span><i class="lg tentative"></i>미정일정</span></div></div>
+  <section class="pcal" aria-label="${+ym.slice(0, 4)}년 ${+ym.slice(5)}월 캘린더">
+    <div class="pcnav"><button type="button" data-act="pcalMove" data-n="-1" aria-label="이전 달">‹</button><b>${+ym.slice(0, 4)}. ${ym.slice(5)}</b><button type="button" data-act="pcalMove" data-n="1" aria-label="다음 달">›</button></div>
+    <div class="pcgrid">${DOWS.map((d, k) => `<span class="pcdow${k === 0 ? " sun" : k === 6 ? " sat" : ""}">${d}</span>`).join("")}${pcalWeeks(ym).flat().map(d => pcalCell(d, from)).join("")}</div>
+    ${ym !== from.slice(0, 7) ? `<button type="button" class="pctoday" data-act="pcalMove" data-n="0">오늘로</button>` : ""}
+  </section>
+  ${S.plans.length ? `<section class="hsec"><h2>${+ym.slice(5)}월 일정 <span class="count">관람예정 ${nB} · 미정일정 ${inMonth.length - nB}</span></h2>
+    ${inMonth.length ? `<div class="agenda">${inMonth.map(agendaRow).join("")}</div>` : `<p class="small muted">이 달에는 담은 공연이 없어요.</p>`}</section>`
+    : `<div class="card"><p><b>아직 담은 공연이 없어요</b></p><p class="small muted">추천받은 조합에서 회차를 담으면 캘린더에 미정일정으로 들어가요. 예매한 뒤 관람예정으로 바꾸면 포스터가 컬러로 바뀌어요.</p><a class="btn" href="#find">배우 조합 추천받기</a></div>`}
+  ${likedCard()}${seenProgress()}
+  <a class="btn ghost" href="#log">본 공연 기록하기</a>`;
+};
+const seenProgress = () => {  // 본 조합 기록: 본 공연이 있는 작품마다 '본 조합 N개 / 전체'
+  const works = [...new Set(S.plans.filter(isSeen).map(x => x.work))]; if (!works.length) return "";
+  return `<h2>본 조합 기록</h2><div class="cards2">${works.map(work => {
     const all = new Set(perfsOf(work).map(p => leadKey(work, p.cast))), seen = [...seenKeys(work)].filter(k => all.has(k)).length;
     return `<div class="card"><div class="between"><b>${esc(work)}</b><span class="small muted">본 조합 ${seen}개 / 전체 ${all.size}개</span></div>
       <div class="bar"><span style="width:${all.size ? Math.round(seen / all.size * 100) : 0}%"></span></div>
-      ${seen < all.size ? `<a class="btn ghost" href="#when/${esc(work)}/unseen">아직 안 본 조합 보기 →</a>` : `<p class="small muted">이번 시즌 조합을 다 봤어요</p>`}</div>`;
-  }).join("");
-  const tab = S.plansTab || (up.length || !done.length ? "up" : "done");
-  return `
-  <div><p class="eyebrow">내 관람 기록</p><h1>내 공연</h1></div>${likedCard()}
-  ${S.plans.length ? `
-  <div class="seg"><button class="${tab === "up" ? "on" : ""}" data-act="plansTab" data-t="up">볼 예정<b>${up.length}</b></button><button class="${tab === "done" ? "on" : ""}" data-act="plansTab" data-t="done">본 공연<b>${done.length}</b></button></div>
-  ${tab === "up" ? `<div class="cards2">${up.map(([x, i]) => card(x, i)).join("") || `<div class="card"><p class="small muted">볼 예정인 공연이 없어요.</p></div>`}</div>`
-    : `<a class="btn ghost" href="#log">본 공연 기록하기</a>${progress ? `<h2>본 조합 기록</h2><div class="cards2">${progress}</div>` : ""}
-  <div class="cards2">${done.map(([x, i]) => card(x, i)).join("") || `<div class="card"><p class="small muted">아직 본 공연이 없어요.</p></div>`}</div>`}`
-  : `<div class="card"><p>아직 담은 공연이 없어요.</p><p class="small muted">회차 상세에서 '볼 예정에 담기'를 누르면 여기 모여요.</p><a class="btn" href="#home">추천 받으러 가기</a></div>
-  <a class="btn ghost" href="#log">본 공연 기록하기</a><p class="tiny muted">PICKLE에서 담지 않은 공연도 기록할 수 있어요.</p>`}`;
+      ${seen < all.size ? `<a class="btn ghost" href="#find/${esc(work)}/actor">아직 안 본 조합 찾기 →</a>` : `<p class="small muted">이번 시즌 조합을 다 봤어요</p>`}</div>`; }).join("")}</div>`; };
+// 날짜를 누른 화면: 공연명·날짜·시간·출연배우·장소는 회차 정보에서 자동으로, 좌석·금액은 직접 적는다
+const planDay = d => { PCAL_M = d.slice(0, 7);  // 캘린더로 돌아가면 이 날짜의 달
+  const ps = plansOn(S, d), from = today(), head = `<div><p class="eyebrow">${ymdDot(d)} (${dowOf(d)})</p><h1>${ps.length ? "이날의 공연" : "담은 공연이 없어요"}</h1></div>`;
+  if (!ps.length) return `${head}<p class="small muted">추천받은 조합에서 회차를 담으면 이 날짜에 들어가요.</p><a class="btn" href="#find">배우 조합 추천받기</a><a class="btn ghost" href="#plans">캘린더로</a>`;
+  const item = ([x, i]) => { const w = workOf(x.work), run = runOf(x.work, x.date) || {}, st = planStatus(x), rv = reviewOf(S, x.work, x.date, x.time);
+    const cast = leads(x.work, x.cast).map(([r, a]) => `<span class="pcast"><span class="tiny muted">${esc(r)}</span> ${esc(a)}</span>`).join("");
+    return `<article class="pday ${st}">
+      <div class="pdtop">${w?.poster ? `<img class="pdposter" src="${esc(w.poster)}" alt="${esc(x.work)} 포스터">` : ""}
+        <div class="pdst"><div class="pseg" role="group" aria-label="일정 상태">${Object.entries(PLAN_STATUS).map(([k, l]) => `<button type="button" class="${k === st ? "on" : ""}" data-act="planStatus" data-i="${i}" data-s="${k}" aria-pressed="${k === st}">${l}</button>`).join("")}</div>
+          <p class="tiny muted">${st === "booked" ? "예매한 공연이에요." : "예매하고 나면 관람예정으로 바꿔 주세요."}</p>
+          ${run.ticket && st !== "booked" && x.date >= from ? `<a class="btn" data-act="ticketSaved" data-i="${i}" href="${esc(run.ticket)}" target="_blank" rel="noopener">예매처로 이동 ↗</a>` : ""}</div></div>
+      <dl class="pinfo">
+        <div><dt>공연명</dt><dd><b>${esc(x.work)}</b></dd></div>
+        <div><dt>날짜</dt><dd>${ymdDot(x.date)} (${esc(x.dow || dowOf(x.date))})</dd></div>
+        <div><dt>시간</dt><dd>${esc(x.time)}</dd></div>
+        <div><dt>출연배우</dt><dd class="pcasts">${cast || "-"}</dd></div>
+        <div><dt>장소</dt><dd>${esc(run.venue || "-")}</dd></div>
+        <div><dt><label for="pf-seat-${i}">좌석</label></dt><dd><input id="pf-seat-${i}" data-pf="seat" data-i="${i}" value="${esc(x.seat || "")}" placeholder="예: 1층 B열 12번" maxlength="40" autocomplete="off"></dd></div>
+        <div><dt><label for="pf-price-${i}">금액</label></dt><dd class="pfwon"><input id="pf-price-${i}" data-pf="price" data-i="${i}" value="${x.price ? x.price.toLocaleString("ko-KR") : ""}" placeholder="예: 150,000" inputmode="numeric" autocomplete="off"><span>원</span></dd></div>
+      </dl>
+      <div class="pdact">${x.date < from ? (x.tagged ? `<span class="small" style="color:var(--ok)">기록 남김 ✓ ${rv ? `<a href="#tag/${i}">고치기</a>` : ""}</span>` : `<a class="btn ghost" href="#tag/${i}">관람 기록 남기기</a>`) : `<a class="chip" href="#detail/${esc(x.work)}/${x.date}/${x.time}">회차 상세</a>`}
+        <button type="button" class="chip x" data-act="unplan" data-i="${i}">일정 삭제</button></div>
+    </article>`; };
+  return `${head}${ps.map(item).join("")}<a class="btn ghost" href="#plans">캘린더로</a>`;
 };
 
 // 관람 후 리뷰(docs/261027_2 11.1절): 볼 예정에 담았던 회차(#tag/번호)와 본 공연 기록하기(#log → #review/작품/날짜/시각)가 같은 화면을 쓴다
@@ -1656,6 +1685,24 @@ const fitPairs = (D, S) => (S.reviews || []).flatMap(rv => {
   const p = (D.perfs || []).find(q => q.work === rv.work && q.date === rv.date && q.time === rv.time), e = p && satOf(S, rv.work)[comboKey(D, rv.work, p.cast)];
   return e ? [{work: rv.work, date: rv.date, time: rv.time, sat: e.a, rates: Object.values(rv.rows || {}).map(r => r.rate)}] : []; });
 const logPerfs = (D, work, from) => (D.perfs || []).filter(p => p.work === work && p.date < from && !isPrivate(p)).sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));  // 본 공연 기록하기: 지난 회차만(최근 순)
+// 내 공연 캘린더(사용자 요청 2026-10-28): 담은 회차는 '미정일정'(흑백 포스터)으로 들어가고, 예매한 뒤 '관람예정'으로 바꾸면 컬러 포스터. 좌석·금액은 사용자가 적는다
+const PLAN_STATUS = {tentative: "미정일정", booked: "관람예정"};
+const planStatus = x => x?.status === "booked" ? "booked" : "tentative";  // 상태가 없는 예전 기록은 미정일정
+const setPlanStatus = (S, i, st) => { const x = S.plans[i]; if (!x || !PLAN_STATUS[st]) return false; x.status = st; return true; };
+const setPlanField = (S, i, k, v) => { const x = S.plans[i]; if (!x) return false;
+  if (k === "price") { const n = parseInt(String(v ?? "").replace(/\D/g, ""), 10); if (n > 0) x.price = Math.min(n, 9999999); else delete x.price; return true; }  // 숫자만 남긴다(쉼표·'원' 허용)
+  if (k === "seat") { const s = String(v ?? "").trim().slice(0, 40); if (s) x.seat = s; else delete x.seat; return true; }
+  return false; };
+const plansOn = (S, date) => (S.plans || []).map((x, i) => [x, i]).filter(([x]) => x.date === date)
+  .sort(([a], [b]) => (planStatus(a) === "booked" ? 0 : 1) - (planStatus(b) === "booked" ? 0 : 1) || a.time.localeCompare(b.time));  // 관람예정이 앞(칸 포스터는 첫째 것)
+const pcalShift = (ym, n) => { const m = +ym.slice(0, 4) * 12 + (+ym.slice(5, 7) - 1) + n; return `${Math.floor(m / 12)}-${String(m % 12 + 1).padStart(2, "0")}`; };
+const pcalWeeks = ym => {  // 일요일부터 한 주. 그달이 아닌 칸은 ""
+  const y = +ym.slice(0, 4), m = +ym.slice(5, 7), lead = new Date(y, m - 1, 1).getDay(), days = new Date(y, m, 0).getDate();
+  const cells = [...Array(lead).fill(""), ...Array.from({length: days}, (_, k) => `${ym}-${String(k + 1).padStart(2, "0")}`)];
+  while (cells.length % 7) cells.push("");
+  return Array.from({length: cells.length / 7}, (_, r) => cells.slice(r * 7, r * 7 + 7)); };
+const pcalStart = (S, from) => ((S.plans || []).map(x => x.date).filter(d => d >= from).sort()[0] || from).slice(0, 7);  // 처음 여는 달: 다가오는 일정이 있는 달, 없으면 이번 달
+const planStatusRecord = (D, x) => ({work: x.work, run: runLabelOf(D, x.work, x.date), date: x.date, time: x.time, cast: Object.fromEntries(leadsOf(D, x.work, x.cast)), status: planStatus(x)});
 // </proto-flow>
 mergeMyTags();
 
@@ -1721,6 +1768,7 @@ const EVENTS = {
   after_review: {req: ["work", "date", "time", "actors"], shape: {work: R_WORK, run: R_RUN, date: R.date, time: R.time, entry: R.oneOf(["plan", "log"]),
     actors: R.arr(8, R.obj({role: R.inSet("roles"), actor: R.inSet("actors"), rate: R.oneOf(["good", "meh", "bad"]), tags: R.arr(3, R.inSet("actorTags"))}, ["role", "actor", "rate"])),
     combo: R.arr(3, R.inSet("comboTags"))}},  // 관람 후 리뷰(11.1절)를 저장할 때. 주관식 원문은 보내지 않는다
+  plan_status: {req: ["work", "date", "time", "status"], shape: {work: R_WORK, run: R_RUN, date: R.date, time: R.time, cast: R_CAST, status: R.oneOf(["tentative", "booked"])}},  // 내 공연 캘린더에서 미정일정 ↔ 관람예정을 바꿀 때(예매 전환). 좌석·금액은 보내지 않는다
 };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const isJwt = k => /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(k);
@@ -1866,7 +1914,10 @@ V.privacy = () => !trackUi() ? `<div class="one"><div class="card"><p class="sma
       <tr><td>날짜별 조합 정보가 없는 공연에서 배우가 내 취향이었는지 고를 때</td><td>공연, 배우, 점수(1~5점), 고른 이유</td></tr>
       <tr><td>배우 영상을 눌러 본 뒤 '이 영상 어땠어요?'에 답할 때</td><td>작품, 배역, 배우, 영상 번호(유튜브 영상 ID), 고른 답(마음에 들어요·모르겠어요·취향 아니에요), '마음에 들어요'일 때 고른 특징(음색·성량 같은 정해진 태그만). 답이나 특징을 바꾸면 그때마다 한 줄 더 남아요</td></tr>
       <tr><td>취향 고르기를 저장하거나 고칠 때, 홈에서 좋아하는 배우의 어떤 점이 좋은지 골라 [찾기]를 누를 때</td><td>좋아하는 배우 이름(앱에 있는 이름만), 취향 5가지 값, 고른 태그, 좋아하는 배우별로 고른 특징 태그(음색·성량 같은 정해진 태그만). 내가 직접 쓴 글은 보내지 않아요. 전에 보낸 것과 같으면 다시 보내지 않아요</td></tr>
-      <tr><td>홈 추천 줄에서 [이미 봤어요]·[관심 없어요]·[되돌리기]를 누를 때</td><td>공연, 어느 추천 줄이었는지(좋아하는 배우 · 비슷한 배우 · 내 취향), 누른 것</td></tr></table>
+      <tr><td>홈 추천 줄에서 [이미 봤어요]·[관심 없어요]·[되돌리기]를 누를 때</td><td>공연, 어느 추천 줄이었는지(좋아하는 배우 · 비슷한 배우 · 내 취향), 누른 것</td></tr>
+      <tr><td>추천 조합 카드의 '이 조합 어때요?'에 답할 때</td><td>작품, 그 조합, 고른 답(마음에 들어요·별로예요·모르겠어요), 몇 번째 카드였는지, '누구 때문인가요?'에서 고른 것</td></tr>
+      <tr><td>본 공연의 관람 기록을 저장할 때</td><td>작품, 회차, 배우마다 고른 평가(좋았어요·그저 그랬어요·아쉬웠어요)와 태그, 두 배우의 합 태그. 직접 쓴 글은 보내지 않아요</td></tr>
+      <tr><td>내 공연 캘린더에서 미정일정·관람예정을 바꿀 때</td><td>작품, 회차와 조합, 바꾼 상태. 적어 둔 좌석·금액은 보내지 않아요</td></tr></table>
     <p class="small">모든 기록에는 <b>이 기기의 무작위 번호 2개</b>(기기 번호, 이번 방문 번호), 앱 버전, 기록한 <b>날짜</b>(시각은 남기지 않아요), 한 방문 안에서의 순서가 같이 붙어요.</p>
     <p class="small"><b>받지 않는 것</b></p>
     <ul class="small"><li>이름, 전화번호, 이메일, 주소 같은 개인정보</li><li>가입이나 로그인 정보</li><li>직접 쓴 글. '왜 좋아요' 같은 글은 이 기기 화면 안에서 태그를 찾는 데만 쓰고 보내지 않아요. 기록에는 고른 태그만 남아요.</li><li>위치, 브라우저·기기 종류, 화면 크기, 언어</li><li>IP 주소(기록 표에 저장하지 않아요)</li><li>저장 서비스(Supabase)가 서비스를 운영하는 과정에서 접속 기록을 자체적으로 둘 수 있어요.</li></ul>
@@ -2044,10 +2095,23 @@ V.home = () => {
         <span class="tkgrid">${cells.length ? cells.map(([k, xs, wide]) => `<span class="tkcell${wide ? " wide" : ""}"><span class="tkk">${esc(k)}</span><span class="tkv">${xs.map(esc).join(" · ")}</span></span>`).join("") : `<span class="tkcell wide"><span class="tkv">아직 고른 태그가 없어요</span></span>`}</span>
         <span class="tchint">카드를 눌러 배우 조합을 추천받아요 ↻</span></button>${stub}
         <div class="tkfoot"><button type="button" class="tkedit" data-go="#taste/1">수정하기</button>${p.at ? `<span class="tkdate">${ymd(p.at)} 업데이트</span>` : ""}</div></div>`;
-  return `${noticeLine()}${visit}<div class="tcwrap">${card}</div>
+  return `${noticeLine()}${visit}<div class="tcwrap">${card}</div>${homeWorks(from)}
     ${privacyLink() ? `<p class="tiny muted">${privacyLink().replace(/^\s*·\s*/, "")}</p>` : ""}`;
 };
-// 작품 고르기(#find) → 찾는 방법 고르기(#find/작품) → 날짜 먼저(#find/작품/date = 기존 달력) · 배우 먼저(#find/작품/actor = 기존 '누구로 볼까요?')
+// 홈 아래 작품 목록(사용자 요청 2026-10-28: 홈이 비어 보이지 않게). ① 배우 조합을 추천받을 수 있는 작품(#find/작품) ② 지금 하는 공연 전체(KOPIS, 인기순·지역 칩, #show/…)
+const rankCard = (x, k) => { const ref = showRef(D, x.key); if (!ref) return "";  // 인기순 위 10개는 포스터에 순위 숫자
+  return `<a class="pcard" href="#show/${esc(x.key)}" data-go="#show/${esc(x.key)}" data-entry="browse"><div class="pimg">${posterOf(ref, "pi")}${k < 10 && x.pop != null ? `<span class="prank">${k + 1}</span>` : ""}${castMark(ref)}</div><span class="pt">${esc(x.title)}</span><span class="pw">${periodOf(ref).split(" / ")[0]}</span></a>`; };
+const homeWorks = from => {
+  const ws = MVP_WORKS(from).filter(w => workState(w, from).ok);
+  const all = allShows(D, from), tabs = regionTabs(all), tab = tabs.some(([k]) => k === S.proto?.areaTab) ? S.proto.areaTab : "all", list = showsIn(all, tabs, tab, from);
+  return `${ws.length ? `<section class="hsec"><div class="hhead"><h2>배우 조합 추천받기</h2><a class="small" href="#find">전체</a></div><p class="hsub">회차별 캐스팅이 공개된 작품이에요. 누르면 나에게 맞는 조합을 찾아 드려요</p>
+    <div class="prow big">${ws.map(w => `<a class="pcard" href="#find/${esc(w.name)}"><div class="pimg">${posterEl(w, "pi")}${workState(w, from).text ? `<span class="pstate">${esc(workState(w, from).text)}</span>` : ""}</div><span class="pt">${esc(w.name)}</span><span class="pw">${esc(runsOf(w.name)[0]?.venue || "")}</span></a>`).join("")}</div></section>` : ""}
+  ${all.length ? `<section class="hsec"><div class="hhead"><h2>지금 하는 공연 전체<span class="count">${all.length}개</span></h2><span class="sortnote">인기순</span></div>
+    ${tabs.length > 1 ? `<div class="chips afilter" role="group" aria-label="지역">${tabs.map(([k, l, n]) => `<button type="button" class="chip ${tab === k ? "on" : ""}" data-act="areaTab" data-t="${esc(k)}" aria-pressed="${tab === k}">${esc(l)} ${n}</button>`).join("")}</div>` : ""}
+    <div class="pgrid">${list.map(rankCard).join("")}</div></section>
+  <p class="tiny muted">공연 정보·포스터: 공연예술통합전산망(KOPIS) · 데이터 기준 ${esc(D.generated)}</p>` : ""}`;
+};
+// 작품 고르기(#find) →찾는 방법 고르기(#find/작품) → 날짜 먼저(#find/작품/date = 기존 달력) · 배우 먼저(#find/작품/actor = 기존 '누구로 볼까요?')
 // 두 경로의 세부 로직(기간 지정·순위·추천 2개 등)은 다음 단계. 지금은 기존 화면으로 이어 준다
 const leftPerfs = (w, from) => D.perfs.filter(x => x.work === w.name && !isPrivate(x) && x.date >= from).length;
 const MVP_WORKS = (from = today()) => (D.works || []).filter(w => !ended(w, from)).sort((a, b) => (leftPerfs(a, from) || Infinity) - (leftPerfs(b, from) || Infinity) || a.name.localeCompare(b.name, "ko"));  // 남은 회차가 적은 순(결정 32), 회차 미공개(0회)는 맨 뒤, 공연이 끝난 작품은 뺀다(결정 35)
@@ -2354,7 +2418,7 @@ const sheetBody = () => {
 // 볼 예정에 담기: 바로 담는다(v0.9 · docs/261027_2 14절 — 담기 전 '기대돼요?' 별점 시트는 없애고, 조합 만족도는 추천 카드에서 묻는다). 예매처 이동은 담은 뒤 화면(#saved)에서
 const finishPending = (action, p) => {
   track("combo_choice", comboChoiceRecord(D, S, action, p, today()));
-  S.plans.push({work: p.work, date: p.date, dow: p.dow, time: p.time, cast: p.cast, tagged: false}); save(); location.hash = "#saved/" + (S.plans.length - 1);
+  S.plans.push({work: p.work, date: p.date, dow: p.dow, time: p.time, cast: p.cast, tagged: false, status: "tentative"}); save(); location.hash = "#saved/" + (S.plans.length - 1);  // 캘린더에 미정일정으로(예매하면 사용자가 관람예정으로 바꾼다)
 };
 
 // ---------- 밝은/어두운 판 버튼(왼쪽 아래) ----------
@@ -2407,7 +2471,7 @@ function route() {
   const keepBar = document.querySelector(".afilter")?.scrollLeft || 0, keepRows = [...document.querySelectorAll(".prow")].map(x => x.scrollLeft);  // 지역 칩 줄·추천 줄의 가로 스크롤 위치(다시 그려도 그 자리 유지)  // 지역 칩 줄의 가로 스크롤 위치(다시 그려도 그 자리 유지)
   CTA = null; const view = $("#view"); view.innerHTML = (V[name] || V.home)(...args); view.dataset.view = V[name] ? name : "home";
   const cta = $("#cta"); if (CTA) { cta.hidden = false; cta.innerHTML = `<button class="btn" data-act="${CTA.act}">${esc(CTA.text)}</button>`; } else cta.hidden = true;  // 폰에서는 화면 아래 고정 버튼(넓은 화면은 덩어리 안 버튼)
-  $("#back").hidden = ["home", "works", "taste", "onboard", "plans", "me"].includes(name);
+  $("#back").hidden = ["home", "works", "taste", "onboard", "me"].includes(name) || (name === "plans" && !args.length);  // 캘린더 날짜 화면(#plans/날짜)에는 뒤로
   const tab = {plans: "plans", tag: "plans", review: "plans", log: "plans", me: "me", privacy: "me"}[name] || "home";
   document.querySelectorAll("[data-tab]").forEach(a => a.classList.toggle("on", a.dataset.tab === tab));
   if (location.hash !== lastHash) window.scrollTo(0, 0);  // 화면이 바뀔 때만 맨 위로. 카드·칩을 눌러 다시 그릴 땐 스크롤을 유지한다
@@ -2570,6 +2634,8 @@ document.addEventListener("click", e => {
     case "plan": { const p = D.perfs.find(x => x.work === d.work && x.date === d.date && x.time === d.time); if (!p) return; if (isPrivate(p)) { toast("단체 대관 공연이라 일반 예매가 안 돼요"); return; } finishPending("plan", p); break; }  // 바로 담는다(별점 시트 없음)
     case "unplan": S.plans.splice(+d.i, 1); save(); route(); break;
     case "plansTab": S.plansTab = d.t; save(); route(); break;
+    case "pcalMove": PCAL_M = +d.n ? pcalShift(PCAL_M || today().slice(0, 7), +d.n) : today().slice(0, 7); route(); break;
+    case "planStatus": { const x = S.plans[+d.i]; if (!x || planStatus(x) === d.s || !setPlanStatus(S, +d.i, d.s)) break; save(); track("plan_status", planStatusRecord(D, x)); toast(d.s === "booked" ? "관람예정으로 바꿨어요" : "미정일정으로 바꿨어요"); route(); break; }
     case "tQuick": { const x = S.plans[+d.i]; x.quick = x.quick === d.q ? "" : d.q; save(); route(); break; }  // 저장 확인 화면의 좋아요/아쉬워요. 다시 누르면 해제
     case "toggleNoPersonal": S.noPersonal = !S.noPersonal; save(); route(); break;  // 내 취향 화면의 '기록 반영 끄기/켜기'
     case "likeTag": { const l = likeGet(d.a), arr = +d.ri < 0 ? l.tags : l.roles[+d.ri].tags; const k = arr.indexOf(d.t); if (k < 0) arr.push(d.t); else arr.splice(k, 1); likeOpen.add(d.a); save(); route(); break; }  // 후보 칩: 누른 것만 저장, 다시 누르면 해제
@@ -2591,6 +2657,9 @@ document.addEventListener("click", e => {
       (navigator.clipboard?.writeText(text) || Promise.reject()).then(() => toast("복사했어요"), () => { const r = document.createRange(); r.selectNodeContents($("pre")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("드래그된 글을 복사하세요"); }); break; }
   }
 });
+// 캘린더 날짜 화면의 좌석·금액: 쓰는 동안 저장하고(다시 그리지 않아 커서가 안 튄다), 금액은 칸을 떠날 때 쉼표를 붙여 다시 보여 준다
+document.addEventListener("input", e => { const el = e.target.closest?.("[data-pf]"); if (el && setPlanField(S, +el.dataset.i, el.dataset.pf, el.value)) save(); });
+document.addEventListener("change", e => { const el = e.target.closest?.("[data-pf=price]"), x = el && S.plans[+el.dataset.i]; if (x) el.value = x.price ? x.price.toLocaleString("ko-KR") : ""; });
 document.addEventListener("input", e => { if (S.proto?.rdraft && e.target.id === "rvnote") { S.proto.rdraft.rv.note = e.target.value; save(); } });  // 관람 후 리뷰 주관식은 쓰는 동안 초안에 둔다(다시 그려도 안 사라지게)
 // 좋아하는 배우 설문: 글을 쓰는 동안 저장하고, 그 칸의 태그 후보 칩만 다시 그린다(화면 전체를 다시 그리지 않아 커서가 안 튄다)
 document.addEventListener("input", e => {

@@ -8,8 +8,9 @@ const names = "entryRoute, tasteNext, showRef, allShows, showNext, dayHash, calD
   "chipDirs, chipList, draftScore, draftChip, draftActor, applyComboRating, applyActorRating, wrongOf, pinAskOf, setPin, answerPinAsk, DUEL_MAX, duelNext, duelMore, duelCanMore, duelRecord, applyDuel, duelDone, duelTags, dueVisit, answerVisit, skipVisit, addAgain, " +
   "makeTracker, buildVocab, EVENTS, CHIPS, ALGO_VER, TRACK_CFG, TASTE_CARDS, MUSIC_CARDS, " +
   "homeRows, areaOf, leadRolesOf, defaultSel, curSel, selPerfs, selDates, setSel, setSelCast, relaxHints, monthRange, calMonthOf, calMove, calDayOf, priceMin, priceMinText, duelStatus, iga, likeCurrent, byPopularity, regionTabs, regionKeyOf, showsIn, OTHER_REGION, vrOf, tasteSnapRecord, hiddenShows, hideShow, unhideShow, similarWorks, askActorOf, askTagList, " +
-  "SAT, SAT_WHY, setSat, setSatWhy, satOf, likeBonus, satBlocked, shownRecs, recAgain, satRecord, REVIEW_RATES, reviewRoles, reviewChips, reviewLabel, newReview, setRvRate, toggleRvTag, toggleRvCombo, swapRvActor, saveReview, reviewOf, reviewRows, usableReviewTags, reviewSuggest, applySuggest, reviewRecord, fitPairs, logPerfs, actorConds, setActorCond, moveActor, resetActorConds, mustClash";
-const L = new Function(block("personal-weights") + block("taste-first") + block("proto-flow") + block("track") + "; return {" + names + "};")();
+  "SAT, SAT_WHY, setSat, setSatWhy, satOf, likeBonus, satBlocked, shownRecs, recAgain, satRecord, REVIEW_RATES, reviewRoles, reviewChips, reviewLabel, newReview, setRvRate, toggleRvTag, toggleRvCombo, swapRvActor, saveReview, reviewOf, reviewRows, usableReviewTags, reviewSuggest, applySuggest, reviewRecord, fitPairs, logPerfs, actorConds, setActorCond, moveActor, resetActorConds, mustClash, " +
+  "PLAN_STATUS, planStatus, setPlanStatus, setPlanField, plansOn, pcalShift, pcalWeeks, pcalStart, planStatusRecord";
+const L =new Function(block("personal-weights") + block("taste-first") + block("proto-flow") + block("track") + "; return {" + names + "};")();
 const {entryRoute, tasteNext, showRef, allShows, showNext, dayHash, calDays, homeRecs, comboRecs, comboEvidence, togglePin, pinStateOf, resetCombo, tasteSnapshot, comboRecord, comboChoiceRecord, shownCombos, pickRecord, actorRecord,
   chipDirs, chipList, draftScore, draftChip, draftActor, applyComboRating, applyActorRating, wrongOf, pinAskOf, answerPinAsk, duelNext, duelMore, duelCanMore, duelRecord, applyDuel, duelDone, dueVisit, answerVisit, skipVisit, addAgain, makeTracker, buildVocab, EVENTS, CHIPS, TRACK_CFG, homeRows, areaOf, leadRolesOf, defaultSel, curSel, selPerfs, selDates, setSel, setSelCast, relaxHints, monthRange, calMonthOf, calMove, calDayOf, priceMin, priceMinText, duelStatus, iga, likeCurrent, byPopularity, regionTabs, regionKeyOf, showsIn, OTHER_REGION, vrOf, tasteSnapRecord, hiddenShows, hideShow, unhideShow, similarWorks, askActorOf, askTagList} = L;
 const loadApp = require("./proto_app.js");
@@ -332,7 +333,18 @@ for (const [bad, why] of [[{work: "아".repeat(100)}, "긴 글"], [{work: "없�
   eq(t2.queue()[0].payload.chips, [{chip: "voice", dir: "+"}, {chip: "actor", dir: "-", actors: ["a1"]}], "칩: 모르는 칩·방향·배우 이름 제외");
   eq(t2.queue()[0].payload.taste, {axes: {"강한 성량": 1}, favs: ["a1"], tags: ["성량"]}, "취향: 모르는 축·범위 밖 값·이름·긴 글·모르는 키 제외"); }
 ok(makeTracker(mkEnv(), {...TRACK_CFG}).track("app_open", {}) === false && makeTracker(mkEnv(), {...TRACK_CFG}).track("page_view", {x: 1}) === false, "사용 지표 이벤트는 정의서에 없어서 기록되지 않는다");
-eq(Object.keys(EVENTS), ["combo_rating", "combo_choice", "actor_pick", "role_duel", "actor_rating", "video_reaction", "taste_snapshot", "rec_feedback", "combo_fit", "after_review"], "이벤트 10종(조합 만족도·관람 후 리뷰 포함, docs/261027_2 v0.9)");
+eq(Object.keys(EVENTS), ["combo_rating", "combo_choice", "actor_pick", "role_duel", "actor_rating", "video_reaction", "taste_snapshot", "rec_feedback", "combo_fit", "after_review", "plan_status"], "이벤트 11종(조합 만족도·관람 후 리뷰·캘린더 예매 전환 포함)");
+// 내 공연 캘린더 순수 함수
+{ const P = {plans: [{work: "극", date: "2026-11-03", time: "19:30", cast: {}}, {work: "극", date: "2026-11-03", time: "14:00", cast: {}, status: "booked"}, {work: "극", date: "2026-10-01", time: "14:00", cast: {}}]};
+  ok(L.planStatus(P.plans[0]) === "tentative" && L.planStatus(P.plans[1]) === "booked" && L.PLAN_STATUS.tentative === "미정일정" && L.PLAN_STATUS.booked === "관람예정", "상태 없는 예전 기록은 미정일정");
+  eq(L.plansOn(P, "2026-11-03").map(([, i]) => i), [1, 0], "같은 날은 관람예정이 앞(칸 포스터는 첫째 것)");
+  ok(!L.setPlanStatus(P, 0, "x") && !L.setPlanStatus(P, 9, "booked") && L.setPlanStatus(P, 0, "booked") && P.plans[0].status === "booked", "상태는 두 가지만, 없는 번호는 무시");
+  L.setPlanField(P, 0, "price", "150,000원"); L.setPlanField(P, 0, "seat", "  1층 B열 12번 "); ok(P.plans[0].price === 150000 && P.plans[0].seat === "1층 B열 12번", "금액은 숫자만(쉼표·원 허용), 좌석은 앞뒤 공백 정리");
+  L.setPlanField(P, 0, "price", ""); L.setPlanField(P, 0, "seat", " "); ok(!("price" in P.plans[0]) && !("seat" in P.plans[0]) && !L.setPlanField(P, 0, "work", "x"), "비우면 지우고, 다른 칸은 못 바꾼다");
+  ok(L.pcalShift("2026-12", 1) === "2027-01" && L.pcalShift("2026-01", -1) === "2025-12" && L.pcalShift("2026-11", 0) === "2026-11", "달 넘기기(해 바뀜)");
+  const wk = L.pcalWeeks("2026-11"); ok(wk.every(r => r.length === 7) && wk[0][0] === "2026-11-01" && wk.flat().filter(Boolean).length === 30, "2026년 11월: 1일이 일요일, 30일");
+  ok(L.pcalWeeks("2026-10")[0].slice(0, 5).join() === ",,,,2026-10-01", "2026년 10월: 1일이 목요일이면 앞 네 칸이 빈칸");
+  ok(L.pcalStart(P, "2026-10-28") === "2026-11" && L.pcalStart({plans: []}, "2026-10-28") === "2026-10", "처음 여는 달: 다가오는 일정이 있는 달, 없으면 이번 달"); }
 { const e2 = mkEnv(), t2 = makeTracker(e2, {...TRACK_CFG, maxBytes: 120}); ok(t2.track("combo_rating", good()) === false && t2.queue().length === 0, "기록 하나가 한도(4KB)를 넘으면 버린다"); }
 { const e2 = mkEnv(), t2 = makeTracker(e2, {...TRACK_CFG, cap: 5}); for (let i = 0; i < 8; i++) t2.track("combo_rating", good()); const qq = t2.queue(); ok(qq.length === 5 && qq[0].payload.seq === 3, "큐는 200건(여기선 5)까지, 오래된 것부터 버린다"); }
 { const e2 = mkEnv({uuid: () => null}), t2 = makeTracker(e2, {...TRACK_CFG}); ok(t2.track("combo_rating", good()) === false && t2.queue().length === 0, "무작위 번호를 못 만들면 기록하지 않는다(대체 난수 없음)"); }
@@ -537,7 +549,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       const q = JSON.parse(ra.store.get("pickle_q") || "[]").filter(r => r.event === "after_review"); ok(q.length === 1 && q[0].payload.entry === "log" && q[0].payload.actors.length === 2 && !JSON.stringify(q[0].payload).includes("note"), "after_review 한 줄(주관식 원문 없음)");
       ra.click({act: "rvPick", a: "a2", k: "fav"}); ra.click({act: "rvSug", y: "1"});
       ok(ra.S.prefs.favs.includes("a2") && !(ra.S.prefs.avoid || []).includes("b1") && ra.location.hash === "#plans" && ra.S.plans.length === 1 && ra.S.plans[0].tagged && ra.S.reviews.length === 1, "체크한 배우만 넣고 내 공연으로. 담지 않았던 회차도 본 공연에 들어간다");
-      ok(/기록 남김 ✓ <a href="#tag\/0">고치기<\/a>/.test(ra.V.plans()) || (ra.click({act: "plansTab", t: "done"}), /기록 남김 ✓ <a href="#tag\/0">고치기<\/a>/.test(ra.V.plans())), "남긴 리뷰는 내 공연에서 다시 열어 고칠 수 있다");
+      ok(/기록 남김 ✓ <a href="#tag\/0">고치기<\/a>/.test(ra.V.plans("2026-11-01")) && /href="#plans\/2026-11-01"/.test(ra.V.plans()), "남긴 리뷰는 내 공연 캘린더의 그 날짜 화면에서 다시 열어 고칠 수 있다");
       ra.location.hash = "#tag/0"; ra.route(); ok(ra.S.proto.rdraft.rv.rows.A.rate === "good" && ra.S.proto.rdraft.rv.pub === true, "다시 열면 남긴 리뷰가 채워져 있다(한 회차 1개)"); }
     ok((html2.match(/class="actorx"/g) || []).length === 3 && (html2.match(/<div class="month"/g) || []).length === 1, "배우 특징은 고른 배우만(배역마다 1명), 달력은 한 달 하나");
     ok(!/조연도 보기|다른 배역도 보기/.test(html2) && /<b>C<\/b>/.test(html2), "조연 배역도 다른 배역과 같이 펼쳐져 있다(결정 13). 추천 단위 밖 배역이 없으면 접는 칸도 없다");
@@ -588,6 +600,18 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     ok(/<a class="btn" data-act="ticketSaved" data-i="0" href="https:\/\/tickets\.example\.com\/x" target="_blank" rel="noopener">예매처로 이동 ↗<\/a>/.test(sv0) && /예매처에서 <b>[^<]+<\/b> 날짜를 다시 골라 주세요\(날짜는 자동으로 안 넘어가요\)/.test(sv0), "담은 뒤 화면에 [예매처로 이동 ↗](새 탭 링크)와 날짜 안내가 있다");
     const r1 = app.click({act: "ticketSaved", i: "0"}); ok(!r1.prevented && evs(app).join() === "combo_choice,combo_choice" && qlen(app)[1].payload.action === "ticket" && qlen(app)[1].payload.work === W && qlen(app)[1].payload.date === "2026-11-01" && qlen(app)[1].payload.time === "14:00", "[예매처로 이동]을 누르면 링크는 그대로 열리고(막지 않는다) combo_choice(ticket)이 남는다");
     app.click({act: "ticketSaved", i: "9"}); ok(evs(app).length === 2, "없는 번호는 무시");
+    // 내 공연 캘린더(2026-10-28): 담으면 미정일정(흑백) → 관람예정으로 바꾸면 컬러. 날짜 화면에 공연 정보 자동 + 좌석·금액 입력
+    { ok(app.S.plans[0].status === "tentative" && !/내 캘린더에 추가|\.ics|text\/calendar/.test(sv0) && /href="#plans\/2026-11-01">캘린더에서 보기/.test(sv0) && /data-act="planStatus" data-i="0" data-s="booked"/.test(sv0) && /class="svposter gray"|미정일정/.test(sv0), "담은 직후: 미정일정으로 들어가고, 구글 캘린더 파일 대신 서비스 안 캘린더로 · 예매했어요 버튼");
+      const cal = app.V.plans(), cell = (cal.match(/<a class="cday[^"]*" href="#plans\/2026-11-01"[^>]*>[\s\S]*?<\/a>/) || [""])[0];
+      ok(/관극 캘린더/.test(cal) && /\bhas tentative\b/.test(cell) && (app.S.plans[0] && app.D.works.find(w => w.name === W)?.poster ? /<img src=/.test(cell) : true) && /미정일정/.test(cal), "캘린더: 그 날짜 칸이 미정일정(흑백 처리 클래스)으로 채워진다");
+      const day = app.V.plans("2026-11-01");
+      for (const k of ["공연명", "날짜", "시간", "출연배우", "장소", "좌석", "금액"]) ok(new RegExp(`<dt>(<label[^>]*>)?${k}`).test(day), "날짜 화면 칸: " + k);
+      ok(day.includes(`<b>${W}</b>`) && /2026\.11\.01/.test(day) && /14:00/.test(day) && /a1/.test(day) && /data-pf="seat"/.test(day) && /data-pf="price"/.test(day), "공연명·날짜·시간·출연배우는 회차에서 자동으로, 좌석·금액은 입력 칸");
+      app.click({act: "planStatus", i: "0", s: "booked"}); const qs = qlen(app).filter(r => r.event === "plan_status");
+      ok(app.S.plans[0].status === "booked" && qs.length === 1 && qs[0].payload.status === "booked" && qs[0].payload.work === W && !("seat" in qs[0].payload), "관람예정으로 바꾸면 저장되고 plan_status 한 줄(좌석·금액은 안 보낸다)");
+      ok(/\bhas booked\b/.test((app.V.plans().match(/<a class="cday[^"]*" href="#plans\/2026-11-01"/) || [""])[0]) && /class="pday booked"/.test(app.V.plans("2026-11-01")), "관람예정이면 칸·날짜 화면이 컬러(booked)");
+      app.click({act: "planStatus", i: "0", s: "booked"}); ok(qlen(app).filter(r => r.event === "plan_status").length === 1, "같은 상태를 다시 누르면 기록하지 않는다");
+      ok(app.V.plans("2026-11-02").includes("담은 공연이 없어요") && /href="#plans"/.test(app.V.plans("2026-11-02")), "담은 공연이 없는 날짜: 안내 + 캘린더로"); }
     const dh1 = app.V.detail(W, "2026-11-01", "14:00"), pc1 = app.V.show(W);
     ok(/<a class="btn" href="#saved\/0">볼 예정에 담았어요 · 예매처로 가기 →<\/a>/.test(dh1) && !/data-act="plan"/.test(dh1.split('class="side"')[1] || dh1) && !/예매처로 이동/.test(dh1), "이미 담은 회차의 회차 상세: 담은 뒤 화면으로(예매처로) 가는 버튼, 막다른 길 없음");
     app.click({act: "calDay", work: W, d: "2026-11-01"}); const pc2 = app.V.show(W);
@@ -672,7 +696,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     ok(Math.abs(hue(dark.accent) - hue(light.accent)) < 4, "어두운 판 강조색은 밝은 판과 같은 색상(hue) 계열");
     // 강조색은 주 버튼·선택 상태·별에만
     const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
-    const okSel = /^(:root|\.btn(:hover)?$|\.chip(\.[\w-]+)*\.on|\.chip\.x\.on|\.card>\.chip\.x\.on|\.mood\.on$|\.obcard\.on|\.obcard\.on::after|\.day\.has\.pin$|\.star\.on$|\.obcard.*\.on:hover|\.vbtn\[aria-pressed="true"\](:hover)?$|\.vtc\[aria-pressed="true"\]$|\.sheet \.chsec \.chip\.x\.on$|\.vpin(:hover|\.on)?$)/;  // 시트: 고른 답·고른 특징 칩(선택 상태), ⭐ 담기 버튼(주 버튼) 테두리
+    const okSel = /^(:root|\.btn(:hover)?$|\.chip(\.[\w-]+)*\.on|\.chip\.x\.on|\.card>\.chip\.x\.on|\.mood\.on$|\.obcard\.on|\.obcard\.on::after|\.day\.has\.pin$|\.star\.on$|\.obcard.*\.on:hover|\.vbtn\[aria-pressed="true"\](:hover)?$|\.vtc\[aria-pressed="true"\]$|\.sheet \.chsec \.chip\.x\.on$|\.vpin(:hover|\.on)?$|\.tabs a\.on$|\.(lg|cday|spill|pday)\.booked(::before)?$|\.pday\.booked \.pseg button\.on$)/;  // 시트: 고른 답·고른 특징 칩(선택 상태), ⭐ 담기 버튼(주 버튼) 테두리. 고른 탭·내 공연 캘린더의 관람예정(예매함) 표시도 선택 상태
     const leaks = rules.filter(([sel, body]) => /var\(--accent(-soft|-tint|-hover)?\)/.test(body) && !sel.split(",").every(x => okSel.test(x.trim()))).map(r => r[0]);
     eq(leaks, [], "app.css 에서 강조색(--accent, -soft, -tint, -hover)을 쓰는 곳은 주 버튼·선택 상태·별뿐이다");
     ok(!/var\(--accent/.test(inline), "index.html 안쪽 옛 스타일은 강조색을 쓰지 않는다(중립 토큰으로 바꿈)");
@@ -692,7 +716,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     ok(/class="chip pickc/.test(show9) && !/class="head"/.test(show9), "② 배우는 둥근 이름 칩(pickc)");
 
     // 왼쪽 아래 명암 버튼
-    ok(/<button id="themebtn" class="themebtn" type="button" data-act="themeToggle"><\/button>/.test(html) && html.indexOf('id="cta"') < html.indexOf('id="themebtn"'), "명암 버튼은 모든 화면 공통 자리(#cta 뒤 = 형제 선택자로 고정 버튼 위로 올릴 수 있다)");
+    ok(/<button id="themebtn" class="themebtn" type="button" data-act="themeToggle"><\/button>/.test(html) && html.indexOf('<header class="top">') < html.indexOf('id="themebtn"') && html.indexOf('id="themebtn"') < html.indexOf("</header>") && /\.top \.themebtn\{position:static;/.test(css), "명암 버튼은 머리줄 오른쪽(2026-10-28: 떠 있는 동그라미가 글을 가려서)");
     ok(/\.themebtn\{position:fixed;left:12px;bottom:76px;[^}]*background:var\(--bg\);color:var\(--fg\);border:2px solid var\(--muted\)\}/.test(css) && /#cta:not\(\[hidden\]\) ~ \.themebtn\{bottom:132px\}/.test(css), "버튼: 왼쪽 아래 원형, 고정 버튼이 있으면 그 위로, 테두리 --muted(바탕과 3:1 이상)");
     ok(/min-width:900px\)\{\.themebtn,#cta:not\(\[hidden\]\) ~ \.themebtn\{left:24px;bottom:24px\}/.test(css), "넓은 화면에선 고정 버튼이 없어서 올리지 않는다");
     let tb = loadApp(HD2, {...opts, hash: "#home", theme: "light"}); tb.route(); tb.listeners.doc.click.length;
@@ -792,7 +816,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const css = fs.readFileSync(path.join(__dirname, "../app/app.css"), "utf8"), bar = (css.match(/\.chips\.afilter\{([^}]*)\}/) || [])[1] || "";
     ok(/flex-wrap:nowrap/.test(bar) && /overflow-x:auto/.test(bar) && /scrollbar-width:none/.test(bar) && /margin-inline:calc\(var\(--gut\) \* -1\)/.test(bar) && /\.afilter \.chip\{[^}]*flex:none[^}]*white-space:nowrap/.test(css) && /\.chips\.afilter::-webkit-scrollbar\{display:none\}/.test(css), "지역 칩 CSS: 줄바꿈 없는 한 줄 가로 스크롤(스크롤바 숨김, 화면 가장자리까지, 칩은 안 줄어듦)");
     ok(/const keepBar = document\.querySelector\("\.afilter"\)/.test(html) && /\.chip\[aria-pressed="true"\]/.test(html.split("function route()")[1].split("window.addEventListener")[0]), "route(): 칩 줄 스크롤 위치를 유지하고 눌린 칩이 밖이면 보이게 민다");
-    ok(/app\.css\?v=20261014a/.test(html), "app.css 캐시 번호를 올렸다");
+    ok(/app\.css\?v=20261028a/.test(html), "app.css 캐시 번호를 올렸다");
     const styleBlock = html.split("<style>")[1].split("</style>")[0], gh = styleBlock.indexOf("[hidden]{display:none!important}"), topBtn = styleBlock.indexOf(".top button[hidden]{visibility:hidden;display:block!important}"), undoRule = styleBlock.indexOf(".undobar{");
     ok(gh >= 0 && gh < undoRule && gh < styleBlock.indexOf(".top button{") && topBtn > gh, "전역 [hidden]{display:none!important} 가 <style> 맨 앞쪽에 있다(.undobar 처럼 display 를 정한 클래스가 hidden 을 못 덮는다)");
     ok(topBtn >= 0 && /^\.top button\[hidden\]/.test(styleBlock.slice(topBtn)) && !/^\[hidden\]/.test(".top button[hidden]"), "뒤로 버튼 자리 규칙(.top button[hidden]{visibility:hidden;display:block!important})은 그대로 — 선택자가 더 구체적이라 전역 규칙을 이긴다");
@@ -1269,7 +1293,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         eq(entryRoute(null), "#home", "entryRoute 는 상태 없이도 동작(옛 호출 방식)");
         // ===== MVP 뼈대(2026-10-28): 홈 취향 카드 뒤집기 · 작품 고르기 · 찾는 방법 고르기 =====
         { const m = boot(L0); m.location.hash = "#home"; m.route(); const front = m.q("#view").innerHTML;
-          ok(/<button type="button" class="tcard" data-act="cardFlip"/.test(front) && /MY PICKLE TASTE/.test(front) && !/지금 하는 공연 전체|내 취향 추천/.test(front) && !/배우 조합 추천받기<\/a>/.test(front), "홈 앞면: 버튼 하나인 취향 카드(탭·Enter·Space), 작품 추천 목록·카드 밖 바로가기 없음(결정 31)");
+          ok(/<button type="button" class="tcard" data-act="cardFlip"/.test(front) && /MY PICKLE TASTE/.test(front) && front.indexOf("MY PICKLE TASTE") < front.indexOf("지금 하는 공연 전체") && /class="pgrid"/.test(front) && !/배우 조합 추천받기<\/a>/.test(front), "홈 앞면: 버튼 하나인 취향 카드(탭·Enter·Space), 그 아래 작품 목록(2026-10-28 사용자 요청: 지금 하는 공연 전체를 되살림)");
           m.click({act: "cardFlip"}); const back = m.q("#view").innerHTML;
           ok(/class="tk tcard back"/.test(back) && /data-go="#find">배우 조합 추천받기/.test(back) && /data-act="cardFlip">앞면으로/.test(back) && !/답 고치기|수정하기/.test(back), "카드를 누르면 뒷면: 배우 조합 추천받기 · 앞면으로(답 고치기는 뒷면에서 뺐다, 2026-10-28)");
           // 티켓 카드(2026-10-28 사용자 요청): 맨 위 '나의 뮤지컬 관극 취향' → 한 줄 요약(가장 크게) → 분류별 태그 칸 → 왼쪽 아래 수정하기(온보딩 처음부터) · 맨 아래 업데이트 날짜
@@ -1341,7 +1365,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         const scrP = screens(bootT(undefined)), scrL = screens(bootT(LIVE));
         for (const [mode, scr] of [["연습 모드", scrP], ["기록 설정 있음", scrL]]) for (const [h, html] of Object.entries(scr)) {
           const hit = html.match(BAN); ok(!hit, `${mode} ${h}: 사용자 화면에 내부 말·옛 이름이 없다` + (hit ? " → " + hit[0] : ""));
-          const kn = (html.match(/KOPIS/g) || []).length; ok(h === "#find" ? kn === 1 && /공연 정보·포스터: 공연예술통합전산망\(KOPIS\)/.test(html) : kn === 0, `${mode} ${h}: 'KOPIS' 글자는 작품 고르기(포스터가 나오는 화면)의 출처 표기 한 곳뿐 (${kn}번)`); }
+          const kn = (html.match(/KOPIS/g) || []).length; ok(["#find", "#home"].includes(h) ? kn === 1 && /공연 정보·포스터: 공연예술통합전산망\(KOPIS\)/.test(html) : kn === 0, `${mode} ${h}: 'KOPIS' 글자는 포스터가 나오는 화면(작품 고르기·홈)의 출처 표기 한 곳뿐 (${kn}번)`); }
         // 연습 모드: 첫 화면 기록 배너·설정의 기록 카드·안내 화면 링크가 안 보인다
         const HIDE = /data-act="trackToggle"|data-act="trackClear"|href="#privacy"|기록·개인정보|이 기기 기록 지우기|기록 끄기|광고에는 쓰지 않아요/;
         for (const h of Object.keys(scrP).filter(k => k !== "#privacy")) ok(!HIDE.test(scrP[h]), "연습 모드 " + h + ": 기록 배너·설정·안내 링크가 안 보인다");
@@ -1371,7 +1395,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
           tg.click({act: "rvMore", r: roles[0]}); const h2x = tg.V.tag("1"); ok(/캐릭터 해석|신체 표현|가창|연기/.test(h2x) && !/data-act="rvTag"[^>]*data-t="(연기합·티키타카|음색·보컬 조화)"/.test(h2x), "실제 데이터: ＋ 다른 점은 배우 태그 영역별 전체(조합 태그는 배우 줄에 없다)"); }
         ok(/취향 고르기 1\/2/.test(scrP["#taste/1"]) && /나의 뮤지컬 관극 취향|아직 비어 있는 내 취향 카드/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "온보딩은 1/2·2/2, 홈은 내 취향 카드, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
-        ok(!/점수·순위/.test(scrP["#home"]) && /MY PICKLE TASTE/.test(scrP["#home"]) && !/지금 하는 공연 전체|내 취향 추천/.test(scrP["#home"]), "홈: 점수·순위 말이 없고, 작품 추천 목록(내 취향 추천·지금 하는 공연 전체) 없이 취향 카드만");
+        ok(!/점수·순위/.test(scrP["#home"]) && /MY PICKLE TASTE/.test(scrP["#home"]) && /지금 하는 공연 전체/.test(scrP["#home"]) && !/내 취향 추천/.test(scrP["#home"]), "홈: 점수·순위 말이 없고, 취향 카드 아래 지금 하는 공연 전체(내 취향 추천 줄은 없다)");
         ok(/진한 날에 이 조합이 나와요\. ★는 첫공·막공이에요\./.test(scrP["#show/" + W0 + "(날짜)"]) && /공식 캐스팅 일정이라 바뀔 수 있어요\./.test(scrP["#show/" + W0 + "(날짜)"]), "달력 아래 안내는 두 줄로 나눠 읽기 쉽게");
         ok(/이 배우 빼기/.test(scrP["#show/" + W0]) && /꼭 볼 배우/.test(scrP["#show/" + W0]), "배우 칸 버튼: '이 배우 빼기'(🚫 없음) · '⭐ 꼭 볼 배우'");
         const shw = scrP["#show/" + W0]; ok((shw.match(/class="pickb">추천 조합</g) || []).length === 1 && /이 배우들이 함께 나와요/.test(shw) && !/class="pickb sm"|PICK(?!LE)/.test(shw), "'추천 조합' 표시는 조합 선택 칸에 한 번만(배우 칩 옆 PICK 배지 없음)");

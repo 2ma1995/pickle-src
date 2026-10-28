@@ -267,3 +267,113 @@ html.lock,html.lock body{overflow:hidden}  /* 시트가 열려 있는 동안 뒤
 .vtc[aria-pressed="true"]::before,.sheet .chsec .chip.x.on::before{content:"✓";margin-right:4px}
 .vlink{justify-self:start;font-size:14px;color:var(--fg);text-decoration:underline;text-underline-offset:3px}
 
+
+/* ==== 무대 층(2026-10-28 사용자 요청: 뮤지컬 예매 서비스처럼, 포스터가 주인공) ==== */
+/* 머리줄: 판 버튼은 떠 있는 동그라미 대신 오른쪽 칸 */
+.top .themebtn{position:static;width:36px;height:36px;border:0;background:transparent;color:var(--fg);justify-self:end;border-radius:8px}
+.top .themebtn:hover{background:var(--soft)}
+.top .brand{letter-spacing:.02em}
+@media (min-width:900px){.top{grid-template-columns:40px auto 1fr 40px}.top:has(#back[hidden]){grid-template-columns:auto 1fr 40px}.top .themebtn{position:static}.pcal{max-width:560px;width:100%;justify-self:center}}
+/* 하단 탭: 선 아이콘 */
+.tabs a{display:grid;justify-items:center;gap:3px;font-weight:600;letter-spacing:-.01em}
+.tabs a svg.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:none;opacity:1}
+.tabs a.on{color:var(--accent)}
+.tabs a.on svg.ico{stroke-width:2.1}
+/* 홈 목록 머리 */
+.hhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.hhead h2{font-size:19px;letter-spacing:-.03em}
+.hhead a{color:var(--muted);text-decoration:none;font-weight:600}
+.hhead .sortnote{font-size:12px;color:var(--muted)}
+.hsec>.hsub{margin-top:-8px}
+/* 포스터: 큰 줄(배우 조합 추천받기)·순위 숫자·회차 공개 띠 */
+.prow.big{grid-auto-columns:minmax(150px,44%)}
+@media (min-width:900px){.prow.big{grid-auto-columns:200px}}
+.pimg img{transition:transform .35s ease}
+.pcard:hover .pimg img{transform:scale(1.03)}
+.pimg .pstate{position:absolute;left:0;right:0;bottom:0;padding:22px 10px 8px;font-size:11.5px;font-weight:700;color:#fff;background:linear-gradient(transparent,rgba(10,6,8,.82));letter-spacing:-.01em}
+.prank{position:absolute;z-index:1;left:8px;bottom:2px;font-size:34px;font-weight:900;font-style:italic;line-height:1;color:#fff;letter-spacing:-.06em;text-shadow:0 2px 10px rgba(0,0,0,.55)}
+.pimg:has(.prank)::after{content:"";position:absolute;inset:55% 0 0;background:linear-gradient(transparent,rgba(10,6,8,.55));pointer-events:none}
+/* 작품 고르기(#find): 회색 상자 목록 → 포스터 격자 */
+.wlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}
+@media (min-width:600px){.wlist{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.wlist .wcard{display:grid;grid-template-columns:1fr;gap:8px;padding:0;border:0;background:transparent;border-radius:0;color:inherit;text-decoration:none;align-content:start;box-shadow:none}
+.wlist .wcard .wposter{width:100%;height:auto;aspect-ratio:2/3;object-fit:cover;border-radius:10px}
+.wlist .wcard .winfo{display:grid;gap:2px}
+.wlist .wcard .winfo b{font-size:15px;letter-spacing:-.02em}
+.wlist .wcard .wstate{justify-self:start;margin-top:4px;font-size:11.5px;font-weight:700;color:var(--fg);background:var(--soft);padding:3px 8px;border-radius:6px}
+.wlist .wcard.off{opacity:.45}
+
+/* ---- 내 공연 = 관극 캘린더 ---- */
+.pchead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pchead h1{font-size:26px;letter-spacing:-.04em}
+.pclegend{display:flex;gap:12px;font-size:12px;color:var(--muted)}
+.pclegend span{display:inline-flex;align-items:center;gap:5px}
+.lg{display:inline-block;width:10px;height:14px;border-radius:2px}
+.lg.booked{background:linear-gradient(135deg,var(--accent),#E39A4B)}
+.lg.tentative{background:linear-gradient(135deg,#A4A4AC,#5A5A62)}
+.pcal{display:grid;gap:10px}
+.pcnav{display:flex;align-items:center;justify-content:center;gap:18px}
+.pcnav b{font-size:20px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;min-width:96px;text-align:center}
+.pcnav button{width:36px;height:36px;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--fg);font-size:20px;line-height:1;cursor:pointer;font-family:inherit}
+.pcnav button:hover{background:var(--soft)}
+.pctoday{justify-self:center;border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-family:inherit}
+.pcgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.pcdow{text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:4px 0}
+.pcdow.sun{color:#D0443F}.pcdow.sat{color:#3D6FD8}
+.cday{position:relative;aspect-ratio:2/3;border-radius:6px;background:var(--surface);overflow:hidden;color:var(--fg);text-decoration:none;display:block}
+.cday.out{background:transparent}
+.cday .cn{position:absolute;z-index:1;top:4px;left:5px;font-size:12px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.cday.sun .cn{color:#D0443F}.cday.sat .cn{color:#3D6FD8}
+.cday.past:not(.has){opacity:.45}
+.cday.today::before,.cday.booked::before{content:"";position:absolute;inset:0;z-index:2;border:2px solid var(--fg);border-radius:6px;pointer-events:none}
+.cday>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cday.has .cn{color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+.cday.has::after{content:"";position:absolute;inset:0 0 60%;background:linear-gradient(rgba(0,0,0,.45),transparent)}
+.cday.tentative>img{filter:grayscale(1)}
+.cday.booked::before{border-color:var(--accent)}
+.cday .cw{position:absolute;inset:auto 3px 4px;font-size:9.5px;font-weight:700;line-height:1.2;word-break:keep-all}
+.cday .cmore{position:absolute;z-index:1;right:3px;bottom:3px;font-size:10px;font-weight:800;color:#fff;background:rgba(0,0,0,.72);border-radius:4px;padding:1px 4px}
+@media (min-width:600px){.pcgrid{gap:6px}.cday .cn{font-size:13px;top:6px;left:7px}}
+/* 이달 일정 목록 */
+.agenda{display:grid}
+.agrow{display:grid;grid-template-columns:40px 34px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);color:inherit;text-decoration:none}
+.agrow img,.agph{width:40px;height:56px;object-fit:cover;border-radius:4px;background:var(--soft)}
+.agrow.tentative img{filter:grayscale(1)}
+.agd{display:grid;justify-items:center;line-height:1.1}
+.agd b{font-size:19px;font-variant-numeric:tabular-nums}
+.agd span{font-size:11px;color:var(--muted)}
+.agi{display:grid;gap:2px;min-width:0}
+.agi b,.agi span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spill{font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:999px;white-space:nowrap}
+.spill.booked{background:var(--accent);color:var(--on-accent)}
+.spill.tentative{background:var(--soft);color:var(--muted)}
+/* 날짜를 누른 화면 */
+.pday{display:grid;gap:14px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}
+.pday.booked{border-color:var(--accent)}
+.pdtop{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;align-items:start}
+.pdposter{width:96px;aspect-ratio:2/3;object-fit:cover;border-radius:8px;transition:filter .3s ease}
+.pday.tentative .pdposter{filter:grayscale(1)}
+.pdst{display:grid;gap:8px;align-content:start}
+.pseg{display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:10px;background:var(--soft)}
+.pseg button{min-height:38px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.pseg button.on{background:var(--bg);color:var(--fg);outline:1px solid var(--line)}
+.pday.booked .pseg button.on{background:var(--accent);color:var(--on-accent)}
+.pdst .btn{min-height:40px;font-size:14px}
+.pinfo{margin:0;display:grid;border-top:1px solid var(--line)}
+.pinfo>div{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.pinfo dt{font-size:13px;color:var(--muted);font-weight:600}
+.pinfo dd{margin:0;min-width:0;font-size:14.5px}
+.pcasts{display:flex;flex-wrap:wrap;gap:4px 12px}
+.pcast{white-space:nowrap}
+.pinfo input{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);font:inherit;font-size:14.5px}
+.pinfo input:focus{border-color:var(--fg);outline:none}
+.pfwon{display:flex;align-items:center;gap:8px}
+.pfwon input{text-align:right;font-variant-numeric:tabular-nums}
+.pdact{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.pdact .btn{width:auto;flex:1}
+/* 담은 직후 화면: 포스터(미정이면 흑백) */
+.svtop{display:grid;justify-items:center;text-align:center;gap:6px}
+.svposter{width:120px;aspect-ratio:2/3;object-fit:cover;border-radius:8px;margin-bottom:8px}
+.svposter.gray{filter:grayscale(1)}
+.hhead h2 .count{font-size:13px;font-weight:500;color:var(--muted);margin-left:6px}
+.pimg:has(.prank) .pmark{top:6px;bottom:auto;left:6px;right:auto}
