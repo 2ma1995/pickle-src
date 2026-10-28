@@ -503,6 +503,8 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       af.location.hash = `#find/${W}/actor`; af.route(); let h = af.V.find(W, "actor");
       ok(/누구를 꼭 보고 싶어요\?/.test(h) && /이 작품에는 없는배우 배우가 나오지 않아요/.test(h) && /a1 · 반드시/.test(h) && /b2 · 가능하면/.test(h) && /a2 · 피함/.test(h) && /<b>C<\/b>/.test(h), "배우 먼저: 온보딩 값이 미리 채워져 있고(조연 배역 포함), 작품에 없는 반드시 포함 배우는 안내");
       ok(/a1 배우와 볼 수 있는 조합/.test(h) && /class="card rcard"/.test(h) && /id="dates"/.test(h), "추천 조합 카드와 달력이 이어진다");
+      { const cards = h.split('class="card rcard"').slice(1);  // 사용자 요청(2026-10-28): 조합을 고르기 전에도 카드 왼쪽 위에 날짜·시간
+        ok(cards.length && cards.every(c => /^><div class="rcwhen"><b class="rcd">\d\d\.\d\d <span>\([일월화수목금토]\)<\/span> \d\d:\d\d<\/b>/.test(c)), "추천 조합 카드마다 맨 위(왼쪽 위)에 가장 가까운 날짜·시간, 그 밑에 출연진"); }
       af.click({act: "acSet", work: W, a: "b1", k: "maybe"}); af.click({act: "acMove", work: W, a: "b1", d: "-1"}); h = af.V.find(W, "actor");
       ok(af.S.cal[W].ac.pick.map(x => x.a).join() === "b2,b1,a1" && af.S.prefs.favs.join() === "b2,a1,없는배우", "배우를 누르면 가능하면 포함, 순위는 이 작품에만(온보딩 값은 그대로)");
       af.click({act: "acSet", work: W, a: "a2", k: "maybe"}); ok(!af.S.cal[W].ac.pick.some(x => x.a === "a2"), "공통 피하고 싶은 배우는 여기서 보고 싶은 배우로 못 바꾼다");
@@ -614,6 +616,19 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       ok(/\bhas booked\b/.test((app.V.plans().match(/<a class="cday[^"]*" href="#plans\/2026-11-01"/) || [""])[0]) && /class="pday booked"/.test(app.V.plans("2026-11-01")), "관람예정이면 칸·날짜 화면이 컬러(booked)");
       app.click({act: "planStatus", i: "0", s: "booked"}); ok(qlen(app).filter(r => r.event === "plan_status").length === 1, "같은 상태를 다시 누르면 기록하지 않는다");
       ok(app.V.plans("2026-11-02").includes("담은 공연이 없어요") && /href="#plans"/.test(app.V.plans("2026-11-02")), "담은 공연이 없는 날짜: 안내 + 캘린더로"); }
+    // 본 공연 기록하기: MVP 작품 밖 KOPIS 공연도 검색해서 기록(사용자 요청 2026-10-28)
+    { const HK = JSON.parse(JSON.stringify(HD)); HK.currentShows = [{id: "PF1", title: "다른 극 [대학로]", venue: "소극장", start: "2026-09-01", end: "2026-12-31", cast: ["x1", "x2", "x3"], poster: "https://x.example/p.jpg", times: "화~금(20:00)"}, {id: "PF2", title: "나중 극", venue: "v", start: "2027-01-01", end: "2027-02-01", cast: ["y"], poster: ""}];
+      const k = loadApp(HK, {...opts}); k.route(); const lg = k.V.log();
+      ok(/어떤 작품을 봤어요\?<\/h1><\/div>\s*<input id="logq"[^>]*placeholder="작품 이름으로 찾기"/.test(lg) && /href="#log\/k\/PF1" data-t="다른 극 \[대학로\]"/.test(lg) && /src="https:\/\/x\.example\/p\.jpg"/.test(lg) && !/PF2/.test(lg), "목록: 제목 아래 작품 검색 칸, 그 아래 KOPIS 공연 포스터(아직 시작 안 한 공연은 뺀다)");
+      const lk = k.V.log("k", "PF1"); ok(/언제 봤어요\?/.test(lk) && /id="lkd"[^>]*min="2026-09-01"[^>]*max="2026-10-11"/.test(lk) && /누가 나왔어요\?/.test(lk) && /data-act="lkCast" data-a="x1"/.test(lk) && /data-act="lkGo" disabled/.test(lk), "KOPIS 공연: 날짜(공연 시작일~오늘)·시각, 출연진 칩, 배우를 고르기 전엔 버튼이 꺼져 있다");
+      k.click({act: "lkCast", a: "x1"}); k.click({act: "lkCast", a: "x2"}); k.click({act: "lkGo"}); ok(k.location.hash !== "#review", "날짜를 안 고르면 넘어가지 않는다");
+      k.listeners.doc.input.forEach(f => f({target: {id: "lkd", value: "2026-10-03", closest: () => null}})); k.click({act: "lkGo"});
+      const rv = k.V.review(); ok(k.location.hash === "#review" && /다른 극 \[대학로\] 공연 어땠어요\?/.test(rv) && /소극장/.test(rv) && /<span><b>x1<\/b><\/span>/.test(rv) && /<span><b>x2<\/b><\/span>/.test(rv) && !/x3/.test(rv.split("배우마다 어땠어요?")[1].split("배우들끼리")[0]), "고른 배우만 리뷰 줄(배역 없이 이름만)");
+      const q0 = qlen(k).length; k.click({act: "rvRate", r: "x1", v: "good"}); k.click({act: "rvSave"});
+      const sv = k.S.reviews.find(r => r.kopis === "PF1"), pl = k.S.plans.find(x => x.kopis === "PF1");
+      ok(sv && sv.date === "2026-10-03" && sv.rows.x1.rate === "good" && pl && pl.status === "booked" && pl.tagged && pl.dow === "토" && !qlen(k).slice(q0).some(r => r.event === "after_review"), "저장: 리뷰와 본 공연 일정(관람예정·요일 계산)이 남고, 기록 표 밖이라 after_review 는 안 보낸다");
+      const dv = k.V.plans("2026-10-03"); ok(/src="https:\/\/x\.example\/p\.jpg"/.test(dv) && /<dd>소극장<\/dd>/.test(dv) && /<span class="pcast">x1<\/span>/.test(dv) && /<dd>-<\/dd>/.test(dv) && /class="pday booked"/.test(dv), "캘린더 날짜 화면: KOPIS 포스터·공연장·고른 배우, 시각이 없으면 -");
+      k.location.hash = "#tag/" + k.S.plans.indexOf(pl); k.route(); ok(k.S.proto.rdraft.rv.rows.x1.rate === "good", "남긴 KOPIS 리뷰도 다시 열어 고칠 수 있다"); }
     const dh1 = app.V.detail(W, "2026-11-01", "14:00"), pc1 = app.V.show(W);
     ok(/<a class="btn" href="#saved\/0">볼 예정에 담았어요 · 예매처로 가기 →<\/a>/.test(dh1) && !/data-act="plan"/.test(dh1.split('class="side"')[1] || dh1) && !/예매처로 이동/.test(dh1), "이미 담은 회차의 회차 상세: 담은 뒤 화면으로(예매처로) 가는 버튼, 막다른 길 없음");
     app.click({act: "calDay", work: W, d: "2026-11-01"}); const pc2 = app.V.show(W);
