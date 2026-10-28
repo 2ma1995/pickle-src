@@ -16,10 +16,11 @@ let n = 0; const ok = (c, m) => { assert(c, m); n++; };
 const eq = (a, b, m) => { assert.deepStrictEqual(a, b, m); n++; };
 
 // ===== 1. 화면 이동 =====
-ok(entryRoute(null) === "#taste/1" && entryRoute(undefined) === "#taste/1", "취향을 한 번도 안 다룬 사람은 취향폼");
-ok(entryRoute({axes: [], works: [], favs: [], grade: ""}) === "#home", "건너뛰어서 빈 취향이어도 다음부터는 홈");
-ok(tasteNext("1") === "#taste/2" && tasteNext(2) === "#taste/3" && tasteNext("3") === "#home" && tasteNext(4) === "#home", "취향폼 1→2→3→홈");
-ok(tasteNext("3", "엘리자벳") === "#home" && tasteNext("2", "엘리자벳") === "#taste/3", "3 다음은 바로 홈(끌리는 배우 고르기 단계 없음 — 두 번째 인자가 있어도 같다)");
+// MVP(2026-10-27): 첫 화면은 누구나 홈의 내 취향 카드(빈 카드면 거기서 온보딩), 온보딩은 2단계(1/2 배우 → 2/2 기대 → 홈)
+ok(entryRoute(null) === "#home" && entryRoute(undefined) === "#home", "취향을 한 번도 안 다룬 사람도 첫 화면은 홈(빈 취향 카드)");
+ok(entryRoute({axes: [], works: [], favs: [], grade: ""}) === "#home", "건너뛰어서 빈 취향이어도 홈");
+ok(tasteNext("1") === "#taste/2" && tasteNext(2) === "#home" && tasteNext("3") === "#home" && tasteNext(4) === "#home", "온보딩 1→2→홈");
+ok(tasteNext("2", "엘리자벳") === "#home" && tasteNext("1", "엘리자벳") === "#taste/2", "2 다음은 바로 홈(두 번째 인자가 있어도 같다)");
 ok(dayHash("엘리자벳", "2026-11-01") === "#day/엘리자벳/2026-11-01");
 
 // ===== 2. 작은 데이터로 조합 추천·평가 반영·월드컵 =====
@@ -464,11 +465,12 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     // 월드컵은 공연 화면 밖
     ok(/끌리는 배우 고르기/.test(app.V.me()) && /data-go="#duel\/극"/.test(app.V.me()) && !/월드컵/.test(app.V.me()), "내 취향 탭에 끌리는 배우 고르기(작품 고르기)");
     ok(/data-act="duel"/.test(app.V.duel(W)) && /<h1>극<\/h1>/.test(app.V.duel(W)), "#duel/작품 화면");
-    app = boot(); app.click({act: "obGo", to: "4"}); ok(app.location.hash === "#home", "취향폼 마지막 버튼(3단계 끝): 바로 #home");
-    app.S.prefs = {axes: ["강한 성량"], works: [], favs: ["a1"], grade: ""}; app.click({act: "obGo", to: "4"}); ok(app.location.hash === "#home", "추천 1순위 작품(끌리는 배우 고르기가 가능한 작품)이 있어도 바로 #home");
-    const t3h = app.V.taste("3"); ok((t3h.match(/data-act="obGo" data-to="4"/g) || []).length >= 1 && !/data-to="5"|taste\/4/.test(t3h) && !/끌리는 배우 고르기|어떤 배우가 끌려요\?/.test(t3h.replace(/<h1>어떤 배우에게 끌려요\?<\/h1>/g, "")), "취향폼 3단계 화면: 마지막 버튼은 그대로(data-to=4 → 홈), 끌리는 배우 고르기 단계 안내는 없다");
-    for (const h of ["#taste/4", "#onboard/4", "#taste/9", "#onboard/12"]) { const ao = boot({hash: h}); ok(ao.location.hash === "#home" && /지금 하는 공연 전체/.test(ao.q("#view").innerHTML) && !/어떤 배우가 끌려요\?|선택 · 끌리는 배우 고르기/.test(ao.q("#view").innerHTML), "옛 주소 " + h + " 로 들어오면(새로고침·저장된 주소) 홈으로"); }
-    for (const h of ["#taste/1", "#taste/3", "#onboard/2"]) { const ao = boot({hash: h}); ok(ao.location.hash === h && /취향 고르기 \d\/3/.test(ao.q("#view").innerHTML), "취향폼 1~3단계 주소는 그대로: " + h); }
+    app = boot(); app.click({act: "obGo", to: "3"}); ok(app.location.hash === "#home", "온보딩 마지막 버튼(2단계 끝): 바로 #home");
+    app.S.prefs = {axes: ["강한 성량"], works: [], favs: ["a1"], grade: ""}; app.click({act: "obGo", to: "3"}); ok(app.location.hash === "#home", "추천 1순위 작품(끌리는 배우 고르기가 가능한 작품)이 있어도 바로 #home");
+    const t2h = app.V.taste("2"); ok((t2h.match(/data-act="obGo" data-to="3"/g) || []).length >= 1 && !/data-to="4"|taste\/3/.test(t2h) && !/끌리는 배우 고르기|어떤 공연이 끌려요\?/.test(t2h), "온보딩 2단계 화면: 마지막 버튼은 data-to=3 → 홈, 공연 카드 단계·끌리는 배우 고르기 안내는 없다");
+    for (const h of ["#taste/4", "#onboard/4", "#taste/9", "#onboard/12"]) { const ao = boot({hash: h}); ok(ao.location.hash === "#home" && /MY PICKLE TASTE/.test(ao.q("#view").innerHTML) && !/어떤 배우가 끌려요\?|선택 · 끌리는 배우 고르기/.test(ao.q("#view").innerHTML), "옛 주소 " + h + " 로 들어오면(새로고침·저장된 주소) 홈(취향 카드)으로"); }
+    for (const h of ["#taste/1", "#taste/2", "#onboard/2"]) { const ao = boot({hash: h}); ok(ao.location.hash === h && /취향 고르기 \d\/2/.test(ao.q("#view").innerHTML), "온보딩 1~2단계 주소는 그대로: " + h); }
+    for (const h of ["#taste/3", "#onboard/3"]) { const ao = boot({hash: h}); ok(ao.location.hash === "#taste/2" && /취향 고르기 2\/2/.test(ao.q("#view").innerHTML), "옛 3/3 주소 " + h + " 는 2/2(기대 질문)로"); }
     app = boot(); app.click({act: "duel", work: W, r: "left"}); ok(evs(app).includes("role_duel") && app.S.proto.duels.length === 1, "끌리는 배우 고르기 동작(#duel 화면·내 취향 카드)은 그대로: role_duel 이 남고 바로 반영");
     // '둘 비교해 보기'
     app = boot(); app.click({act: "selActor", work: W, role: "A", a: "a2"}); app.click({act: "cmpOpen", work: W});
@@ -537,7 +539,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     ok(!/box-shadow\s*:\s*(?!none)[^;}]+/.test(css), "app.css 에 그림자가 없다(box-shadow 는 none 뿐)");
     // 화면 마크업
     const HD2 = HDX, opts = OPTSX; const app9 = loadApp(HD2, {...opts, hash: "#home"}); app9.route();
-    const home9 = app9.V.home();
+    const home9 = app9.V.browse();  // 예전 홈(추천 줄·전체 목록)은 MVP 화면에서 빠지고 V.browse 로 남았다
     ok(/class="prow"/.test(home9) && /class="pcard"/.test(home9) && /class="pgrid"/.test(home9) && !/class="rec"|class="work"|class="grid"/.test(home9), "홈: 추천은 포스터 가로 줄(prow), 전체는 포스터 격자(pgrid), 글 상자 카드(rec/work)는 없다");
     ok(/<section class="hsec"><h2>내 취향 추천<\/h2>/.test(home9) && /<h2>지금 하는 공연 전체<span class="count">/.test(home9), "홈 섹션 제목");
     const prowHtml = home9.split('class="prow"')[1].split("</section>")[0], gridHtml = home9.split('class="pgrid"')[1];
@@ -606,7 +608,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const rn = rowsOf({axes: [], works: [], favs: []}); ok(rn.mode === "none" && rn.taste.length === 0, "취향이 없으면 추천 줄도 없다");
     // 화면
     const withUi = (prefs, d = D3, o = {}) => { const a = loadApp(d, {...opts3, hash: "#home", storage: {pickle_v2: JSON.stringify({prefs, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}, ...o}); a.route(); return a; };
-    const ui = withUi({axes: [], works: [], favs: ["a1"], grade: ""}), hh = ui.V.home();
+    const ui = withUi({axes: [], works: [], favs: ["a1"], grade: ""}), hh = ui.V.browse();
     const secs = [...hh.matchAll(/<section class="hsec"><h2>([^<]*)/g)].map(m => m[1]);
     eq(secs, ["좋아하는 배우가 나와요", "좋아하는 배우와 비슷한 배우가 나와요", "지금 하는 공연 전체"], "홈 구성: 줄 A → 줄 B → 전체 목록 하나(다른 공연 따로·'이런 배우를 좋아하면' 없음)");
     ok(!/이런 배우를 좋아하면|모든 작품|다른 공연|지금 하는 다른/.test(hh), "옛 섹션 이름이 없다");
@@ -614,10 +616,10 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const rowHtml = hh.split('<div class="prow">').slice(1).map(x => x.split("</div></section>")[0]);
     ok(rowHtml.length === 2 && (rowHtml[0].match(/class="pcard"/g) || []).length === r1.A.length && (rowHtml[1].match(/class="pcard"/g) || []).length === r1.B.length, "줄은 포스터 가로 줄(prow) 둘, 카드 수가 줄 A·B 와 같다");
     ok(/class="pw">a1 출연</.test(rowHtml[0]) && /class="pw">a1처럼 성량 — v1 출연</.test(rowHtml[1]), "포스터 아래: A='○○ 출연', B='○○처럼 특성 — △△ 출연'");
-    const noFav = withUi({axes: ["강한 성량"], works: [], favs: []}).V.home();
+    const noFav = withUi({axes: ["강한 성량"], works: [], favs: []}).V.browse();
     ok(/<h2>내 취향 추천<\/h2>/.test(noFav) && !/좋아하는 배우가 나와요|비슷한 배우가 나와요/.test(noFav), "좋아하는 배우가 없으면 지금처럼 '내 취향 추천' 한 줄");
     const skipAsk = {storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: ["없는배우"], grade: ""}, plans: [], tags: [], votes: [], likes: [{actor: "없는배우", why: "", tags: [], roles: [], asked: "skip"}], cal: {}, proto: {}})}};  // '비슷한 배우' 묻는 칸은 건너뛴 상태(묻는 칸 대신 안내가 보이게)
-    const none = withUi({axes: [], works: [], favs: ["없는배우"], grade: ""}, D3, skipAsk).V.home();
+    const none = withUi({axes: [], works: [], favs: ["없는배우"], grade: ""}, D3, skipAsk).V.browse();
     ok(/지금 하는 공연 중에 좋아하는 배우나 비슷한 배우가 나오는 공연이 아직 없어요/.test(none), "줄이 둘 다 비면 안내 한 줄(조용히 사라지지 않는다)");
     // 전체 목록: 시드 + KOPIS 전부, 인기순 한 줄 목록 + 지역 칩(대학로도 다른 지역과 똑같이, 공연 수 많은 순, 1개뿐인 지역은 '그 외 지역')
     const allN = D3.works.length + D3.currentShows.length;
@@ -628,7 +630,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       [rg(cur("PA", "A [대학로]", ["a1"]), "대학로", 1, "2026-10-03"), rg(cur("PB", "B", ["v1"]), "대학로", null, "2026-10-20"), rg(cur("PC", "C", ["z9"]), "대학로", null, "2026-10-05"),
        rg(cur("PD", "D", ["z9"]), "중구", 2, "2026-10-04"), rg(cur("PE", "E", ["a1"]), "중구", null, "2026-09-01"), rg(mkNo("PF", "F 출연진 없음"), "", null, "2026-10-11"), rg(cur("PG", "G", ["v1"]), "종로구", 9, "2026-10-06")], prof);
     D4.roles = {...D4.roles, 가극: [], 나극: []};
-    const a4 = withUi({axes: [], works: [], favs: ["a1"]}, D4), h4 = a4.V.home();
+    const a4 = withUi({axes: [], works: [], favs: ["a1"]}, D4), h4 = a4.V.browse();
     const tabs = [...h4.matchAll(/data-act="areaTab" data-t="([^"]+)" aria-pressed="(true|false)">([^<]+)</g)].map(m => [m[1], m[2], m[3].trim()]);
     eq(tabs, [["all", "true", "전체 10"], ["대학로", "false", "대학로 4"], ["중구", "false", "중구 3"], ["그 외 지역", "false", "그 외 지역 3"]], "지역 칩: [전체] → 공연 수 많은 지역(대학로 4 · 중구 3) → [그 외 지역](용산구·종로구 1개씩 + 지역 없음). 처음엔 전체가 눌려 있다");
     const cards = g => (g.match(/class="pcard"/g) || []).length, keysOf = g => [...g.matchAll(/class="pcard" href="#show\/([^"]+)"/g)].map(m => decodeURIComponent(m[1]));
@@ -636,16 +638,16 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     ok(cards(gridPart) === 10 && !/<h3>/.test(h4.split("지금 하는 공연 전체")[1]), "전체 목록은 시드+KOPIS 전부(개수 제한 없음), 소제목 없이 한 목록");
     eq(keysOf(gridPart), ["PA", "PD", "가극", W4, "PG", "PF", "PC", "PB", "나극", "PE"], "인기순: 순위 있는 공연이 먼저(1·2·3·7·9위), 없는 공연은 그 뒤에 시작일이 오늘(10/11)과 가까운 순(F 0일 · C 6일 · B 9일 · 나극 10일 · E 40일)");
     ok(/<h2>지금 하는 공연 전체<span class="count">10개<\/span><span class="sortnote">인기순<\/span><\/h2>/.test(h4) && !/순위|\d+위/.test(h4.split("지금 하는 공연 전체")[1]), "제목 옆에 '인기순'만 적고 순위 숫자는 안 보인다");
-    ok(!/대학로 외/.test(h4) && !/대학로 외/.test(a4.V.home()), "화면에 '대학로 외'가 없다");
-    a4.click({act: "areaTab", t: "대학로"}); const hDae = a4.V.home();
+    ok(!/대학로 외/.test(h4) && !/대학로 외/.test(a4.V.browse()), "화면에 '대학로 외'가 없다");
+    a4.click({act: "areaTab", t: "대학로"}); const hDae = a4.V.browse();
     eq(keysOf(hDae.split('chips afilter')[1]), ["PA", "가극", "PC", "PB"], "[대학로]: 대학로 4곳만, 칩 안 목록도 인기순(1위·3위 → 시작일 가까운 순)");
     ok(/data-t="대학로" aria-pressed="true"/.test(hDae) && /data-t="all" aria-pressed="false"/.test(hDae), "누른 칩만 눌린 상태");
-    a4.click({act: "areaTab", t: "중구"}); eq(keysOf(a4.V.home().split('chips afilter')[1]), ["PD", "나극", "PE"], "[중구]");
-    a4.click({act: "areaTab", t: "그 외 지역"}); eq(keysOf(a4.V.home().split('chips afilter')[1]), [W4, "PG", "PF"], "[그 외 지역]: 용산구·종로구·지역을 못 읽은 공연(F)");
-    a4.click({act: "areaTab", t: "all"}); ok(cards(a4.V.home().split('chips afilter')[1]) === 10 && a4.S.proto.areaTab === "all", "[전체]로 돌아온다(고른 지역은 저장)");
+    a4.click({act: "areaTab", t: "중구"}); eq(keysOf(a4.V.browse().split('chips afilter')[1]), ["PD", "나극", "PE"], "[중구]");
+    a4.click({act: "areaTab", t: "그 외 지역"}); eq(keysOf(a4.V.browse().split('chips afilter')[1]), [W4, "PG", "PF"], "[그 외 지역]: 용산구·종로구·지역을 못 읽은 공연(F)");
+    a4.click({act: "areaTab", t: "all"}); ok(cards(a4.V.browse().split('chips afilter')[1]) === 10 && a4.S.proto.areaTab === "all", "[전체]로 돌아온다(고른 지역은 저장)");
     a4.click({act: "areaTab", t: "엉뚱한값"}); a4.click({act: "areaTab", t: "대학로 외"}); ok(a4.S.proto.areaTab === "all", "엉뚱한 값과 옛 '대학로 외' 값은 무시");
     const old4 = withUi({axes: [], works: [], favs: ["a1"]}, D4, {storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: ["a1"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {areaTab: "대학로 외"}})}});
-    ok(/data-t="all" aria-pressed="true"/.test(old4.V.home()) && cards(old4.V.home().split('chips afilter')[1]) === 10, "예전에 저장된 '대학로 외'는 [전체]로 보인다");
+    ok(/data-t="all" aria-pressed="true"/.test(old4.V.browse()) && cards(old4.V.browse().split('chips afilter')[1]) === 10, "예전에 저장된 '대학로 외'는 [전체]로 보인다");
     const css = fs.readFileSync(path.join(__dirname, "../app/app.css"), "utf8"), bar = (css.match(/\.chips\.afilter\{([^}]*)\}/) || [])[1] || "";
     ok(/flex-wrap:nowrap/.test(bar) && /overflow-x:auto/.test(bar) && /scrollbar-width:none/.test(bar) && /margin-inline:calc\(var\(--gut\) \* -1\)/.test(bar) && /\.afilter \.chip\{[^}]*flex:none[^}]*white-space:nowrap/.test(css) && /\.chips\.afilter::-webkit-scrollbar\{display:none\}/.test(css), "지역 칩 CSS: 줄바꿈 없는 한 줄 가로 스크롤(스크롤바 숨김, 화면 가장자리까지, 칩은 안 줄어듦)");
     ok(/const keepBar = document\.querySelector\("\.afilter"\)/.test(html) && /\.chip\[aria-pressed="true"\]/.test(html.split("function route()")[1].split("window.addEventListener")[0]), "route(): 칩 줄 스크롤 위치를 유지하고 눌린 칩이 밖이면 보이게 민다");
@@ -663,12 +665,12 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
        ["all|전체|10", "다|다|4", "가|가|3", "나|나|3"], "공연 수가 많은 순, 같으면 가나다순(대학로를 앞에 두지 않는다)");
     ok(!regionTabs([it("a", 1, "", "대학로")]).some(t => t[1] === "대학로 외") && regionTabs([]).length === 1, "빈 목록도 안전");
     // 지역 칩이 하나뿐이면(작은 데이터) 칩 줄이 안 나온다
-    ok(!/data-act="areaTab"/.test(a4.constructor === Object ? "" : withUi({axes: [], works: [], favs: ["a1"]}, D3).V.home()), "공연이 적어 지역 칩이 [전체]뿐이면 칩 줄을 안 그린다");
+    ok(!/data-act="areaTab"/.test(a4.constructor === Object ? "" : withUi({axes: [], works: [], favs: ["a1"]}, D3).V.browse()), "공연이 적어 지역 칩이 [전체]뿐이면 칩 줄을 안 그린다");
 
     // 출연진 정보가 없는 공연(noCast): 전체 목록에만 나오고 추천 줄·비슷한 배우 계산엔 안 쓴다
     const D5 = fx([mkW("가극", false, "대학로 소극장"), mkW("나극"), HD3.works[0]], [cur("PA", "A [대학로]", ["a1"]), cur("PB", "B", ["v1"], "대학로"), mkNo("PN", "출연진 없는 쇼", {area: "대학로", popularity: 4}), mkNo("PN2", "또 없는 쇼"), mkNo("PNA", "성인 쇼", {age: "만 19세 이상"}), mkNo("PNE", "끝난 쇼", {end: "2026-10-01"}), mkNo("PNS", "엘리자벳 없음극 극", {})], prof);
     D5.roles = {...D5.roles, 가극: [], 나극: []};
-    const a5 = withUi({axes: [], works: [], favs: ["a1"]}, D5), h5 = a5.V.home(), g5 = h5.split("지금 하는 공연 전체")[1];
+    const a5 = withUi({axes: [], works: [], favs: ["a1"]}, D5), h5 = a5.V.browse(), g5 = h5.split("지금 하는 공연 전체")[1];
     const ids5 = new Set([...g5.matchAll(/href="#show\/([^"]+)"/g)].map(m => m[1]));
     ok(ids5.has("PN") && ids5.has("PN2"), "noCast 공연은 '지금 하는 공연 전체'에 나온다");
     ok(!ids5.has("PNA") && !ids5.has("PNE") && !ids5.has("PNS"), "noCast 도 18세 이상·끝난 공연·시드와 같은 공연은 뺀다(규칙 그대로)");
@@ -692,7 +694,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     eq(rc(["tragedy", "romance"])[0].line, "고른 '가슴 먹먹한 비극' · '로맨스'와 맞는 공연이에요", "카드가 둘이면 ' · '로 잇고, 조사는 마지막 카드 이름 받침에 맞춘다(로맨스 → 와)");
     eq(rc(["romance", "tragedy"])[0].line, "고른 '로맨스' · '가슴 먹먹한 비극'과 맞는 공연이에요", "마지막 카드 이름이 받침으로 끝나면 '과'");
     ok(rc(["romance"]).every(r => r.sentence === r.line && showRef(D6, r.key)), "추천 이유 문장 = 줄, 극 요약으로 갈 수 있다");
-    const uiW = withUi({axes: [], works: ["romance"], favs: [], grade: ""}, D6), hW = uiW.V.home(), rowW = hW.split('<div class="prow">')[1].split("</div></section>")[0];
+    const uiW = withUi({axes: [], works: ["romance"], favs: [], grade: ""}, D6), hW = uiW.V.browse(), rowW = hW.split('<div class="prow">')[1].split("</div></section>")[0];
     ok(/<h2>내 취향 추천<\/h2>/.test(hW) && ["PA", "PB", "PN"].every(id => rowW.includes(`href="#show/${id}"`)) && !/href="#show\/PX"/.test(rowW) && /class="pw">고른 &#39;로맨스&#39;와 맞는 공연이에요<|class="pw">고른 '로맨스'와 맞는 공연이에요</.test(rowW), "홈 '내 취향 추천' 줄에 KOPIS 공연이 이유와 함께 나온다");
     const shA = uiW.V.show("PA"), shN = uiW.V.show("PN");
     ok(/class="hwhy">고른 (&#39;|')로맨스(&#39;|')와 맞는 공연이에요/.test(shA) && /<div class="chips"><span class="tag">로맨스<\/span>/.test(shA) && /<span class="tlab">소재<\/span>/.test(shA), "KOPIS 공연 화면: 추천 이유 + 분위기 칩 + '정보 더 보기'에 대분류별 태그");
@@ -706,7 +708,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     D7.actorProfiles = {...D7.actorProfiles}; for (const pr of Object.values(D7.actorProfiles)) for (const k of ["voice", "role"]) for (const r of pr[k] || []) Object.assign(r, SECRET);
     const wName = D7.works[0].name, perf7 = D7.perfs.find(x => x.work === wName);
     const a7 = withUi({axes: ["강한 성량"], works: ["romance"], favs: ["a1"], grade: ""}, D7);
-    const screens7 = {home: a7.V.home(), detail: a7.V.detail(wName, perf7.date, perf7.time), ...Object.fromEntries([wName, ...D7.currentShows.map(x => x.id)].map(k => ["show " + k, a7.V.show(k)]))};
+    const screens7 = {home: a7.V.browse(), detail: a7.V.detail(wName, perf7.date, perf7.time), ...Object.fromEntries([wName, ...D7.currentShows.map(x => x.id)].map(k => ["show " + k, a7.V.show(k)]))};
     a7.click({act: "selActor", work: wName, role: "A", a: "a1"}); screens7["show(배우 고름)"] = a7.V.show(wName);
     for (const [name, html7] of Object.entries(screens7)) ok(!/근거문장ZZ|출처이름ZZ|evidence\.example|9\/9 19:30/.test(html7) && !/class="quotes"|<h3>근거<\/h3>|<h3>공식 소개<\/h3>|배우가 밝힌 해석|출처 (전문매체|관객)/.test(html7) && !/<span class="tag[^"]*" title=/.test(html7), "근거·출처가 화면에 없다: " + name);
     ok(/class="tag/.test(screens7.detail) && /<div class="tl"><span class="tlab">/.test(screens7.detail), "그래도 태그 칩은 그대로 나온다(회차 상세)");
@@ -825,12 +827,12 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const spec9 = fs.readFileSync(path.join(__dirname, "../docs/data_spec_combo_fit_2026-10-10.md"), "utf8"), draft9 = fs.readFileSync(path.join(__dirname, "../docs/privacy_notice_draft_2026-10-10.md"), "utf8");
     ok(/### 6\. `video_reaction`/.test(spec9) && /event in \([^)]*'video_reaction'[^)]*\)/.test(spec9) && /막지 프로젝트의 `public\.events`/.test(spec9) && /서울 리전에 저장/.test(spec9) && /실행 완료/.test(spec9), "정의서: video_reaction·체크 목록·막지 프로젝트 public.events·서울 리전·SQL 실행 완료");
     ok(/영상 반응/.test(draft9) && /서울 리전\(ap-northeast-2\)/.test(draft9) && /문의처 없이 켬\(사용자 결정, 2026-10-13\)/.test(draft9) && !/\[문의처: 사용자 확인 필요\]/.test(draft9), "안내문 초안: 영상 반응·서울 리전, '문의처 없이 켬(사용자 결정, 2026-10-13)'");
-    // ===== 취향폼 개편(2026-10-27): 1/3 배우(반드시·가능하면·피하고 싶은 배우) · 3/3 우선순위 + 질문(2개까지) =====
+    // ===== 취향폼 개편(2026-10-27): 1/2 배우(반드시·가능하면·피하고 싶은 배우) · 2/2 우선순위 + 질문(2개까지). 예전 2/3 공연 카드 단계는 MVP에서 뺐다 =====
     {
       const D9o = JSON.parse(JSON.stringify(D9)); D9o.actorProfiles = {...(D9o.actorProfiles || {}), "프로필만": {voice: [], role: [{tag: "관계 중심", work: "x"}, {tag: "춤·안무 표현", work: "x"}]}};  // 선택 질문(해석·움직임)에 근거가 있게
       const aO = loadApp(D9o, {...opts3, hash: "#taste/1", storage: {pickle_v2: JSON.stringify({prefs: null, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aO.route();
       const v1 = aO.q("#view").innerHTML;
-      ok(/보고 싶은 배우가 있나요\?/.test(v1) && /취향 고르기 1\/3/.test(v1) && /피하고 싶은 배우/.test(v1), "1/3 은 배우 단계(보고 싶은·피하고 싶은 배우)");
+      ok(/보고 싶은 배우가 있나요\?/.test(v1) && /취향 고르기 1\/2/.test(v1) && /피하고 싶은 배우/.test(v1), "1/2 는 배우 단계(보고 싶은·피하고 싶은 배우)");
       aO.q("#fav").value = "a1"; aO.click({act: "addFav"});
       ok(/반드시 포함/.test(aO.q("#view").innerHTML) && /가능하면 포함/.test(aO.q("#view").innerHTML), "추가한 배우마다 반드시/가능하면 포함");
       aO.click({act: "obMust", a: "a1", m: "1"}); eq(aO.S.prefs.must, ["a1"], "반드시 포함");
@@ -840,8 +842,8 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       aO.q("#fav").value = "a1"; aO.click({act: "addFav"}); ok(aO.S.prefs.favs.includes("a1") && !aO.S.prefs.avoid.includes("a1"), "다시 보고 싶은 배우로 넣으면 피하고 싶은 배우에서 빠진다");
       aO.click({act: "obMust", a: "a1", m: "1"}); aO.click({act: "rmFav", a: "a1"}); ok(!aO.S.prefs.must.includes("a1"), "보고 싶은 배우에서 빼면 반드시도 풀린다");
       aO.q("#avoidIn").value = "b1"; aO.click({act: "addAvoid"}); aO.click({act: "rmAvoid", a: "b1"}); eq(aO.S.prefs.avoid, [], "피하고 싶은 배우 빼기");
-      aO.location.hash = "#taste/3"; aO.route(); const v3 = aO.q("#view").innerHTML;
-      ok(/이번 관람에서 무엇을 기대하나요\?/.test(v3) && /가장 기대하는 것은/.test(v3) && /어떤 목소리에 더 끌리나요\?/.test(v3) && /노래를 들을 때/.test(v3) && /어떤 감정 표현에/.test(v3), "3/3 은 우선순위 + 필수 질문 셋");
+      aO.location.hash = "#taste/2"; aO.route(); const v3 = aO.q("#view").innerHTML;
+      ok(/공연을 볼 때 무엇을 기대하나요\?/.test(v3) && /가장 기대하는 것은/.test(v3) && /어떤 목소리에 더 끌리나요\?/.test(v3) && /노래를 들을 때/.test(v3) && /어떤 감정 표현에/.test(v3), "2/2 는 우선순위 + 필수 질문 셋(제목 '공연을 볼 때 무엇을 기대하나요?')");
       ok(/선명하고 쨍한/.test(v3) && /유쾌하고 코믹한/.test(v3) && !/날카로운/.test(v3), "선택지: 선명하고 쨍한(날카로운 아님)·코믹 연기");
       aO.click({act: "obPrio", v: "노래"}); eq(aO.S.prefs.prio, "노래", "우선순위 하나");
       aO.click({act: "obPrio", v: "연기"}); eq(aO.S.prefs.prio, "연기", "다른 걸 누르면 바뀐다");
@@ -851,21 +853,21 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       aO.click({act: "obPick", q: "sing", t: "성량"}); eq(aO.S.prefs.axes, ["tag:맑음", "tag:허스키", "tag:성량"], "다른 질문은 따로 센다");
       aO.click({act: "obPick", q: "tone", t: ""}); eq(aO.S.prefs.axes, ["tag:성량"], "상관없어요는 그 질문만 비운다");
       ok(/class="chip on"[^>]*data-t="성량"/.test(aO.q("#view").innerHTML), "고른 선택지가 켜져 보인다");
-      ok(/data-act="obGo" data-to="4">추천 보러 가기/.test(aO.q("#view").innerHTML), "하나라도 고르면 '추천 보러 가기'");
+      ok(/data-act="obGo" data-to="3">내 취향 카드 완성하기/.test(aO.q("#view").innerHTML), "하나라도 고르면 '내 취향 카드 완성하기'");
       const st = JSON.parse(aO.store.get("pickle_v2")).prefs; ok(st.prio === "" && st.axes.join() === "tag:성량", "고른 즉시 저장된다");
       const hasQ = re => re.test(aO.q("#view").innerHTML);
       ok(hasQ(/data-act="obMore"/) && !hasQ(/움직임에서는/) && !hasQ(/인물을 어떤 방식으로/), "선택 질문은 처음엔 접혀 있다");
       aO.click({act: "obMore"}); ok(!hasQ(/data-act="obMore"/) && hasQ(/인물을 어떤 방식으로/), "'조금 더 골라 보기'를 누르면 펼쳐진다");
       aO.click({act: "obPrio", v: "노래"}); ok(hasQ(/인물을 어떤 방식으로/), "다른 칩을 눌러 화면을 다시 그려도 펼친 채로 남는다");
-      const aM = loadApp(D9o, {...opts3, hash: "#taste/3", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: [], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aM.route();
+      const aM = loadApp(D9o, {...opts3, hash: "#taste/2", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: [], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aM.route();
       const body = () => /움직임에서는/.test(aM.q("#view").innerHTML), hasBodyData = /움직임에서는/.test((aM.click({act: "obMore"}), aM.q("#view").innerHTML));
       ok(hasBodyData, "근거가 있는 움직임 질문은 펼치면 보인다");
-      if (hasBodyData) { const aM2 = loadApp(D9o, {...opts3, hash: "#taste/3", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: [], grade: "", prio: "몸"}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aM2.route();
+      if (hasBodyData) { const aM2 = loadApp(D9o, {...opts3, hash: "#taste/2", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: [], grade: "", prio: "몸"}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aM2.route();
         ok(/움직임에서는/.test(aM2.q("#view").innerHTML), "춤·몸짓을 1순위로 고르면 움직임 질문은 접지 않고 바로 보인다"); }
       else ok(!body(), "움직임 근거가 하나도 없는 데이터에선 움직임 질문을 숨긴다");
     }
     // ===== taste_snapshot: 취향폼을 저장하거나 고칠 때 =====
-    const mkT = (hash = "#taste/3") => { const a = loadApp(D9, {...opts3, hash, storage: {pickle_v2: JSON.stringify({prefs: null, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); a.route(); return a; };
+    const mkT = (hash = "#taste/2") => { const a = loadApp(D9, {...opts3, hash, storage: {pickle_v2: JSON.stringify({prefs: null, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); a.route(); return a; };
     const aT = mkT(), snEv = () => aT.TRK.queue().filter(q => q.event === "taste_snapshot").map(q => q.payload);
     aT.click({act: "obGo", to: "2"}); ok(snEv().length === 0, "취향을 하나도 안 고르고 넘어가면 남길 게 없어서 기록도 없다");
     aT.click({act: "obCard", id: "romance"}); aT.click({act: "obAxis", v: "강한 성량", l: "강한 성량", r: "섬세한 표현"});
@@ -888,41 +890,41 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const h2s = h => [...h.matchAll(/<section class="hsec"><h2>([^<]*)/g)].map(m => m[1]);
     const rf = (prefs, d = D3f, extra = {}) => { const a = loadApp(d, {...opts3, hash: "#home", storage: {pickle_v2: JSON.stringify({prefs, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}, ...extra})}}); a.route(); return a; };
     ok(D3f.actorProfiles.a2 === undefined && !(D3f.actorTags[W4]?.a2 || []).length, "(전제) a2 는 특징 태그가 없다");
-    const aN = rf({axes: [], works: [], favs: ["a2"]}), rN = homeRows(D3f, aN.S, FROM3), hN = aN.V.home();
+    const aN = rf({axes: [], works: [], favs: ["a2"]}), rN = homeRows(D3f, aN.S, FROM3), hN = aN.V.browse();
     ok(rN.mode === "fav" && rN.A.map(x => x.key).includes(W4) && rN.A.find(x => x.key === W4).line === "a2 출연" && rN.B.length === 0, "특징 태그가 없는 좋아하는 배우도 회차에 나오면 줄 A 에 '○○ 출연'으로 나온다(닮은 배우 줄 B 는 특징이 있어야)");
     ok(h2s(hN).join() === "좋아하는 배우가 나와요,지금 하는 공연 전체" && !/좋아하는 배우와 비슷한 배우가 나와요/.test(hN), "B 가 비면 그 줄은 제목째 안 보인다");
-    const aF = rf({axes: [], works: ["romance"], favs: ["a2"]}), rF = homeRows(D3f, aF.S, FROM3), hF = aF.V.home();
+    const aF = rf({axes: [], works: ["romance"], favs: ["a2"]}), rF = homeRows(D3f, aF.S, FROM3), hF = aF.V.browse();
     ok(rF.taste.map(x => x.key).sort().join() === "PF1,PF2,PF3" && rF.taste.every(x => /고른 '로맨스'와 맞는 공연이에요/.test(x.line)) && !rF.taste.some(x => rF.A.concat(rF.B).some(y => y.key === x.key)), "좋아하는 배우가 있어도 카드를 고르면 A·B 에 없는 공연이 '내 취향 추천' 줄(taste)에 나온다(이유 문구는 취향 추천 줄과 같다)");
     ok(h2s(hF).join() === "좋아하는 배우가 나와요,내 취향 추천,지금 하는 공연 전체" && /<h2>내 취향 추천<\/h2><p class="hsub">[^<]*<\/p><div class="prow">(?:(?!<\/section>)[\s\S])*data-row="taste"/.test(hF), "A 아래에 '내 취향 추천' 줄(카드마다 row=taste)");
     aF.click({act: "recFb", key: "PF1", row: "taste", a: "not_interested"}); ok(homeRows(D3f, aF.S, FROM3).taste.map(x => x.key).sort().join() === "PF2,PF3" && aF.TRK.queue().some(q => q.event === "rec_feedback" && q.payload.show === "PF1" && q.payload.row === "taste"), "숨긴 공연은 내 취향 추천 줄에서 빠지고 rec_feedback row 는 taste");
-    const aE = rf({axes: [], works: [], favs: ["없는배우"]}, D3f, {likes: [{actor: "없는배우", why: "", tags: [], roles: [], asked: "skip"}]}), hE = aE.V.home();
+    const aE = rf({axes: [], works: [], favs: ["없는배우"]}, D3f, {likes: [{actor: "없는배우", why: "", tags: [], roles: [], asked: "skip"}]}), hE = aE.V.browse();
     ok(h2s(hE).join() === "지금 하는 공연 전체" && /지금 하는 공연 중에 좋아하는 배우나 비슷한 배우가 나오는 공연이 아직 없어요/.test(hE) && !/<h2>좋아하는 배우가 나와요|<h2>내 취향 추천/.test(hE) && !/숨긴 공연/.test(hE), "A·B·taste 가 다 비면 빈 줄 제목 없이 안내 한 줄만(숨긴 공연 줄도 혼자 안 뜬다)");
-    const aH = rf({axes: [], works: ["romance"], favs: ["없는배우"]}, D3f, {likes: [{actor: "없는배우", why: "", tags: [], roles: [], asked: "skip"}], proto: {hid: {PF1: {a: "seen", row: "taste"}, PF2: {a: "seen", row: "taste"}, PF3: {a: "seen", row: "taste"}}}}); const hH = aH.V.home();
+    const aH = rf({axes: [], works: ["romance"], favs: ["없는배우"]}, D3f, {likes: [{actor: "없는배우", why: "", tags: [], roles: [], asked: "skip"}], proto: {hid: {PF1: {a: "seen", row: "taste"}, PF2: {a: "seen", row: "taste"}, PF3: {a: "seen", row: "taste"}}}}); const hH = aH.V.browse();
     ok(h2s(hH).join() === "지금 하는 공연 전체" && /추천 줄의 공연을 모두 숨겼어요/.test(hH) && /숨긴 공연 3개 · 되돌리기/.test(hH) && hH.indexOf("추천 줄의 공연을 모두 숨겼어요") < hH.indexOf("숨긴 공연 3개") && hH.indexOf("숨긴 공연 3개") < hH.indexOf("지금 하는 공연 전체"), "추천이 전부 숨겨졌을 땐 안내('모두 숨겼어요') 바로 아래에 '숨긴 공연 3개 · 되돌리기'가 붙고, 줄 제목은 없다");
-    const aT1 = rf({axes: [], works: ["romance"], favs: []}); ok(h2s(aT1.V.home()).join() === "내 취향 추천,지금 하는 공연 전체", "좋아하는 배우가 없으면 예전처럼 '내 취향 추천' 한 줄");
+    const aT1 = rf({axes: [], works: ["romance"], favs: []}); ok(h2s(aT1.V.browse()).join() === "내 취향 추천,지금 하는 공연 전체", "좋아하는 배우가 없으면 예전처럼 '내 취향 추천' 한 줄");
     // ===== 비슷한 배우 줄이 비는 이유가 '좋아하는 배우의 특징 없음'일 때 묻는 칸 =====
     const D3a = {...D3f, actorTagLabels: {"맑음": "맑", "부드러움": "부", "허스키": "허", "묵직한 음색": "묵", "성량": "성", "고음": "고", "딕션": "딕", "코믹 연기": "코", "감정 크게 표현": "감"}, voiceTags: ["맑음", "부드러움", "허스키", "묵직한 음색", "성량", "고음", "딕션"],
       actorProfiles: {...D3f.actorProfiles, v9: {voice: [], role: [{tag: "코믹 연기", work: W4, role: "A"}]}, v8: {voice: [], role: [{tag: "코믹 연기", work: W4, role: "A"}, {tag: "감정 크게 표현", work: W4, role: "A"}]}, v7: {voice: [], role: [{tag: "감정 크게 표현", work: W4, role: "A"}]}, v6: {voice: [], role: [{tag: "엉뚱한태그", work: W4, role: "A"}]}}};
     const lst = askTagList(D3a); ok(lst.length >= 6 && lst.length <= 8 && lst.slice(0, 6).join() === "맑음,부드러움,허스키,묵직한 음색,성량,고음" && lst.slice(6).every(t => D3a.actorTagLabels[t] && !D3a.voiceTags.includes(t)) && !lst.includes("엉뚱한태그") && lst.includes("코믹 연기"), "묻는 칸 칩: 목소리 6개 + 연기·해석(가장 흔한 것) 최대 2개, 사전 확정 태그만: " + lst);
     const mkA = (favs, likes = [], d = D3a) => { const a = loadApp(d, {...opts3, hash: "#home", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs, grade: ""}, plans: [], tags: [], votes: [], likes, cal: {}, proto: {}})}}); a.route(); return a; };
-    const aA = mkA(["a2"]); let hA = aA.V.home();
+    const aA = mkA(["a2"]); let hA = aA.V.browse();
     ok(/a2의 어떤 점이 좋아요\? 고르면 비슷한 배우가 나오는 공연을 찾아 드려요/.test(hA) && lst.every(t => hA.includes(`data-act="askTag" data-a="a2" data-t="${t}"`)) && /data-act="askSkip"[^>]*>건너뛰기/.test(hA) && /data-act="askFind"[^>]* disabled>찾기/.test(hA), "특징 없는 배우(a2)면 묻는 칸이 나온다(문구·칩·[건너뛰기]·아무것도 안 골랐을 땐 [찾기] 비활성)");
     ok(askActorOf(D3a, {prefs: {favs: ["a2", "z9"]}, likes: []}) === "a2" && askActorOf(D3a, {prefs: {favs: ["a1", "a2"]}, likes: []}) === "a2" && askActorOf(D3a, {prefs: {favs: ["z9", "a1"]}, likes: []}) === null && h2s(hA).join() === "좋아하는 배우가 나와요,지금 하는 공연 전체", "특징 없는 첫 배우 한 명만 묻고, 특징이 있는 배우(a1·z9)면 칸이 없다 · 칸은 줄 제목 없이 카드로만");
-    const aTk = mkA(["a1"]); ok(!/askcard|어떤 점이 좋아요\?/.test(aTk.V.home()) && (homeRows(D3a, aTk.S, FROM3).B.length > 0), "특징이 있는 배우(a1)면 칸이 안 나온다(비슷한 배우 줄이 채워져 있다)");
-    aA.click({act: "askTag", a: "a2", t: "성량"}); aA.click({act: "askTag", a: "a2", t: "고음"}); hA = aA.V.home();
+    const aTk = mkA(["a1"]); ok(!/askcard|어떤 점이 좋아요\?/.test(aTk.V.browse()) && (homeRows(D3a, aTk.S, FROM3).B.length > 0), "특징이 있는 배우(a1)면 칸이 안 나온다(비슷한 배우 줄이 채워져 있다)");
+    aA.click({act: "askTag", a: "a2", t: "성량"}); aA.click({act: "askTag", a: "a2", t: "고음"}); hA = aA.V.browse();
     ok(/aria-pressed="true">성량/.test(hA) && /aria-pressed="true">고음/.test(hA) && !/askFind[^>]* disabled/.test(hA) && !aA.S.likes.length && !aA.TRK.queue().some(q => q.event === "taste_snapshot"), "여러 개 고를 수 있고, [찾기] 전엔 저장도 기록도 없다(다시 누르면 해제)");
-    aA.click({act: "askTag", a: "a2", t: "고음"}); aA.click({act: "askTag", a: "a2", t: "엉뚱한태그"}); aA.click({act: "askTag", a: "z9", t: "성량"}); ok(!/aria-pressed="true">고음/.test(aA.V.home()) && (aA.V.home().match(/aria-pressed="true"/g) || []).length === 1, "고른 칩을 다시 누르면 풀리고, 칩에 없는 값·좋아하는 배우 아닌 이름은 무시");
-    aA.click({act: "askFind", a: "a2"}); hA = aA.V.home(); const rA = homeRows(D3a, aA.S, FROM3);
+    aA.click({act: "askTag", a: "a2", t: "고음"}); aA.click({act: "askTag", a: "a2", t: "엉뚱한태그"}); aA.click({act: "askTag", a: "z9", t: "성량"}); ok(!/aria-pressed="true">고음/.test(aA.V.browse()) && (aA.V.browse().match(/aria-pressed="true"/g) || []).length === 1, "고른 칩을 다시 누르면 풀리고, 칩에 없는 값·좋아하는 배우 아닌 이름은 무시");
+    aA.click({act: "askFind", a: "a2"}); hA = aA.V.browse(); const rA = homeRows(D3a, aA.S, FROM3);
     ok(aA.S.likes.length === 1 && aA.S.likes[0].actor === "a2" && aA.S.likes[0].tags.join() === "성량" && typeof aA.S.likes[0].why === "string" && Array.isArray(aA.S.likes[0].roles), "[찾기]하면 '왜 좋아요'와 같은 S.likes 구조({actor, why, tags, roles})에 저장된다(새 키 없음)");
     ok(!/askcard|어떤 점이 좋아요\?/.test(hA) && rA.B.length > 0 && rA.B[0].line.startsWith("a2처럼 성량") && h2s(hA).includes("좋아하는 배우와 비슷한 배우가 나와요"), "그 자리에서 비슷한 배우 줄이 채워지고 묻는 칸은 사라진다: " + JSON.stringify(rA.B.map(x => x.line)));
     const snA = aA.TRK.queue().filter(q => q.event === "taste_snapshot").map(q => q.payload);
     ok(snA.length === 1 && snA[0].likeTags && JSON.stringify(snA[0].likeTags) === JSON.stringify({a2: ["성량"]}) && !JSON.stringify(snA[0]).match(/why|왜좋아요/), "[찾기]를 누르면 taste_snapshot 이 likeTags {배우: [태그]} 와 함께 한 줄 남는다");
-    const aS = mkA(["a2"]); aS.click({act: "askSkip", a: "a2"}); ok(!/askcard/.test(aS.V.home()) && aS.S.likes[0].asked === "skip" && aS.S.likes[0].tags.length === 0 && aS.TRK.queue().length === 0, "[건너뛰기]하면 칸이 사라지고 저장되며(S.likes 의 asked) 기록은 안 남는다");
-    const aS2 = mkA(["a2"], JSON.parse(aS.store.get("pickle_v2")).likes); ok(!/askcard/.test(aS2.V.home()), "다시 열어도(저장소에서) 다시 안 나온다");
-    const aOld = mkA(["a2"], [{actor: "a2", why: "예전 글", tags: [], roles: []}]); ok(/askcard/.test(aOld.V.home()), "예전 저장소(asked 없는 S.likes 항목)는 그대로 읽어서 묻는 칸이 나온다");
-    const aOld2 = mkA(["a2"], [{actor: "a2", why: "", tags: ["허스키"], roles: []}]); ok(!/askcard/.test(aOld2.V.home()), "'왜 좋아요'로 이미 고른 태그가 있으면(특징 있음) 묻지 않는다");
-    const aMany = mkA(["a1", "a2", "z9"]); ok((aMany.V.home().match(/class="card askcard"/g) || []).length <= 1, "좋아하는 배우가 여럿이어도 칸은 하나 이하");
-    const aF2 = mkA([]); ok(!/askcard/.test(aF2.V.home()), "좋아하는 배우가 없으면 칸이 없다");
+    const aS = mkA(["a2"]); aS.click({act: "askSkip", a: "a2"}); ok(!/askcard/.test(aS.V.browse()) && aS.S.likes[0].asked === "skip" && aS.S.likes[0].tags.length === 0 && aS.TRK.queue().length === 0, "[건너뛰기]하면 칸이 사라지고 저장되며(S.likes 의 asked) 기록은 안 남는다");
+    const aS2 = mkA(["a2"], JSON.parse(aS.store.get("pickle_v2")).likes); ok(!/askcard/.test(aS2.V.browse()), "다시 열어도(저장소에서) 다시 안 나온다");
+    const aOld = mkA(["a2"], [{actor: "a2", why: "예전 글", tags: [], roles: []}]); ok(/askcard/.test(aOld.V.browse()), "예전 저장소(asked 없는 S.likes 항목)는 그대로 읽어서 묻는 칸이 나온다");
+    const aOld2 = mkA(["a2"], [{actor: "a2", why: "", tags: ["허스키"], roles: []}]); ok(!/askcard/.test(aOld2.V.browse()), "'왜 좋아요'로 이미 고른 태그가 있으면(특징 있음) 묻지 않는다");
+    const aMany = mkA(["a1", "a2", "z9"]); ok((aMany.V.browse().match(/class="card askcard"/g) || []).length <= 1, "좋아하는 배우가 여럿이어도 칸은 하나 이하");
+    const aF2 = mkA([]); ok(!/askcard/.test(aF2.V.browse()), "좋아하는 배우가 없으면 칸이 없다");
     // ===== 다른 사람들이 고른 배우 특징(서버 actor_trait_votes)을 읽어 추천에 반영 · 근거 수 가중치 =====
     { const LIVE = {mode: "live", url: "https://abc.supabase.co", key: "sb_publishable_selftest", table: "events"}, NOW = new Date("2026-10-11T12:00:00").getTime();
       const D3v = {...D3a, currentShows: [...D3a.currentShows, cur("PF4", "또 다른 쇼", ["v3"])], actorProfiles: {...D3a.actorProfiles, v3: {voice: [{tag: "성량", work: "x"}], role: []}}};
@@ -965,7 +967,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       const aV = await mkV({rows: [{actor: "v1", tag: "성량", n: 3}]});
       ok(base.D.actorVotes === undefined && JSON.stringify([...baseKeys].sort()) === JSON.stringify([...bKeys(aV)].sort()) && baseKeys.length >= 2, "투표가 있어도 줄 B 에 나오는 극은 그대로(순서만): " + baseKeys.join());
       ok(baseKeys[0] !== "PF1" && bKeys(aV)[0] === "PF1", "투표 합계가 더해진 배우(v1)의 극이 같은 특징 한 개짜리 극보다 앞선다: " + baseKeys.join() + " → " + bKeys(aV).join());
-      const hV = aV.q("#view").innerHTML, hB = base.V.home();
+      const hV = aV.V.browse(), hB = base.V.browse();  // 추천 극 목록은 MVP 홈에서 빠져 V.browse 에만 있다
       ok(/data-key="PF1"/.test(hV) && /a1처럼 성량 — v1 출연/.test(hV) && !/1\.5|\d명이 (골|고)|투표|근거 \d/.test(hV) && !/1\.5|투표/.test(hB), "투표 때문에 순서가 바뀌고 새로 그려져도 화면은 이유 문장 그대로(근거·숫자 없음)");
       // 투표만으로 특징이 생긴 배우: 프로필이 없어도 겹친다. 투표가 없으면 안 겹친다
       const Dn = JSON.parse(JSON.stringify(D3v)); Dn.currentShows.push(cur("PF5", "투표로만 보이는 쇼", ["새얼굴"])); Dn.actorProfiles["새얼굴"] = {voice: [], role: []};
@@ -987,7 +989,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         ok(!keys(mkS(self("제작진·공식"))).includes(W5), "제작진 공식은 무시(줄 B 에 안 들어간다)");
         ok(!keys(mkS({voice: [prow("성량", "배우 본인·공식", "i1", W5)], role: []}, ["성량"])).includes(W5) && keys(mkS({voice: [prow("성량", "일반 관객 후기", "a9", W5)], role: []}, ["성량"])).includes(W5), "본인 해석의 목소리 태그는 무시(같은 모양의 관객 근거는 들어간다)");
         const aSelf = loadApp(base.d, {...opts3, hash: "#home", storage: {pickle_v2: JSON.stringify({prefs: base.S.prefs, plans: [], tags: [], votes: [], likes: base.S.likes, cal: {}, proto: {}})}}); aSelf.route();
-        const hSelf = aSelf.q("#view").innerHTML; ok(/f1처럼 코믹 연기 — s1 출연/.test(hSelf) && !/인터뷰|본인|0\.5|0\.75|근거 \d/.test(hSelf), "화면에는 근거도 숫자도 안 나온다(이유 문장 그대로)"); }
+        const hSelf = aSelf.V.browse(); ok(/f1처럼 코믹 연기 — s1 출연/.test(hSelf) && !/인터뷰|본인|0\.5|0\.75|근거 \d/.test(hSelf), "화면에는 근거도 숫자도 안 나온다(이유 문장 그대로)"); }
       // 안내문
       const prv = mkV0({track: LIVE, hash: "#privacy"}); prv.route(); const pH = prv.V.privacy();
       ok(/여러 사람\(2명 이상\)이 고른 배우 특징은 누가 골랐는지 없이 합계로만 추천에 쓰여요\./.test(pH) && /다른 사람들이 고른 배우 특징 합계는 1시간 동안 받아 두어요/.test(pH), "앱 안 개인정보 안내: 합계로만 쓴다는 한 줄 + 이 기기에 1시간 받아 둔다는 설명");
@@ -1005,25 +1007,25 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     // ===== rec_feedback: 홈 추천 줄 카드 =====
     const mkR = (prefs = {axes: [], works: [], favs: ["a1"], grade: ""}, extra = {}) => { const a = loadApp(D3, {...opts3, hash: "#home", storage: {pickle_v2: JSON.stringify({prefs, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}, ...extra}); a.route(); return a; };
     const aR = mkR(), recPart = h => h.split("지금 하는 공연 전체")[0], allPart = h => h.split("지금 하는 공연 전체")[1], fbEv = () => aR.TRK.queue().filter(q => q.event === "rec_feedback").map(({payload: {seq, ...r}}) => r);
-    let hR = aR.V.home();
+    let hR = aR.V.browse();
     ok((recPart(hR).match(/class="pwrap"/g) || []).length === (recPart(hR).match(/class="pcard"/g) || []).length && /data-act="recMenu" data-key="PF2" data-row="fav"/.test(hR) && /data-act="recMenu" data-key="PF1" data-row="similar"/.test(hR) && !/class="pwrap"/.test(allPart(hR)), "추천 줄(좋아하는 배우·비슷한 배우) 카드마다 ⋯ 버튼이 있고, 전체 목록 카드엔 없다");
     ok(/data-act="recFb"[^>]*data-a="seen">이미 봤어요/.test(html) && /data-a="not_interested">관심 없어요/.test(html) && /const recMenuHtml/.test(html) && !/class="pmenu"/.test(hR), "⋯ 를 누르면 [이미 봤어요]·[관심 없어요] 메뉴가 나온다(처음엔 닫혀 있다)");
-    aR.click({act: "recFb", key: "PF2", row: "fav", a: "not_interested"}); hR = aR.V.home();
+    aR.click({act: "recFb", key: "PF2", row: "fav", a: "not_interested"}); hR = aR.V.browse();
     eq(fbEv(), [{show: "PF2", row: "fav", action: "not_interested"}], "고르면 rec_feedback {show, row, action} 한 줄");
     ok(!/href="#show\/PF2"/.test(recPart(hR)) && /href="#show\/PF2"/.test(allPart(hR)) && aR.S.proto.hid.PF2.a === "not_interested" && aR.S.proto.hid.PF2.row === "fav", "그 카드는 추천 줄에서 바로 빠지고 '지금 하는 공연 전체'에는 그대로, 숨김은 새 키(proto.hid)에만 저장");
     ok(homeRows(D3, aR.S, FROM3).A.every(x => x.key !== "PF2") && /숨긴 공연 1개 · 되돌리기/.test(hR) && /PF2|같이 나오는 쇼/.test(hR.split("숨긴 공연")[1]), "추천 줄 아래 '숨긴 공연 1개 · 되돌리기'에 목록이 있다");
-    aR.click({act: "recFb", key: "PF1", row: "similar", a: "seen"}); hR = aR.V.home(); ok(!/href="#show\/PF1"/.test(recPart(hR)) && aR.S.proto.hid.PF1.a === "seen" && /숨긴 공연 2개/.test(hR) && fbEv().length === 2 && fbEv()[1].action === "seen", "[이미 봤어요]도 같은 식 · 비슷한 배우 줄에서 빠진다");
+    aR.click({act: "recFb", key: "PF1", row: "similar", a: "seen"}); hR = aR.V.browse(); ok(!/href="#show\/PF1"/.test(recPart(hR)) && aR.S.proto.hid.PF1.a === "seen" && /숨긴 공연 2개/.test(hR) && fbEv().length === 2 && fbEv()[1].action === "seen", "[이미 봤어요]도 같은 식 · 비슷한 배우 줄에서 빠진다");
     aR.click({act: "recFb", key: "PF2", row: "fav", a: "엉뚱"}); aR.click({act: "recFb", key: "없는공연", row: "fav", a: "seen"}); aR.click({act: "recFb", key: "PF3", row: "엉뚱줄", a: "seen"}); ok(fbEv().length === 2 && !aR.S.proto.hid["없는공연"] && !aR.S.proto.hid.PF3, "엉뚱한 값·없는 공연·엉뚱한 줄은 무시");
-    aR.click({act: "recUndo", key: "PF2"}); hR = aR.V.home();
+    aR.click({act: "recUndo", key: "PF2"}); hR = aR.V.browse();
     eq(fbEv()[2], {show: "PF2", row: "fav", action: "undo"}, "되돌리면 undo 한 줄(숨길 때의 줄 이름으로)");
     ok(/href="#show\/PF2"/.test(recPart(hR)) && !aR.S.proto.hid.PF2 && /숨긴 공연 1개/.test(hR) && homeRows(D3, aR.S, FROM3).A.some(x => x.key === "PF2"), "되돌린 카드는 추천 줄에 다시 나온다");
     aR.click({act: "recUndo", key: "PF2"}); ok(fbEv().length === 3, "숨기지 않은 걸 되돌리기하면 아무 일도 없다");
-    aR.click({act: "recUndo", key: "PF1"}); ok(!/숨긴 공연/.test(aR.V.home()) && Object.keys(aR.S.proto.hid).length === 0, "다 되돌리면 '숨긴 공연' 줄이 사라진다");
+    aR.click({act: "recUndo", key: "PF1"}); ok(!/숨긴 공연/.test(aR.V.browse()) && Object.keys(aR.S.proto.hid).length === 0, "다 되돌리면 '숨긴 공연' 줄이 사라진다");
     const aTa = mkR({axes: [], works: ["romance"], favs: []}, {}); aTa.S.proto.hid = {}; const D3t = {...D3, workTags: {...D3.workTags, "비슷한 쇼": wtRows("로맨스"), "같이 나오는 쇼": wtRows("로맨스")}};
     const aRt = loadApp(D3t, {...opts3, hash: "#home", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: ["romance"], favs: []}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aRt.route();
-    ok(/data-row="taste"/.test(aRt.V.home()) && homeRows(D3t, aRt.S, FROM3).taste.length === 2, "좋아하는 배우가 없을 땐 '내 취향 추천' 줄 카드(row=taste)에도 ⋯ 가 붙는다");
+    ok(/data-row="taste"/.test(aRt.V.browse()) && homeRows(D3t, aRt.S, FROM3).taste.length === 2, "좋아하는 배우가 없을 땐 '내 취향 추천' 줄 카드(row=taste)에도 ⋯ 가 붙는다");
     aRt.click({act: "recFb", key: "PF1", row: "taste", a: "not_interested"}); ok(homeRows(D3t, aRt.S, FROM3).taste.map(x => x.key).join() === "PF2" && aRt.TRK.queue().some(q => q.event === "rec_feedback" && q.payload.row === "taste"), "내 취향 추천 줄에서도 빠지고 row=taste 로 남는다");
-    const aRo = mkR(); aRo.TRK.setOff(true); aRo.click({act: "recFb", key: "PF2", row: "fav", a: "seen"}); ok(aRo.TRK.queue().length === 0 && !aRo.store.has("pickle_q") && aRo.S.proto.hid.PF2.a === "seen" && !/href="#show\/PF2"/.test(recPart(aRo.V.home())), "기록을 끄면 안 보내지만 숨김은 이 기기에서 그대로 동작");
+    const aRo = mkR(); aRo.TRK.setOff(true); aRo.click({act: "recFb", key: "PF2", row: "fav", a: "seen"}); ok(aRo.TRK.queue().length === 0 && !aRo.store.has("pickle_q") && aRo.S.proto.hid.PF2.a === "seen" && !/href="#show\/PF2"/.test(recPart(aRo.V.browse())), "기록을 끄면 안 보내지만 숨김은 이 기기에서 그대로 동작");
     ok(hideShow({}, "k", "fav", "seen") === true && hideShow({}, "k", "x", "seen") === false && hideShow({}, "k", "fav", "undo") === false && unhideShow({}, "k") === null && hiddenShows({}) && Object.keys(hiddenShows({})).length === 0, "hideShow/unhideShow: 정해진 값만");
     // 개인정보 안내(앱 안·문서): 취향 스냅숏·추천 줄 피드백, 정의서 7·8번
     const pv10 = mk9({track: {mode: "live", url: "https://abc.supabase.co", key: "sb_publishable_x"}, hash: "#privacy"}); pv10.route(); const prv10 = pv10.V.privacy();
@@ -1054,7 +1056,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       for (const k of keys) { const h = app2.V.show(k); const p = ["summary", "cast", "dates"].map(id => h.indexOf(`id="${id}"`)); if (!(p.every(x => x > 0) && p[0] < p[1] && p[1] < p[2])) throw new Error("섹션 순서: " + k); if ((h.match(/<div class="month"/g) || []).length > 1) throw new Error("달력이 여러 개: " + k); if (/class="month"/.test(h)) withCal++; if (/이상형 월드컵/.test(h)) throw new Error("공연 화면에 월드컵: " + k); n2++; }
       { // 홈(실제 데이터): 좋아하는 배우가 있는 사람의 줄 A·B, 전체 목록, 구분 버튼
         const hom = loadApp(RD2, {now: "2026-10-11T12:00:00", hash: "#home", storage: {pickle_v2: JSON.stringify({prefs: {axes: [], works: [], favs: [FAVP], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); hom.route();
-        const rw = homeRows(RD2, hom.S, "2026-10-11"), hh = hom.V.home(), N = allShows(RD2, "2026-10-11");
+        const rw = homeRows(RD2, hom.S, "2026-10-11"), hh = hom.V.browse(), N = allShows(RD2, "2026-10-11");
         ok(rw.mode === "fav" && rw.A.length > 0 && rw.B.length > 0 && !rw.A.some(a => rw.B.some(b => b.key === a.key)), `실제 데이터: 줄 A ${rw.A.length}개·줄 B ${rw.B.length}개, 겹침 없음`);
         ok(rw.A.every(x => /출연$/.test(x.line)) && rw.B.every(x => /처럼 .+ — .+ 출연$/.test(x.line)), "실제 데이터: 줄 A 는 '○○ 출연', 줄 B 카드는 모두 이유가 있다");
         ok(rw.A.some(x => RD2.currentShows.some(c => c.id === x.key)) || rw.B.some(x => RD2.currentShows.some(c => c.id === x.key)), "줄에 KOPIS 공연도 들어간다(시드만이 아니다)");
@@ -1082,14 +1084,14 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
           const named = tabsR.slice(1).filter(t => t[0] !== OTHER_REGION), counts = named.map(t => t[2]);
           ok(tabsR[0][2] === N.length && counts.every((c, i) => i === 0 || counts[i - 1] >= c) && counts.every(c => c >= 2) && tabsR.slice(1).every((t, i, a) => t[0] !== OTHER_REGION || i === a.length - 1), `실제 데이터: 지역 칩 ${tabsR.map(t => t[1] + " " + t[2]).join(" · ")} (공연 수 많은 순, 그 외 지역은 맨 끝)`);
           ok(tabsR.reduce((n, t, i) => n + (i ? t[2] : 0), 0) === N.length, "실제 데이터: 지역 칩 개수의 합 = 전체");
-          for (const t of tabsR.slice(1)) { hom.click({act: "areaTab", t: t[0]}); const g = gridOf(hom.V.home()); ok(keysR(g).length === t[2] && keysR(g).every((k, i, a) => i === 0 || sorted.findIndex(x => x.key === a[i - 1]) < sorted.findIndex(x => x.key === k)), `실제 데이터: [${t[1]}] ${t[2]}개, 칩 안 목록도 인기순`); }
+          for (const t of tabsR.slice(1)) { hom.click({act: "areaTab", t: t[0]}); const g = gridOf(hom.V.browse()); ok(keysR(g).length === t[2] && keysR(g).every((k, i, a) => i === 0 || sorted.findIndex(x => x.key === a[i - 1]) < sorted.findIndex(x => x.key === k)), `실제 데이터: [${t[1]}] ${t[2]}개, 칩 안 목록도 인기순`); }
           hom.click({act: "areaTab", t: "all"});
         }
       }
       { // 홈 추천(실제 데이터): 특징 태그가 없는 좋아하는 배우(RD3.actor)도 출연작이 나오고, 취향 카드·축 추천도 같이 나온다
         { const FAV = RD3.actor, W = RD3.work;
           const uc = loadApp(RD3.D, {now: "2026-10-11T12:00:00", hash: "#home", storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강렬한 해석", "연기"], works: ["fun"], favs: [FAV], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); uc.route();
-          const ur = homeRows(RD3.D, uc.S, "2026-10-11"), uh = uc.V.home();
+          const ur = homeRows(RD3.D, uc.S, "2026-10-11"), uh = uc.V.browse();
           ok(ur.mode === "fav" && ur.A.some(x => x.key === W && x.line === `${FAV} 출연`) && ur.taste.length > 0 && ur.taste.every(x => !ur.A.some(y => y.key === x.key) && !ur.B.some(y => y.key === x.key)), `실제 데이터: 특징 태그 없는 ${FAV}도 A 에 ${W}, 취향 카드·축 추천(taste ${ur.taste.length}개)도 나온다`);
           ok(/<h2>좋아하는 배우가 나와요<\/h2>/.test(uh) && /<h2>내 취향 추천<\/h2>/.test(uh) && (uh.match(/<h2>[^<]*<\/h2>/g) || []).every(t => !/<h2><\/h2>/.test(t)) && !/지금 하는 공연 중에 좋아하는 배우나 비슷한 배우가 나오는 공연이 아직 없어요/.test(uh), "실제 데이터 화면: A 줄과 내 취향 추천 줄이 나오고 빈 안내는 없다");
         }
@@ -1122,10 +1124,22 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         ok(boot(L0).location.hash === "#home", "예전 상태(취향 있음): 첫 화면은 홈");
         ok(boot({...L0, prefs: {axes: [], grade: "", favs: []}}).location.hash === "#home", "취향을 건너뛴 예전 상태(빈 취향): 홈");
         ok(boot({prefs: null, plans: L0.plans, tags: [], votes: [], likes: [], cal: {}}).location.hash === "#home" && boot({prefs: null, plans: [], tags: [], votes: [], likes: L0.likes, cal: {}}).location.hash === "#home", "취향은 없어도 예전 앱에서 쓴 기록(볼 예정·좋아하는 배우 설문)이 있으면 홈");
-        ok(boot(null).location.hash === "#taste/1" && boot({prefs: null, plans: [], tags: [], votes: [], likes: [], cal: {}}).location.hash === "#taste/1", "저장된 게 없거나 비어 있는 처음 온 사람만 취향폼");
-        eq(entryRoute(null), "#taste/1", "entryRoute 는 상태 없이도 동작(옛 호출 방식)");
+        ok(boot(null).location.hash === "#home" && boot({prefs: null, plans: [], tags: [], votes: [], likes: [], cal: {}}).location.hash === "#home" && /아직 비어 있는 내 취향 카드/.test(boot(null).q("#view").innerHTML), "저장된 게 없거나 비어 있는 처음 온 사람도 홈(빈 취향 카드에서 온보딩)");
+        eq(entryRoute(null), "#home", "entryRoute 는 상태 없이도 동작(옛 호출 방식)");
+        // ===== MVP 뼈대(2026-10-28): 홈 취향 카드 뒤집기 · 작품 고르기 · 찾는 방법 고르기 =====
+        { const m = boot(L0); m.location.hash = "#home"; m.route(); const front = m.q("#view").innerHTML;
+          ok(/<button type="button" class="tcard" data-act="cardFlip"/.test(front) && /MY PICKLE TASTE/.test(front) && !/지금 하는 공연 전체|내 취향 추천/.test(front), "홈 앞면: 버튼 하나인 취향 카드(탭·Enter·Space), 작품 추천 목록 없음");
+          m.click({act: "cardFlip"}); const back = m.q("#view").innerHTML;
+          ok(/class="tcard back"/.test(back) && /data-go="#find">배우 조합 추천받기/.test(back) && /data-act="cardFlip">앞면으로/.test(back) && /href="#taste\/1">답 고치기/.test(back), "카드를 누르면 뒷면: 배우 조합 추천받기 · 답 고치기 · 앞면으로");
+          m.click({act: "cardFlip"}); ok(/<button type="button" class="tcard"/.test(m.q("#view").innerHTML), "다시 누르면 앞면");
+          m.click({act: "cardFlip"}); m.location.hash = "#plans"; m.route(); m.location.hash = "#home"; m.route(); ok(!/class="tcard back"/.test(m.q("#view").innerHTML), "다른 화면에 다녀오면 앞면");
+          const fl = m.V.find();
+          ok((fl.match(/class="wcard/g) || []).length >= 1 && /href="#find\/[^"]+"/.test(fl) && /어떤 작품의 조합을 찾아볼까요\?/.test(fl), "작품 고르기: 작품 카드가 나오고, 고를 수 있는 작품은 #find/작품으로");
+          const how = m.V.find(W0); ok(/href="#find\/[^"]+\/date">날짜 먼저 고르기/.test(how) && /href="#find\/[^"]+\/actor">배우 먼저 고르기/.test(how), "찾는 방법 고르기: 날짜 먼저 · 배우 먼저");
+          ok(/id="dates"/.test(m.V.find(W0, "date")) && /id="cast"/.test(m.V.find(W0, "actor")), "날짜 먼저 → 기존 달력, 배우 먼저 → 기존 '누구로 볼까요?'로 이어진다");
+          const mm = boot({...L0, prefs: {...(L0.prefs || {}), favs: ["없는배우X"], must: ["없는배우X"]}}); ok(/없는배우X 배우는 이 작품에 나오지 않아요/.test(mm.V.find()) && /이 작품에는 없는배우X 배우가 나오지 않아요/.test(mm.V.find(W0)), "반드시 포함 배우가 작품에 없으면 안내"); }
         // 화면들이 예전 상태로 깨지지 않는다
-        const a1 = boot(L0), views = [["#home", /지금 하는 공연 전체|좋아하는 배우가 나와요/], ["#plans", /엘리자벳/], ["#me", /카이/], ["#saved/0", /엘리자벳/], ["#tag/1", /엘리자벳|어땠어요/], ["#detail/" + W0 + "/" + fut[0].date + "/" + fut[0].time, /엘리자벳|이 회차/], ["#show/" + W0, /id="summary"/]];
+        const a1 = boot(L0), views = [["#home", /MY PICKLE TASTE/], ["#browse", /지금 하는 공연 전체|좋아하는 배우가 나와요/], ["#find", /어떤 작품의 조합을 찾아볼까요\?/], ["#plans", /엘리자벳/], ["#me", /카이/], ["#saved/0", /엘리자벳/], ["#tag/1", /엘리자벳|어땠어요/], ["#detail/" + W0 + "/" + fut[0].date + "/" + fut[0].time, /엘리자벳|이 회차/], ["#show/" + W0, /id="summary"/]];
         for (const [h, re] of views) { const [name, ...args] = decodeURIComponent(h.slice(1)).split("/"); let out; try { out = a1.V[name](...args); } catch (e) { throw new Error("예전 상태로 " + h + " 가 깨졌다: " + e.message); } ok(typeof out === "string" && out.length > 200 && re.test(out), "예전 상태로 " + h + " 가 그려진다"); }
         const oldRoutes = ["#works", "#pick/" + W0, "#when/" + W0 + "/unseen", "#result", "#cal/" + W0, "#day/" + W0 + "/" + fut[0].date, "#cshow/PF0", "#onboard/2", "#detail/없는작품/2026-10-12/14:00"];
         for (const h of oldRoutes) { const [name, ...args] = decodeURIComponent(h.slice(1)).split("/"); let out; try { out = a1.V[name](...args); } catch (e) { throw new Error("예전 주소 " + h + " 가 깨졌다: " + e.message); } ok(typeof out === "string" && out.length > 20, "예전 주소 " + h + " 도 깨지지 않고 화면이 나온다(없는 회차는 안내 한 줄)"); }
@@ -1158,7 +1172,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         const bootT = (track, search = "") => loadApp(clone(), {now: NOW + "T12:00:00", hash: "", storage: {pickle_v2: JSON.stringify(L0)}, track, search});
         const kop = RD2.currentShows.find(c => (c.cast || []).length && c.end >= NOW), nocast = (RD2.currentShows || []).find(c => c.noCast && c.end >= NOW);
         const screens = a => { const out = {}; const get = (h, vw) => { const [name, ...args] = decodeURIComponent(h.slice(1)).split("/"); a.location.hash = h; return vw ? a.V[name](...args) : a.V[name](...args); };
-          out["#home"] = get("#home"); out["#taste/1"] = get("#taste/1"); out["#taste/2"] = get("#taste/2"); out["#taste/3"] = get("#taste/3");
+          out["#home"] = get("#home"); out["#taste/1"] = get("#taste/1"); out["#taste/2"] = get("#taste/2"); out["#find"] = get("#find"); out["#find/" + W0] = get("#find/" + W0);
           out["#show/" + W0] = get("#show/" + W0); a.click({act: "calDay", work: W0, d: fut[0].date}); out["#show/" + W0 + "(날짜)"] = a.V.show(W0);
           if (kop) out["#show/KOPIS"] = get("#show/" + kop.id); if (nocast) out["#show/noCast"] = get("#show/" + nocast.id);
           out["#plans"] = get("#plans"); out["#saved/0"] = get("#saved/0"); out["#tag/1"] = get("#tag/1"); out["#detail"] = get("#detail/" + W0 + "/" + fut[0].date + "/" + fut[0].time); out["#me"] = get("#me"); out["#duel"] = get("#duel/" + W0); out["#privacy"] = get("#privacy"); return out; };
@@ -1166,7 +1180,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         const scrP = screens(bootT(undefined)), scrL = screens(bootT(LIVE));
         for (const [mode, scr] of [["연습 모드", scrP], ["기록 설정 있음", scrL]]) for (const [h, html] of Object.entries(scr)) {
           const hit = html.match(BAN); ok(!hit, `${mode} ${h}: 사용자 화면에 내부 말·옛 이름이 없다` + (hit ? " → " + hit[0] : ""));
-          const kn = (html.match(/KOPIS/g) || []).length; ok(h === "#home" ? kn === 1 && /공연 정보·포스터: 공연예술통합전산망\(KOPIS\)/.test(html) : kn === 0, `${mode} ${h}: 'KOPIS' 글자는 홈의 출처 표기 한 곳뿐 (${kn}번)`); }
+          const kn = (html.match(/KOPIS/g) || []).length; ok(h === "#find" ? kn === 1 && /공연 정보·포스터: 공연예술통합전산망\(KOPIS\)/.test(html) : kn === 0, `${mode} ${h}: 'KOPIS' 글자는 작품 고르기(포스터가 나오는 화면)의 출처 표기 한 곳뿐 (${kn}번)`); }
         // 연습 모드: 첫 화면 기록 배너·설정의 기록 카드·안내 화면 링크가 안 보인다
         const HIDE = /data-act="trackToggle"|data-act="trackClear"|href="#privacy"|기록·개인정보|이 기기 기록 지우기|기록 끄기|광고에는 쓰지 않아요/;
         for (const h of Object.keys(scrP).filter(k => k !== "#privacy")) ok(!HIDE.test(scrP[h]), "연습 모드 " + h + ": 기록 배너·설정·안내 링크가 안 보인다");
@@ -1188,9 +1202,9 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         ok(/관람 기록 남기기/.test(scrP["#plans"]) && /관람 기록 남기기|관람 기록/.test(scrP["#tag/1"]) && /오늘 공연 어땠어요\?/.test(scrP["#tag/1"]) && /인상 깊었던 배우/.test(scrP["#tag/1"]) && !/가장 인상/.test(scrP["#tag/1"]), "보고 난 뒤 기록은 '관람 기록 남기기'로 통일, 높임말 통일('어땠어요?'), '가장 인상 깊었던' → '인상 깊었던'");
         const tg = bootT(undefined); tg.location.hash = "#tag/1"; tg.V.tag("1"); tg.click({act: "tActor", a: Object.values(past[1].cast)[0], r: Object.keys(past[1].cast)[0]}); const tgH = tg.V.tag("1");
         ok(/내 취향에 가까웠던 쪽/.test(tgH) && /다음 추천에 반영돼요/.test(tgH) && !/더 좋았던 쪽|비교 카드|PICK CAST/.test(tgH), "같은 배역 비교 안내(배우를 고르면 나오는 카드): '더 좋았던 쪽' → '내 취향에 가까웠던 쪽'");
-        ok(/취향 고르기 1\/3/.test(scrP["#taste/1"]) && /다음 뮤지컬 찾기/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/3"]), "영어 장식 문구(STEP·FIND YOUR NEXT MUSICAL)는 한국어로, '우열' 문장은 '평가하지 않고 … 특징만'");
+        ok(/취향 고르기 1\/2/.test(scrP["#taste/1"]) && /나의 PICKLE 취향|아직 비어 있는 내 취향 카드/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "온보딩은 1/2·2/2, 홈은 내 취향 카드, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
-        ok(/추천은 근거가 있는 것만 보여 드려요\./.test(scrP["#home"]) && !/점수·순위/.test(scrP["#home"]), "홈 맨 아래: 점수·순위 말 없이 한 줄, 출처는 따로 한 줄");
+        ok(!/점수·순위/.test(scrP["#home"]) && /MY PICKLE TASTE/.test(scrP["#home"]) && !/지금 하는 공연 전체|내 취향 추천/.test(scrP["#home"]), "홈: 점수·순위 말이 없고, 작품 추천 목록(내 취향 추천·지금 하는 공연 전체) 없이 취향 카드만");
         ok(/진한 날에 이 조합이 나와요\. ★는 첫공·막공이에요\./.test(scrP["#show/" + W0 + "(날짜)"]) && /공식 캐스팅 일정이라 바뀔 수 있어요\./.test(scrP["#show/" + W0 + "(날짜)"]), "달력 아래 안내는 두 줄로 나눠 읽기 쉽게");
         ok(/이 배우 빼기/.test(scrP["#show/" + W0]) && /꼭 볼 배우/.test(scrP["#show/" + W0]), "배우 칸 버튼: '이 배우 빼기'(🚫 없음) · '⭐ 꼭 볼 배우'");
         const shw = scrP["#show/" + W0]; ok((shw.match(/class="pickb">추천 조합</g) || []).length === 1 && /이 배우들이 함께 나와요/.test(shw) && !/class="pickb sm"|PICK(?!LE)/.test(shw), "'추천 조합' 표시는 조합 선택 칸에 한 번만(배우 칩 옆 PICK 배지 없음)");
