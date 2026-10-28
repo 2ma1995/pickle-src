@@ -544,11 +544,11 @@ function recommend(work, lo, hi, prefs, actors = [], top = 2, avoid = []) {
 
 // ---------- 도우미 ----------
 const workOf = name => D.works.find(w => w.name === name);
-const leadRoles = work => (D.roles[work] || []).filter(r => r.weight === "주연");
+const leadRoles = work => unitRoles(D, work);
 const roleColor = (work, role) => ROLE_COLORS[Math.max(0, (D.roles[work] || []).findIndex(r => r.role === role)) % ROLE_COLORS.length];
 const weightOf = (work, role) => (D.roles[work] || []).find(r => r.role === role)?.weight || "조연";
-const leads = (work, cast) => Object.entries(cast).filter(([r]) => weightOf(work, r) === "주연");
-const rests = (work, cast) => Object.entries(cast).filter(([r]) => weightOf(work, r) !== "주연");
+const leads = (work, cast) => unitCast(D, work, cast);  // 이름은 예전 그대로: 이제 '핵심 배역 전체'(주연/조연 구분 없음)
+const rests = (work, cast) => Object.entries(cast).filter(([r]) => !isUnit(D, work, r));  // 추천 단위 밖 배역(앙상블·결정 28로 뺀 배역)
 const md = d => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
 // 공연(run): 같은 작품의 서울·지방 공연. 회차는 날짜로 어느 공연인지 정해진다.
 const runsOf = work => { const w = workOf(work); if (!w) return []; const live = w.runs.filter(r => r.end >= today()); return live.length ? live : w.runs; };
@@ -648,7 +648,7 @@ function closeSheet(quiet) {  // quiet: route() 가 화면을 새로 그리는 �
   if (v) { const t = document.querySelector(`a[data-act="vopen"][data-vid="${v.vid}"]`); if (t && t.focus) t.focus(); }  // 포커스는 눌렀던 썸네일로 돌려준다
 }
 
-// 이미 본 조합: '본 공연'(지난 날짜이거나 관람 후 기록을 남긴 회차)의 주연 조합. 조연은 세지 않는다
+// 이미 본 조합: '본 공연'(지난 날짜이거나 관람 후 기록을 남긴 회차)의 핵심 배역 조합
 const leadKey = (work, cast) => leads(work, cast).map(([r, a]) => r + ":" + a).sort().join("|");
 const isSeen = x => x.tagged || x.date < today();
 const seenKeys = work => new Set(S.plans.filter(x => x.work === work && isSeen(x)).map(x => leadKey(work, x.cast)));
@@ -703,7 +703,7 @@ function recordMood(S, r) {  // 기록 한 건의 +1/0/-1. 기분이 비었으�
 function personalWeights(S, D) {
   if (S.noPersonal) return {};
   const w = {}, add = (t, v) => { w[t] = (w[t] || 0) + v; };
-  const lead = (work, role) => ((D.roles || {})[work] || []).some(x => x.role === role && x.weight === "주연");
+  const lead = (work, role) => isUnit(D, work, role);
   for (const r of S.tags || []) {
     const m = recordMood(S, r); if (!m) continue;
     const cast = planOf(S, r)?.cast || (D.perfs || []).find(p => p.work === r.work && p.date === r.date && p.time === r.time)?.cast || {};
@@ -732,6 +732,11 @@ function personalCounts(S) {  // 좋았던 회차 / 아쉬웠던 회차 (같은 
 }
 // </personal-weights>
 // <taste-first>
+// 핵심 배역(docs/261027_2 10.1절): 주연/조연(비중)을 쓰지 않고 roles.tsv 의 배역 전체를 같은 무게로, 순서도 roles.tsv 대로. 시카고 에이모스 하트·메리 선샤인은 추천 단위에서 뺀다(결정 13·28)
+const NOT_UNIT = {"시카고": ["에이모스 하트", "메리 선샤인"]};
+const unitRoles = (D, work) => ((D.roles || {})[work] || []).filter(r => !(NOT_UNIT[work] || []).includes(r.role));
+const isUnit = (D, work, role) => unitRoles(D, work).some(r => r.role === role);
+const unitCast = (D, work, cast) => unitRoles(D, work).filter(r => cast[r.role]).map(r => [r.role, cast[r.role]]);  // [배역, 배우] roles.tsv 순서
 // 첫 화면 '취향 먼저': 1/3 카드(작품 태그 묶음) · 2/3 배우 취향 5축 · 홈의 추천. D만 보는 순수 함수라 tests/personal_check.js 로 검증한다.
 // 카드의 태그 이름은 태그 사전의 작품 태그와 같아야 한다(recommend.py --selftest 가 확인)
 const TASTE_CARDS = [
@@ -813,7 +818,7 @@ const ended = (w, from) => (w.runs || []).length > 0 && w.runs.every(r => r.end 
 // 지금 하는 작품의 주연 후보 Map(이름 → 이 작품에서 맡은 주연 배역들). 회차가 있는 작품은 남은 회차의 주연(예전 그대로, 남은 회차가 없으면 null),
 // 회차 캐스팅이 없는 작품(hasSchedule false)은 배역 탭 주연 캐스트(끝난 작품이면 null)
 const runningLeads = (D, w, from) => {
-  const lead = (D.roles[w.name] || []).filter(r => r.weight === "주연"), map = new Map(), add = (x, role) => map.set(x, [...new Set([...(map.get(x) || []), role])]);
+  const lead = unitRoles(D, w.name), map = new Map(), add = (x, role) => map.set(x, [...new Set([...(map.get(x) || []), role])]);
   if (w.hasSchedule) {
     const ls = new Set(lead.map(r => r.role)), ups = D.perfs.filter(p => p.work === w.name && p.date >= from && !isPrivate(p)); if (!ups.length) return null;
     for (const p of ups) for (const [role, x] of Object.entries(p.cast)) if (ls.has(role)) add(x, role);
@@ -971,8 +976,8 @@ V.detail = (work, date, time) => {
       ${run.seatmap ? `<p class="small" style="margin-top:8px"><a href="${esc(run.seatmap.url)}" target="_blank" rel="noopener">${esc(run.venue)} 좌석 배치도 ↗</a> <span class="tiny muted">${esc(run.seatmap.src)}</span></p>` : ""}</div>` : ""}
     <div class="card"><h3>같은 캐스트 다른 회차 <span class="small muted">${same.length}개</span></h3>
       ${same.length ? `<div class="chips">${same.map(x => `<button class="chip" data-go="#detail/${esc(work)}/${x.date}/${x.time}">${md(x.date)}(${esc(x.dow)}) ${esc(x.time)}${x.notes.some(n => /첫공|막공|폐막/.test(n)) ? " ★" : ""}</button>`).join("")}</div>
-        <p class="tiny muted">주연 ${leads(work, p.cast).map(([, a]) => esc(a)).join(" · ")}${leads(work, p.cast).length > 1 ? " 조합이" : iga(leads(work, p.cast)[0]?.[1] || "")} 그대로인 날이에요. 조연은 다를 수 있어요.</p>`
-        : `<p class="small muted">이 주연 조합은 이 회차뿐이에요. 좌석이 없으면 다른 조합이나 다른 날짜를 골라 주세요.</p>`}</div>
+        <p class="tiny muted">${leads(work, p.cast).map(([, a]) => esc(a)).join(" · ")}${leads(work, p.cast).length > 1 ? " 조합이" : iga(leads(work, p.cast)[0]?.[1] || "")} 그대로인 날이에요.</p>`
+        : `<p class="small muted">이 조합은 이 회차뿐이에요. 좌석이 없으면 다른 조합이나 다른 날짜를 골라 주세요.</p>`}</div>
     <div style="display:grid;gap:10px">
     ${priv ? `<button class="btn" disabled>일반 예매 불가</button>` : run.ticket ? "" : `<button class="btn" disabled>예매 링크 준비 중</button>`}
     ${planned ? `<a class="btn" href="#saved/${planIdx(work, date, time)}">볼 예정에 담았어요 · ${run.ticket ? "예매처로 가기" : "담은 공연 보기"} →</a>` : `<button class="btn ${priv || !run.ticket ? "ghost" : ""}" data-act="plan" data-work="${esc(work)}" data-date="${date}" data-time="${time}" ${priv ? "disabled" : ""}>${priv ? "볼 예정에 담을 수 없어요" : "볼 예정에 담기"}</button>`}
@@ -1032,7 +1037,7 @@ V.plans = () => {
     const all = new Set(perfsOf(work).map(p => leadKey(work, p.cast))), seen = [...seenKeys(work)].filter(k => all.has(k)).length;
     return `<div class="card"><div class="between"><b>${esc(work)}</b><span class="small muted">본 조합 ${seen}개 / 전체 ${all.size}개</span></div>
       <div class="bar"><span style="width:${all.size ? Math.round(seen / all.size * 100) : 0}%"></span></div>
-      ${seen < all.size ? `<a class="btn ghost" href="#when/${esc(work)}/unseen">아직 안 본 조합 보기 →</a>` : `<p class="small muted">이번 시즌 주연 조합을 다 봤어요</p>`}</div>`;
+      ${seen < all.size ? `<a class="btn ghost" href="#when/${esc(work)}/unseen">아직 안 본 조합 보기 →</a>` : `<p class="small muted">이번 시즌 조합을 다 봤어요</p>`}</div>`;
   }).join("");
   const tab = S.plansTab || (up.length || !done.length ? "up" : "done");
   return `
@@ -1230,7 +1235,7 @@ const homeRows = (D, S, from) => {
 
 // ---- 추천 조합(회차 캐스팅이 있는 작품): 남은 회차를 주연 배우 조합별로 묶어, 취향 근거(앱 규칙 V.when 의 hit·반대 근거·내 기록 pers)가 가장 큰 조합. ⭐ 꼭 볼 배우·🚫 뺄 배우·낮게 평가해 내린 조합·이미 본 조합·'설명이 틀렸어요'로 뺀 배우 근거·이상형 월드컵 선택은 반영한다
 const wantOf = (D, prefs) => new Set((prefs || []).flatMap(p => prefT(D, p)));
-const leadsOf = (D, work, cast) => Object.entries(cast).filter(([r]) => ((D.roles[work] || []).find(x => x.role === r)?.weight || "조연") === "주연");
+const leadsOf = (D, work, cast) => unitCast(D, work, cast);  // 핵심 배역 전체(결정 13)
 const comboKey = (D, work, cast) => leadsOf(D, work, cast).map(([r, a]) => r + ":" + a).sort().join("|");
 const tagsOfActor = (D, work, a) => ((D.actorTags[work] || {})[a] || []).filter(r => !isOfficial(r));  // 배우 본인·제작진 공식 출처는 근거·점수 밖
 const wrongOf = (S, work) => S.proto?.wrong?.[work] || [];  // 사용자가 '설명이 틀렸어요'로 고른 배우: 이 작품 추천에서 그 배우의 태그 근거는 쓰지 않는다
@@ -1257,7 +1262,7 @@ const comboRecs = (D, S, work, from) => {
   const prio = S.prefs?.prio || "", must = S.prefs?.must || [], never = S.prefs?.avoid || [];  // 취향폼 1/3: '반드시 볼 배우'는 ⭐처럼, '피하고 싶은 배우'는 조연이어도 그 회차를 뺀다
   const seen = new Set((S.plans || []).filter(x => x.work === work && (x.tagged || x.date < from)).map(x => comboKey(D, work, x.cast)));
   const starByRole = {};  // 같은 배역의 ⭐는 '또는', 배역끼리는 '그리고'
-  for (const r of D.roles[work] || []) if (r.weight === "주연") for (const a of r.cast) if (star.includes(a) || must.includes(a)) (starByRole[r.role] ||= []).push(a);
+  for (const r of unitRoles(D, work)) for (const a of r.cast) if (star.includes(a) || must.includes(a)) (starByRole[r.role] ||= []).push(a);
   const groups = new Map();
   for (const p of D.perfs) {
     if (p.work !== work || p.date < from || isPrivate(p) || Object.values(p.cast).some(a => never.includes(a))) continue;
@@ -1297,7 +1302,7 @@ const toggleVideoTrait = (D, S, work, actor, vid, tag) => { const e = vrOf(S, wo
 const videoReactionRecord = (work, role, actor, vid, r, traits) => ({work, role, actor, video: vid, reaction: r, ...(traits ? {traits} : {})});
 const pinStateOf = (S, work, actor) => { const {star, avoid} = pinsOf(S, work); return star.includes(actor) ? "star" : avoid.includes(actor) ? "avoid" : ""; };
 // ---- 공연 화면(#show): ① 요약 ② 누구로 볼까요?(주연 배역마다 배우 선택, 추천 조합은 미리 선택) ③ 이 조합으로 볼 수 있는 날(한 달 달력). 고른 조합 = 배역 → 배우
-const leadRolesOf = (D, work) => (D.roles[work] || []).filter(r => r.weight === "주연");
+const leadRolesOf = (D, work) => unitRoles(D, work);
 const topRec = (D, S, work, from) => comboRecs(D, S, work, from)[0] || null;
 // 미리 선택: 추천 1순위 조합, 추천이 없으면 가장 빠른 회차의 주연 조합(PICK 표시는 추천이 있을 때만)
 const defaultSel = (D, S, work, from) => {
@@ -1375,7 +1380,7 @@ const shownCombos = (D, S, work, from) => comboRecs(D, S, work, from).slice(0, 3
 // combo_choice: '볼 예정 담기'(plan)·'예매처로'(ticket)를 누른 회차. 걸어 둔 필터: 이 흐름엔 기간 칩이 없어 period 는 all
 const comboChoiceRecord = (D, S, action, p, from) => ({action, work: p.work, run: runLabelOf(D, p.work, p.date), date: p.date, time: p.time, cast: Object.fromEntries(leadsOf(D, p.work, p.cast)),
   shown: shownCombos(D, S, p.work, from), filters: {period: "all", star: pinsOf(S, p.work).star.slice(0, 4), avoid: pinsOf(S, p.work).avoid.slice(0, 4)}});
-const roleOfActor = (D, work, a) => ((D.roles[work] || []).find(r => r.weight === "주연" && r.cast.includes(a)) || {}).role;
+const roleOfActor = (D, work, a) => (unitRoles(D, work).find(r => r.cast.includes(a)) || {}).role;
 const pinAction = (before, after) => after === "star" ? "pin" : after === "avoid" ? "avoid" : before === "star" ? "unpin" : "unavoid";
 const pickRecord = (D, work, actor, before, after) => ({work, role: roleOfActor(D, work, actor), actor, action: pinAction(before, after)});
 // actor_rating: 회차 캐스팅이 없는 공연은 조합이 없어 대표 출연진 배우 단위. '설명이 틀렸어요'는 그 배우 하나라 배우를 따로 안 고른다
@@ -1433,7 +1438,7 @@ const duelDone = (S, work) => duelsOf(S, work).length;
 const duelTags = (D, work, a, role) => [...new Set(roleRows(D, work, a, role).map(r => r.tag))].slice(0, 6);  // 화면에 보여 주는 태그 = 기록에 남는 태그
 const duelRound = (S, work) => S.proto?.duelRound?.[work] || 1;
 // 배역별 현황: 후보·이미 한 판·할 수 있는 쌍 수(total)·이번까지 할 판 수(cap = min(라운드 수, total)). 배역이 많아도 앞의 DUEL_MAX 개만
-const duelStatus = (D, S, work, from) => (D.roles[work] || []).filter(r => r.weight === "주연").slice(0, DUEL_MAX).map(r => {
+const duelStatus = (D, S, work, from) => unitRoles(D, work).slice(0, DUEL_MAX).map(r => {
   const c = duelCands(D, work, r.role, from), v = duelsOf(S, work).filter(d => d.role === r.role), total = c.length * (c.length - 1) / 2;
   return {role: r.role, cands: c, voted: v, total, cap: Math.min(duelRound(S, work), total)}; });
 const duelCanMore = (D, S, work, from) => duelStatus(D, S, work, from).some(x => x.voted.length < x.total);
@@ -1521,8 +1526,7 @@ const satRecord = (D, S, work, key) => { const e = satOf(S, work)[key]; if (!e) 
 // 배우마다 좋았어요 / 그냥 그랬어요 / 아쉬웠어요(선택) → 좋았던 점·아쉬웠던 점 태그 3개까지 → 어울림(조합 태그) → 주관식. 한 회차에 리뷰 1개
 const REVIEW_RATES = [["good", "좋았어요"], ["meh", "그냥 그랬어요"], ["bad", "아쉬웠어요"]];
 const REVIEW_MAX = 3, REVIEW_MIN_USERS = 2;  // 결정 49: 같은 배우·태그를 서로 다른 사용자 2명 이상이 남겨야 추천 점수에 쓴다
-const NOT_UNIT = {"시카고": ["에이모스 하트", "메리 선샤인"]};  // 추천 단위에서 뺀 배역(결정 28). 회차 카드 출연진에는 남는다
-const reviewRoles = (D, work, cast) => (D.roles[work] || []).filter(r => !(NOT_UNIT[work] || []).includes(r.role) && cast[r.role]).map(r => r.role);  // roles.tsv 순서, 그 회차에 나온 핵심 배역 전체(주연/조연 구분 없음)
+const reviewRoles = (D, work, cast) => unitCast(D, work, cast).map(([r]) => r);  // roles.tsv 순서, 그 회차에 나온 핵심 배역 전체(주연/조연 구분 없음)
 const actorTagSet = D => new Set((D.actorTagGroups || []).length ? D.actorTagGroups.flatMap(g => g[1]) : Object.keys(D.actorTagLabels || {}));  // 배우 태그만(조합·작품 태그는 배우 줄에 안 띄운다)
 const reviewChips = (D, S, work, role, actor) => {  // 결정 43 순서: ① 이 작품에서 고친 기대 값 ② 온보딩 ③ (태그를 하나도 안 고른 사람) 이 배우의 이번 배역 태그 ④ 다른 작품 태그. from 0 = 띄울 태그 없음
   const ok = actorTagSet(D), pick = axes => [...new Set((axes || []).flatMap(p => prefT(D, p)))].filter(t => ok.has(t));
@@ -1636,7 +1640,7 @@ const R = {
     return out;
   },
 };
-const R_CAST = R.dict(R.inSet("roles"), R.inSet("actors"), 6);  // 배역 → 배우(주연)
+const R_CAST = R.dict(R.inSet("roles"), R.inSet("actors"), 8);  // 배역 → 배우(핵심 배역 전체, 레베카 7개)
 const R_CHIPS = R.arr(8, R.obj({chip: R.oneOf(CHIP_CODES), dir: R.oneOf(["+", "-"]), actors: R.arr(4, R.inSet("actors"))}, ["chip", "dir"]));  // [{chip, dir(+끌린 점 / -안 맞은 점), actors}]
 const R_RUN = R.inSet("runs"), R_WORK = R.inSet("works");
 const R_SIDE = R.obj({actor: R.inSet("actors"), tags: R.arr(8, R.inSet("tags"))}, ["actor"]);
@@ -1646,7 +1650,7 @@ const EVENTS = {
     stage: R.oneOf(["expected", "experienced"]),  // expected 추천 직후 / experienced 관람 후
     taste: R.obj({axes: R.dict(R.inSet("axisKeys"), R.int(-2, 2), 5), favs: R.arr(3, R.inSet("actors")), tags: R.arr(12, R.inSet("tags"))}),  // 그때 취향: 5축 값, 좋아하는 배우, 고른 태그
     work: R_WORK, run: R_RUN, date: R.date, time: R.time, cast: R_CAST,
-    reasons: R.obj({actors: R.dict(R.inSet("actors"), R.arr(8, R.inSet("tags")), 4), combo: R.arr(6, R.inSet("comboTags"))}),  // 배우별로 맞춘 태그, 조합 태그
+    reasons: R.obj({actors: R.dict(R.inSet("actors"), R.arr(8, R.inSet("tags")), 8), combo: R.arr(6, R.inSet("comboTags"))}),  // 배우별로 맞춘 태그, 조합 태그
     algo: R.code, score: R.int(1, 5), chips: R_CHIPS}},
   combo_choice: {req: ["action", "work", "cast"], shape: {
     action: R.oneOf(["plan", "ticket"]), work: R_WORK, run: R_RUN, date: R.date, time: R.time, cast: R_CAST,
@@ -2084,13 +2088,13 @@ const castSection = (ref, taste, want) => {
       ${cmp && cmp.role === r.role && cmp.b === a0 ? `<button class="chip x" data-act="cmpOpen" data-work="${esc(work)}">${esc(cmp.a)} · ${esc(cmp.b)} 둘 비교해 보기</button>` : ""}
       ${a0 ? actorDetail(work, r.role, a0, want) : ""}</div>`; }).join("");
   const combos = taste && recs.length ? satCards(work, sel) : "";  // '추천 조합'은 배우 칩이 아니라 조합 카드 칸에 한 번만
-  const supp = (D.roles[work] || []).filter(r => r.weight !== "주연" && r.cast.length);
+  const supp = (D.roles[work] || []).filter(r => !isUnit(D, work, r.role) && r.cast.length);  // 추천 단위 밖 배역(결정 28)
   const sub = taste ? (recs.length ? "추천 조합이 미리 골라져 있어요. 다른 배우를 눌러 바꿔 보세요." : "지금 취향으로 추천할 조합은 없어요. 배우를 눌러 직접 골라 보세요.") : "배우를 눌러 조합을 골라 보세요. 취향을 고르면 추천 조합이 미리 골라져요.";
   return `<section id="cast" class="sec"><h2>누구로 볼까요?</h2><p class="small muted">${sub}${taste ? "" : ` <a href="#taste/1">취향 고르기</a>`}</p>
     ${pinAskCards(work)}
     ${combos ? `<div class="combochips"><p class="small"><span class="pickb">추천 조합</span> 이 배우들이 함께 나와요</p>${combos}</div>` : ""}
     ${rows}
-    ${supp.length ? `<details class="more"><summary>조연도 보기</summary><div class="morebox">${supp.map(r => `<div class="tl"><span class="tlab">${esc(r.role)}</span><span class="small">${r.cast.map(esc).join(" · ")}</span></div>`).join("")}</div></details>` : ""}
+    ${supp.length ? `<details class="more"><summary>다른 배역도 보기</summary><div class="morebox">${supp.map(r => `<div class="tl"><span class="tlab">${esc(r.role)}</span><span class="small">${r.cast.map(esc).join(" · ")}</span></div>`).join("")}</div></details>` : ""}
     <div class="inline-cta"><button class="btn" data-act="toDates">이 조합으로 날짜 보기 ↓</button></div></section>`;
 };
 
@@ -2132,8 +2136,8 @@ const plainCast = (ref, want) => {
   const cands = ref.kind === "current" ? ref.s.cast : [...new Set(leadRolesOf(D, key).flatMap(r => r.cast))];
   const body = ref.kind === "current"
     ? ref.s.cast.map(a => { const p = profileOf(D, a); return `<div class="actor"><div class="name"><span>${esc(a)}</span></div>${p.voice.length ? tagLines(p.voice.map(r => ({...r, from: r.work})), want) : `<p class="small muted">아직 PICKLE에 목소리 정보가 없어요.</p>`}</div>`; }).join("")
-    : leadRolesOf(D, key).map(r => `<div class="rolebox"><div class="rolehead"><b>${esc(r.role)}</b> <span class="tiny muted">주연</span></div>${r.cast.map(a => { const rows = roleRows(D, key, a, r.role); return `<div class="actor"><div class="name"><span>${esc(a)}</span></div>${rows.length ? tagLines(rows, want) + distLine(rows) : `<p class="small muted">아직 리뷰 태그가 없어요.</p>`}</div>`; }).join("")}</div>`).join("");
-  return `<section id="cast" class="sec"><h2>${ref.kind === "current" ? "출연진" : "주연 배우"}</h2><div class="card">${body}${ref.kind === "current" ? `<p class="tiny muted">대표 출연진 · 목소리 태그는 다른 공연 리뷰에서 온 거예요. 배우를 평가하지 않고 특징만 보여 드려요.</p>` : ""}</div>
+    : leadRolesOf(D, key).map(r => `<div class="rolebox"><div class="rolehead"><b>${esc(r.role)}</b></div>${r.cast.map(a => { const rows = roleRows(D, key, a, r.role); return `<div class="actor"><div class="name"><span>${esc(a)}</span></div>${rows.length ? tagLines(rows, want) + distLine(rows) : `<p class="small muted">아직 리뷰 태그가 없어요.</p>`}</div>`; }).join("")}</div>`).join("");
+  return `<section id="cast" class="sec"><h2>${ref.kind === "current" ? "출연진" : "배우"}</h2><div class="card">${body}${ref.kind === "current" ? `<p class="tiny muted">대표 출연진 · 목소리 태그는 다른 공연 리뷰에서 온 거예요. 배우를 평가하지 않고 특징만 보여 드려요.</p>` : ""}</div>
     <details class="more" ${sel ? "open" : ""}><summary>이 배우, 내 취향이었나요? (선택)</summary><div class="morebox"><p class="small muted">날짜별 조합 정보가 없어서 배우 한 명씩 물어봐요.</p><div class="chips">${cands.map(a => `<button class="chip x ${sel === a ? "on" : ""}" data-act="actorSel" data-show="${esc(key)}" data-a="${esc(a)}">${esc(a)}</button>`).join("")}</div>
       ${sel ? ratingBox({key: `actor|${key}|${sel}`, kind: "actor", title: `${sel}, 내 취향이었나요?`, lo: "안 맞아요", hi: "딱 맞아요", show: key, actor: sel, actors: [sel]}) : ""}</div></details></section>`;
 };
@@ -2162,7 +2166,7 @@ const duelSide = (work, role, a) => { const tags = duelTags(D, work, a, role);
 const duelCard = ref => {
   const work = ref.key, from = today(), cur = duelNext(D, S, work, from), done = duelDone(S, work), W = esc(work), flash = S.proto?.duelMsg?.work === work ? `<p class="small fbmsg">${esc(S.proto.duelMsg.text)}</p>` : "";
   if (!cur) return done ? `<div class="card"><h3>끌리는 배우 고르기 · ${W}</h3>${flash}<p class="small muted">${done}번 골랐어요. 이 작품의 추천 조합에 반영돼 있어요.</p>${duelCanMore(D, S, work, from) ? `<button class="chip x" data-act="duelMore" data-work="${W}">한 번 더 고를래요</button>` : ""}</div>` : `<div class="card"><p class="small muted">이 작품은 고를 수 있는 배우 쌍이 없어요.</p></div>`;
-  return `<div class="card"><h3>끌리는 배우 고르기 · ${W} <span class="small muted">${esc(cur.role)} · ${cur.n + 1}/${cur.of}번째</span></h3><p class="small muted">주연 배역마다 한 번씩, 10초면 돼요. 고른 결과는 이 작품의 추천 조합에 바로 반영돼요.</p>${flash}
+  return `<div class="card"><h3>끌리는 배우 고르기 · ${W} <span class="small muted">${esc(cur.role)} · ${cur.n + 1}/${cur.of}번째</span></h3><p class="small muted">배역마다 한 번씩, 10초면 돼요. 고른 결과는 이 작품의 추천 조합에 바로 반영돼요.</p>${flash}
     <div class="duel">${duelSide(work, cur.role, cur.left)}${duelSide(work, cur.role, cur.right)}</div>
     <div class="duelb"><button class="chip" data-act="duel" data-work="${W}" data-r="left">왼쪽</button><button class="chip" data-act="duel" data-work="${W}" data-r="tie">비슷해요</button><button class="chip" data-act="duel" data-work="${W}" data-r="right">오른쪽</button></div></div>`;
 };
@@ -2188,24 +2192,12 @@ const sheetBody = () => {
   if (SHEET.kind === "duel") { const {work, cur} = SHEET;
     return `<h3>${esc(cur.role)}, 둘 중 누가 끌려요?</h3><p class="small muted">고른 결과는 이 작품의 추천 조합에 바로 반영돼요.</p><div class="duel">${duelSide(work, cur.role, cur.left)}${duelSide(work, cur.role, cur.right)}</div>
       <div class="duelb"><button class="chip" data-act="sheetDuel" data-r="left">왼쪽</button><button class="chip" data-act="sheetDuel" data-r="tie">비슷해요</button><button class="chip" data-act="sheetDuel" data-r="right">오른쪽</button></div>`; }
-  const p = SHEET.pending, go = "볼 예정에 담기", leadsA = leadsOf(D, p.work, p.cast), cast = Object.fromEntries(leadsA);
-  const line = `<p class="small">${md(p.date)} ${esc(p.time)} · ${leadsA.map(([r, a]) => `<b>${esc(r)}</b> ${esc(a)}`).join(" · ")}</p>`;
-  if (SHEET.step === 1) return `<h3>이 조합, 얼마나 기대돼요?</h3>${line}
-    ${ratingBox({key: `combo|${p.work}|${comboKey(D, p.work, p.cast)}|${p.date}|${p.time}`, kind: "combo", title: "기대돼요?", bare: true, lo: "별로예요", hi: "아주 기대돼요", work: p.work, comboKey: comboKey(D, p.work, p.cast), cast, perf: {date: p.date, time: p.time}, actors: leadsA.map(([, a]) => a), sheet: true})}
-    <button class="btn ghost" data-act="sheetSkip">나중에 · ${go}</button>`;
-  const low = SHEET.score <= 2;
-  return `<h3>${TRK.isOff() ? "반영했어요" : "기록했어요"}</h3>${line}
-    ${pinAskCards(p.work)}
-    ${low ? `<div class="card"><p class="small"><b>다른 조합 볼까요?</b> 이 조합은 추천에서 내렸어요. 다음 조합이 미리 선택돼요.</p><button class="btn ghost" data-act="sheetOther">다른 조합 보기</button></div>` : ""}
-    <button class="btn ${low ? "ghost" : ""}" data-act="sheetGo">${low ? "그래도 " : ""}${go}</button>`;
+  return "";
 };
-const openRate = (action, p) => {  // 담기를 누르는 순간: 보여 준 추천 조합(shown)은 지금 기록해 두고, 시트를 끝까지 지나야(건너뛰기 포함) 실제로 담는다. 예매처 이동은 담은 뒤 화면(#saved)에서
-  SHEET = {kind: "rate", step: 1, score: 0, pending: {action, work: p.work, date: p.date, time: p.time, dow: p.dow, cast: p.cast, rec: comboChoiceRecord(D, S, action, p, today())}};
-  renderSheet();
-};
-const finishPending = () => {
-  const p = SHEET.pending; track("combo_choice", p.rec);
-  S.plans.push({work: p.work, date: p.date, dow: p.dow, time: p.time, cast: p.cast, tagged: false}); save(); closeSheet(); location.hash = "#saved/" + (S.plans.length - 1);
+// 볼 예정에 담기: 바로 담는다(v0.9 · docs/261027_2 14절 — 담기 전 '기대돼요?' 별점 시트는 없애고, 조합 만족도는 추천 카드에서 묻는다). 예매처 이동은 담은 뒤 화면(#saved)에서
+const finishPending = (action, p) => {
+  track("combo_choice", comboChoiceRecord(D, S, action, p, today()));
+  S.plans.push({work: p.work, date: p.date, dow: p.dow, time: p.time, cast: p.cast, tagged: false}); save(); location.hash = "#saved/" + (S.plans.length - 1);
 };
 
 // ---------- 밝은/어두운 판 버튼(왼쪽 아래) ----------
@@ -2327,7 +2319,6 @@ document.addEventListener("click", e => {
       if (c.kind === "combo") {
         track("combo_rating", comboRecord(D, S, "expected", c.work, c.cast, dr, c.perf || null, c.runDate));
         eff = applyComboRating(S, c.work, c.comboKey, dr, c.cast);
-        if (c.sheet && SHEET) { delete (P.dr || {})[c.key]; SHEET.step = 2; SHEET.score = dr.score; save(); renderSheet(); return; }  // 시트: 기록 뒤 '다른 조합 볼까요?'·제외 물음을 지나 계속
         if (comboRecs(D, S, c.work, today())[0]?.key !== c.comboKey) P.flash = {key: c.work, text: rateMessage(c, eff)};  // 맨 위 조합이 바뀌면 옛 평가 상자가 사라지니 안내는 카드 안에 둔다
       } else if (c.kind === "actor") {
         track("actor_rating", actorRecord(D, S, c.show, c.actor, dr));
@@ -2364,9 +2355,6 @@ document.addEventListener("click", e => {
     case "toDates": { const t = document.querySelector("#dates"); if (t) t.scrollIntoView({behavior: "smooth"}); break; }
     case "cmpOpen": { const c = S.proto?.cmp?.[d.work]; if (!c) return; const flip = Math.random() < 0.5; SHEET = {kind: "duel", work: d.work, cur: {role: c.role, left: flip ? c.b : c.a, right: flip ? c.a : c.b}}; renderSheet(); break; }  // 좌우는 무작위
     case "sheetDuel": { if (SHEET?.kind !== "duel") return; const {work: w, cur} = SHEET; track("role_duel", duelRecord(D, w, cur, d.r)); const r = applyDuel(S, w, cur, d.r); delete (S.proto.cmp || {})[w]; save(); closeSheet(); route(); toast(r.win ? `${r.win} 쪽을 골랐어요. 추천 조합에 반영했어요` : "비슷하다고 기록했어요"); break; }
-    case "sheetSkip": if (SHEET?.kind === "rate") finishPending(); break;  // 나중에: 점수 없이 계속
-    case "sheetGo": if (SHEET?.kind === "rate") finishPending(); break;
-    case "sheetOther": { if (SHEET?.kind !== "rate") return; const w = SHEET.pending.work, P = S.proto; if (P?.sel) delete P.sel[w]; for (const k of ["cm", "cd", "cmp"]) if (P?.[k]) delete P[k][w]; save(); closeSheet(); SCROLL_TO = "#cast"; route(); break; }  // 내려간 조합 대신 다음 추천 조합이 미리 선택된다
     case "visitSkip": skipVisit(S, +d.i); save(); route(); break;
     case "visitAgain": { const vd = S.proto?.vd; if (!vd) return; vd.again = vd.again.includes(d.a) ? vd.again.filter(a => a !== d.a) : [...vd.again, d.a].slice(0, 3); save(); route(); break; }
     case "visitDone": { const vd = S.proto?.vd; if (!vd) return; addAgain(S, vd.i, vd.again); delete S.proto.vd; save(); route(); toast(vd.again.length ? "좋아하는 배우에 더했어요" : "저장했어요"); break; }
@@ -2405,7 +2393,7 @@ document.addEventListener("click", e => {
     case "toSide": $("#view .side").scrollIntoView(); break;
     case "closeSheet": closeSheet(); break;
     case "runQuery": { const st = S.cal[d.work]; if (!st?.count) { toast("조건에 맞는 회차가 없어요"); return; } S.query = {work: d.work, lo: st.lo, hi: st.hi, actors: st.actors, dates: st.dates || []}; save(); location.hash = "#result"; break; }
-    case "plan": { const p = D.perfs.find(x => x.work === d.work && x.date === d.date && x.time === d.time); if (!p) return; if (isPrivate(p)) { toast("단체 대관 공연이라 일반 예매가 안 돼요"); return; } openRate("plan", p); break; }  // 바로 담지 않고 점수 시트를 거친다(건너뛰면 그때 담는다)
+    case "plan": { const p = D.perfs.find(x => x.work === d.work && x.date === d.date && x.time === d.time); if (!p) return; if (isPrivate(p)) { toast("단체 대관 공연이라 일반 예매가 안 돼요"); return; } finishPending("plan", p); break; }  // 바로 담는다(별점 시트 없음)
     case "unplan": S.plans.splice(+d.i, 1); save(); route(); break;
     case "plansTab": S.plansTab = d.t; save(); route(); break;
     case "tQuick": { const x = S.plans[+d.i]; x.quick = x.quick === d.q ? "" : d.q; save(); route(); break; }  // 저장 확인 화면의 좋아요/아쉬워요. 다시 누르면 해제
