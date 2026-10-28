@@ -29,6 +29,8 @@ jobs:
         run: |
           python3 kopis_sync.py --current
           python3 kopis_sync.py --boxoffice
+          # 끝난 공연(본 공연 기록하기용). 실패해도 배포는 지난 목록(data/kopis_past.tsv)으로 계속한다
+          python3 kopis_sync.py --past --max-calls 400 || echo "::warning::끝난 공연 목록을 못 받았어요. 지난 목록으로 배포해요"
       - name: 검사(새 데이터로 앱 데이터를 만들어 확인)
         run: |
           python3 recommend.py --export app/data.js --no-track
