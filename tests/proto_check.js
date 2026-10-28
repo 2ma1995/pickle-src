@@ -8,7 +8,7 @@ const names = "entryRoute, tasteNext, showRef, allShows, showNext, dayHash, calD
   "chipDirs, chipList, draftScore, draftChip, draftActor, applyComboRating, applyActorRating, wrongOf, pinAskOf, setPin, answerPinAsk, DUEL_MAX, duelNext, duelMore, duelCanMore, duelRecord, applyDuel, duelDone, duelTags, dueVisit, answerVisit, skipVisit, addAgain, " +
   "makeTracker, buildVocab, EVENTS, CHIPS, ALGO_VER, TRACK_CFG, TASTE_CARDS, MUSIC_CARDS, " +
   "homeRows, areaOf, leadRolesOf, defaultSel, curSel, selPerfs, selDates, setSel, setSelCast, relaxHints, monthRange, calMonthOf, calMove, calDayOf, priceMin, priceMinText, duelStatus, iga, likeCurrent, byPopularity, regionTabs, regionKeyOf, showsIn, OTHER_REGION, vrOf, tasteSnapRecord, hiddenShows, hideShow, unhideShow, similarWorks, askActorOf, askTagList, " +
-  "SAT, SAT_WHY, setSat, setSatWhy, satOf, likeBonus, satBlocked, shownRecs, recAgain, satRecord, REVIEW_RATES, reviewRoles, reviewChips, reviewLabel, newReview, setRvRate, toggleRvTag, toggleRvCombo, swapRvActor, saveReview, reviewOf, reviewRows, usableReviewTags, reviewSuggest, applySuggest, reviewRecord, fitPairs, logPerfs";
+  "SAT, SAT_WHY, setSat, setSatWhy, satOf, likeBonus, satBlocked, shownRecs, recAgain, satRecord, REVIEW_RATES, reviewRoles, reviewChips, reviewLabel, newReview, setRvRate, toggleRvTag, toggleRvCombo, swapRvActor, saveReview, reviewOf, reviewRows, usableReviewTags, reviewSuggest, applySuggest, reviewRecord, fitPairs, logPerfs, actorConds, setActorCond, moveActor, resetActorConds, mustClash";
 const L = new Function(block("personal-weights") + block("taste-first") + block("proto-flow") + block("track") + "; return {" + names + "};")();
 const {entryRoute, tasteNext, showRef, allShows, showNext, dayHash, calDays, homeRecs, comboRecs, comboEvidence, togglePin, pinStateOf, resetCombo, tasteSnapshot, comboRecord, comboChoiceRecord, shownCombos, pickRecord, actorRecord,
   chipDirs, chipList, draftScore, draftChip, draftActor, applyComboRating, applyActorRating, wrongOf, pinAskOf, answerPinAsk, duelNext, duelMore, duelCanMore, duelRecord, applyDuel, duelDone, dueVisit, answerVisit, skipVisit, addAgain, makeTracker, buildVocab, EVENTS, CHIPS, TRACK_CFG, homeRows, areaOf, leadRolesOf, defaultSel, curSel, selPerfs, selDates, setSel, setSelCast, relaxHints, monthRange, calMonthOf, calMove, calDayOf, priceMin, priceMinText, duelStatus, iga, likeCurrent, byPopularity, regionTabs, regionKeyOf, showsIn, OTHER_REGION, vrOf, tasteSnapRecord, hiddenShows, hideShow, unhideShow, similarWorks, askActorOf, askTagList} = L;
@@ -45,7 +45,24 @@ const top = S => comboRecs(D, S, W, FROM).map(ab);
 let S = fresh();
 eq(top(S), ["a1+b1", "a2+b1", "a1+b2"], "근거 합이 큰 조합부터, 같으면 반대 근거가 적은 쪽(a1+b2 는 b2 가 취향과 반대) · 근거 없는 조합(a2+b2)과 전체대관 회차는 뺀다");
 ok(comboRecs(D, S, W, FROM)[0].dates.join() === "2026-11-01", "대관 날짜(11-05)는 날짜에 안 나온다");
-eq(Object.keys(comboRecs(D, fresh({prefs: {axes: [], works: [], favs: []}}), W, FROM)), [], "취향이 없으면 추천 조합도 없다");
+eq(comboRecs(D, fresh({prefs: {axes: [], works: [], favs: []}}), W, FROM).map(ab).sort(), ["a1+b1", "a1+b2", "a2+b1", "a2+b2"], "기대 답을 모두 비워도 배우 조건만으로 추천한다(결정 21, 대관 회차만 있는 조합은 없다)");
+eq(comboRecs(D, fresh({prefs: {axes: [], works: [], favs: ["a2"], must: ["a2"]}}), W, FROM).map(ab).sort(), ["a2+b1", "a2+b2"], "반드시 포함만 고른 사람: 그 배우가 나오는 조합만");
+// 배우 조건(9절): 가능하면 포함은 그 배우가 나오는 조합을 앞에, 순위가 높은 배우 먼저 · 반드시 포함은 배역과 상관없이 · 작품별로 기억
+{ const {actorConds, setActorCond, moveActor, resetActorConds, mustClash} = L;
+  eq(top(fresh({prefs: {axes: ["강한 성량"], works: [], favs: ["b2"], grade: ""}}))[0], "a1+b2", "가능하면 포함 b2: 근거가 더 적어도 b2 가 나오는 조합을 앞에");
+  const r1 = top(fresh({prefs: {axes: ["강한 성량"], works: [], favs: ["b2", "a2"], grade: ""}}));
+  ok(r1[0].includes("b2") && r1.indexOf("a2+b1") > r1.findIndex(x => x.includes("b2")), "가능하면 포함 순위 1번(b2)이 나오는 조합이 2번(a2)만 나오는 조합보다 앞");
+  eq(top(fresh({prefs: {axes: ["강한 성량"], works: [], favs: ["c1"], must: ["c1"], grade: ""}})).length, 3, "조연 배역 배우도 반드시 포함으로 거른다(결정 12, c1 은 모든 회차)");
+  let S = fresh({prefs: {axes: ["강한 성량"], works: [], favs: ["a1", "없는배우"], must: ["a1", "없는배우"], avoid: ["b2"], grade: ""}});
+  const c0 = actorConds(D, S, W); eq([c0.must, c0.maybe, c0.avoid, c0.missing, c0.edited], [["a1"], [], ["b2"], ["없는배우"], false], "온보딩 값이 기본값, 이 작품에 없는 반드시 포함 배우는 안내만");
+  ok(setActorCond(D, S, W, "b2", "maybe") === false && setActorCond(D, S, W, "없는배우", "must") === null, "공통 피하고 싶은 배우는 여기서 보고 싶은 배우로 못 바꾸고, 이 작품 배우만 고른다");
+  setActorCond(D, S, W, "b1", "maybe"); setActorCond(D, S, W, "a2", "avoid");
+  const c1 = actorConds(D, S, W); eq([c1.must, c1.maybe, c1.extra, c1.edited, S.prefs.must], [["a1"], ["b1"], ["a2"], true, ["a1", "없는배우"]], "이 작품에서만 고친다(온보딩 값은 그대로)");
+  eq(top(S), ["a1+b1"], "이 작품에 한해 더 피한 배우(a2)·공통 피하고 싶은 배우(b2) 회차는 빠진다");
+  ok(moveActor(D, S, W, "b1", -1) && actorConds(D, S, W).pick.map(x => x.a).join() === "b1,a1" && !moveActor(D, S, W, "b1", -1), "순위 바꾸기(↑↓)");
+  setActorCond(D, S, W, "a2", "must"); eq(mustClash(D, W, actorConds(D, S, W), FROM), {kind: "role", a: "a1", b: "a2"}, "같은 배역의 반드시 포함 둘: 순위 낮은 쪽을 알려 준다");
+  setActorCond(D, S, W, "a2", ""); setActorCond(D, S, W, "b2", ""); setActorCond(D, S, W, "b1", "must"); ok(mustClash(D, W, actorConds(D, S, W), FROM) === null, "함께 나오는 회차가 있으면 문제없음");
+  resetActorConds(S, W); ok(!actorConds(D, S, W).edited, "작품별 조정 지우기 → 다시 온보딩 기본값"); }
 // ⭐/🚫
 ok(togglePin(S, W, "a1", "star") === "star" && pinStateOf(S, W, "a1") === "star", "⭐");
 eq(top(S), ["a1+b1", "a1+b2"], "⭐ a1: a1 이 나오는 조합만");
@@ -59,7 +76,7 @@ eq(top(S), ["a2+b1", "a1+b2"], "이미 본 조합은 뺀다");
 // 취향폼 1/3: 반드시 볼 배우(must)는 ⭐처럼, 피하고 싶은 배우(avoid)는 조연이어도 그 회차를 뺀다
 const withP = p => fresh({prefs: {axes: ["강한 성량"], works: [], favs: [], grade: "", ...p}});
 eq(top(withP({favs: ["a2"], must: ["a2"]})), ["a2+b1"], "반드시 포함 a2: a2 가 나오는 조합만(근거 없는 a2+b2 는 원래대로 빠진다)");
-eq(top(withP({favs: ["a2"]})), ["a1+b1", "a2+b1", "a1+b2"], "가능하면 포함(must 아님)은 거르지 않는다");
+eq(top(withP({favs: ["a2"]})), ["a2+b1", "a1+b1", "a1+b2"], "가능하면 포함(must 아님)은 거르지 않고, 그 배우가 나오는 조합을 앞에 둔다(5.1절)");
 eq(top(withP({must: ["없는배우"]})), ["a1+b1", "a2+b1", "a1+b2"], "이 작품에 안 나오는 반드시 배우는 이 작품을 거르지 않는다");
 eq(top(withP({avoid: ["b1"]})), ["a1+b2"], "피하고 싶은 배우 b1: b1 회차를 뺀다");
 eq(top(withP({avoid: ["c1"]})), [], "피하고 싶은 조연 c1: 모든 회차에 나와서 추천이 없다");
@@ -466,6 +483,21 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       ok(/좋아한 조합으로 기억할게요/.test(sb2.V.show(W)), "마음에 들어요 → 좋아한 조합 안내");
       sb2.click({act: "recAgain", work: W}); hs = sb2.V.show(W);
       ok((hs.match(/class="card rcard"/g) || []).length === 3 && /다시 추천은 한 번만 할 수 있어요/.test(hs) && !/data-act="recAgain"/.test(hs) && (hs.match(/aria-pressed="true">이 조합이 마음에 들어요/g) || []).length === 1, "다시 추천받기: 3번째 카드가 붙고 버튼은 안내로 바뀐다(앞 카드 답은 그대로)"); }
+    // 배우 먼저(8절) · 날짜 먼저 배우 조건 줄(7절 A2)
+    { const af = boot({storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: ["b2", "a1", "없는배우"], must: ["a1", "없는배우"], avoid: ["a2"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}});
+      af.location.hash = `#find/${W}/actor`; af.route(); let h = af.V.find(W, "actor");
+      ok(/누구를 꼭 보고 싶어요\?/.test(h) && /이 작품에는 없는배우 배우가 나오지 않아요/.test(h) && /a1 · 반드시/.test(h) && /b2 · 가능하면/.test(h) && /a2 · 피함/.test(h) && /<b>C<\/b>/.test(h), "배우 먼저: 온보딩 값이 미리 채워져 있고(조연 배역 포함), 작품에 없는 반드시 포함 배우는 안내");
+      ok(/a1 배우와 볼 수 있는 조합/.test(h) && /class="card rcard"/.test(h) && /id="dates"/.test(h), "추천 조합 카드와 달력이 이어진다");
+      af.click({act: "acSet", work: W, a: "b1", k: "maybe"}); af.click({act: "acMove", work: W, a: "b1", d: "-1"}); h = af.V.find(W, "actor");
+      ok(af.S.cal[W].ac.pick.map(x => x.a).join() === "b2,b1,a1" && af.S.prefs.favs.join() === "b2,a1,없는배우", "배우를 누르면 가능하면 포함, 순위는 이 작품에만(온보딩 값은 그대로)");
+      af.click({act: "acSet", work: W, a: "a2", k: "maybe"}); ok(!af.S.cal[W].ac.pick.some(x => x.a === "a2"), "공통 피하고 싶은 배우는 여기서 보고 싶은 배우로 못 바꾼다");
+      af.click({act: "acSet", work: W, a: "b1", k: "must"}); af.click({act: "acSet", work: W, a: "b2", k: "must"}); h = af.V.find(W, "actor");
+      ok(/b2와 b1[은는] 같은 배역이라 한 회차에 함께 나오지 않아요/.test(h) && /data-a="b1" data-k="maybe">b1[을를] 가능하면 포함으로 바꾸기/.test(h) && /이 조건에 맞는 조합이 없어요/.test(h), "같은 배역의 반드시 포함 둘: 순위 낮은 쪽을 가능하면으로 바꾸자고 제안(자동으로 풀지 않는다)");
+      af.click({act: "acSet", work: W, a: "b1", k: "maybe"}); ok(!/같은 배역이라/.test(af.V.find(W, "actor")) && /class="card rcard"/.test(af.V.find(W, "actor")), "제안을 누르면 풀리고 다시 추천된다");
+      af.click({act: "acSet", work: W, a: "b1", k: ""}); af.q("#acAvoid").value = "b2"; af.click({act: "acAvoidAdd", work: W});
+      ok(af.S.cal[W].ac.extra.includes("b2") && !af.S.cal[W].ac.pick.some(x => x.a === "b2") && !(af.S.prefs.avoid || []).includes("b2"), "이 작품에 한해 피하고 싶은 배우를 더한다(공통 값은 그대로)");
+      const dl = af.V.find(W, "date"); ok(/반드시 포함 a1 · 피하는 배우 2명 적용 중 <a href="#find\/극\/actor">바꾸기<\/a>/.test(dl) && /이 작품에는 없는배우 배우가 나오지 않아요/.test(dl) && /id="dates"/.test(dl), "날짜 먼저: 배우 조건 줄 + [바꾸기]는 배우 먼저 화면으로");
+      af.click({act: "acReset", work: W}); ok(!af.S.cal[W].ac && /a1 · 반드시/.test(af.V.find(W, "actor")), "평소 배우 조건으로 되돌리기"); }
     // v0.9 관람 후 리뷰(11.1절) · 본 공연 기록하기(11.2절): 담지 않은 지난 회차도 누구나
     { const ra = loadApp(HD, {...opts, now: "2026-11-03T12:00:00", hash: "#log"}); ra.route();
       ok(/어떤 작품을 봤어요\?/.test(ra.V.log()) && /href="#log\/극"/.test(ra.V.log()), "본 공연 기록하기: 지난 회차가 있는 작품");
