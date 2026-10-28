@@ -1141,14 +1141,14 @@ V.review = (work, date, time, entry = "log") => {
     return `<div class="one">${head}<div class="card"><h3>저장했어요</h3><p class="small muted">남긴 기록은 배우 정보로 쓰이고, 취향 카드는 바뀌지 않아요.</p></div>
       ${sug.length ? `<div class="card"><h3>배우 조건에 넣을까요? <span class="small muted">고른 것만</span></h3><div class="chips">${sug.map(s => { const on = dr.picks.some(x => x.actor === s.actor); return `<button type="button" class="chip x ${on ? "on" : ""}" data-act="rvPick" data-a="${esc(s.actor)}" data-k="${s.kind}" aria-pressed="${on}">${esc(s.actor)} 배우를 ${s.kind === "fav" ? "꼭 보고 싶은 배우(가능하면 포함)" : "피하고 싶은 배우"}에 넣기</button>`; }).join("")}</div>
         <div class="nbgrid"><button class="nb" data-act="rvSug" data-y="1" ${dr.picks.length ? "" : "disabled"}>넣기</button><button class="nb" data-act="rvSug" data-y="0">괜찮아요</button></div></div>` : `<button class="btn" data-act="rvSug" data-y="0">내 공연으로</button>`}</div>`; }
-  const roles = Object.keys(rv.cast), cast = (D.roles[work] || []);
+  const roles = Object.keys(rv.cast);
   const row = role => { const a = rv.cast[role], r = rv.rows[role], R = esc(role), chips = reviewChips(D, S, work, role, a), more = RV_MORE[role];
-    const others = (cast.find(x => x.role === role)?.cast || []).filter(b => b !== a);
+    const others = rvRoleCands(D, rv, role).filter(b => b !== a);
     const tagBtn = t => { const on = r.tags.includes(t); return `<button type="button" class="chip ${on ? "on" : ""}" data-act="rvTag" data-r="${R}" data-t="${esc(t)}" aria-pressed="${on}">${esc(reviewLabel(t))}</button>`; };
     const extra = more ? (D.actorTagGroups || []).map(([g, ts]) => { const rest = ts.filter(t => !chips.tags.includes(t)); return rest.length ? `<p class="tiny muted">${esc(g.replace("배우 · ", ""))}</p><div class="chips">${rest.map(tagBtn).join("")}</div>` : ""; }).join("") : "";
     const tags = r && r.rate !== "meh" ? `<p class="tiny muted">${r.rate === "good" ? "어떤 점이 좋았나요?" : "어떤 점이 아쉬웠나요?"} <span>(${REVIEW_MAX}개까지)</span></p>
       ${chips.from ? "" : `<p class="tiny muted">아직 이 배우의 태그가 없어요</p>`}<div class="chips">${chips.tags.map(tagBtn).join("")}${more ? "" : `<button type="button" class="chip x" data-act="rvMore" data-r="${R}">＋ 다른 점</button>`}</div>${extra}` : "";
-    return `<div class="rvrow"><div class="between"><span>${rv.kopis ? `<b>${esc(a)}</b>` : `<b>${R}</b> · ${esc(a)}`}</span>${others.length ? `<button type="button" class="chip x" data-act="rvSwapOpen" data-r="${R}">다른 배우였어요</button>` : ""}</div>
+    return `<div class="rvrow"><div class="between"><span>${role === a ? `<b>${esc(a)}</b>` : `<b>${R}</b> · ${esc(a)}`}</span>${others.length ? `<button type="button" class="chip x" data-act="rvSwapOpen" data-r="${R}">다른 배우였어요</button>` : ""}</div>
       ${dr.swap === role ? `<p class="tiny muted">이 배역에 나온 배우를 골라 주세요</p><div class="chips">${others.map(b => `<button type="button" class="chip x" data-act="rvSwap" data-r="${R}" data-a="${esc(b)}">${esc(b)}</button>`).join("")}</div>` : ""}
       <div class="chips">${REVIEW_RATES.map(([k, l]) => `<button type="button" class="chip x ${r?.rate === k ? "on" : ""}" data-act="rvRate" data-r="${R}" data-v="${k}" aria-pressed="${r?.rate === k}">${l}</button>`).join("")}</div>${tags}</div>`; };
   const combos = Object.keys(D.comboTagLabels || {}).filter(t => !["전체 캐스트 밸런스", "해석 호환성"].includes(t) || (D.comboTags[work] || []).some(x => x.tag === t));
@@ -1162,9 +1162,16 @@ V.review = (work, date, time, entry = "log") => {
 };
 // 본 공연 기록하기(docs/261027_2 11.2절): 누구나. 작품 → 지난 회차(날짜·시각)를 고르면 그 회차 캐스트로 리뷰를 연다. 이미 남긴 회차는 그 기록을 열어 고친다
 // 사용자 요청(2026-10-28): MVP 작품 밖 KOPIS 공연도 기록한다. 제목 검색 칸 + 포스터 격자. KOPIS 공연은 회차별 출연진이 없어서 날짜·시각을 적고 나온 배우를 고른다(#log/k/공연ID)
-let LK = {id: "", date: "", time: "", cast: []};  // KOPIS 공연 기록 초안(저장 안 함)
-const logShows = from => (D.currentShows || []).filter(s => s.start && s.start <= from).sort((a, b) => (a.popularity ?? Infinity) - (b.popularity ?? Infinity) || a.title.localeCompare(b.title, "ko"));
-const kopisShow = id => (D.currentShows || []).find(s => s.id === id);
+// 출연진: 회차표가 있는 공연(D.logCasts)은 배역별 배우 전체이고 날짜·시각을 고르면 그 회차 출연진을 채운다. 없는 공연은 KOPIS 대표 명단 + 직접 적기(KOPIS 는 주요 출연진만 준다)
+let LK = {id: "", date: "", time: "", cast: [], rc: {}, auto: false};  // KOPIS 공연 기록 초안(저장 안 함). cast: 고른 배우(회차표 없는 공연), rc: 배역 → 배우(회차표 있는 공연), auto: 회차표대로 채웠는지
+const logShows = from => [...(D.currentShows || []).filter(s => s.start && s.start <= from).sort((a, b) => (a.popularity ?? Infinity) - (b.popularity ?? Infinity) || a.title.localeCompare(b.title, "ko")),
+  ...(D.pastShows || [])];  // 지금 하는 공연(인기순) 다음에 끝난 공연(최근에 끝난 순)
+const kopisShow = id => id ? (D.currentShows || []).find(s => s.id === id) || (D.pastShows || []).find(s => s.id === id) : undefined;
+const logCastOf = id => (D.logCasts || {})[id];
+const lkFill = lc => {  // 고른 날짜(·시각)의 회차표 출연진으로 채운다. 그날 회차가 하나면 시각도 정한다
+  const day = lc.perfs.filter(([d]) => d === LK.date), p = day.length === 1 ? day[0] : day.find(([, t]) => t === LK.time);
+  if (day.length === 1) LK.time = day[0][1];
+  if (p) { LK.rc = Object.fromEntries(lc.roles.map(([r], i) => [r, p[2][i]]).filter(([, a]) => a)); LK.auto = true; } };
 V.log = (work, id) => {
   const from = today(), w = work && workOf(work);
   if (work === "k") return logKopis(id);
@@ -1172,25 +1179,33 @@ V.log = (work, id) => {
     const card = (href, poster, title, sub) => `<a class="wcard" href="${href}" data-t="${esc(title.toLowerCase())}">${poster}<span class="winfo"><b>${esc(title)}</b>${sub ? `<span class="tiny muted">${esc(sub)}</span>` : ""}</span></a>`;
     return `<div class="one"><div><p class="eyebrow">본 공연 기록하기</p><h1>어떤 작품을 봤어요?</h1></div>
       <input id="logq" class="logq" type="search" placeholder="작품 이름으로 찾기" aria-label="작품 이름으로 찾기" autocomplete="off">
-      <div class="wlist" id="loglist">${seeds.map(x => card(`#log/${esc(x.name)}`, posterEl(x, "wposter"), x.name, runsOf(x.name)[0]?.venue || "")).join("")}${cur.map(s => card(`#log/k/${esc(s.id)}`, curPoster(s, "wposter", true), s.title, s.venue)).join("")}</div>
-      <p class="small muted" id="lognone" hidden>찾는 작품이 없어요. 지금 공연 중이거나 공연을 시작한 작품만 있어요.</p>
+      <div class="wlist" id="loglist">${seeds.map(x => card(`#log/${esc(x.name)}`, posterEl(x, "wposter"), x.name, runsOf(x.name)[0]?.venue || "")).join("")}${cur.map(s => card(`#log/k/${esc(s.id)}`, curPoster(s, "wposter", true), s.title, s.past ? `${s.venue} · ${s.end.slice(0, 4)}.${s.end.slice(5, 7)} 종료` : s.venue)).join("")}</div>
+      <p class="small muted" id="lognone" hidden>찾는 작품이 없어요. 서울에서 최근 1년 안에 공연했거나 지금 공연 중인 작품만 있어요.</p>
       <p class="tiny muted">공연 정보·포스터: 공연예술통합전산망(KOPIS) · 데이터 기준 ${esc(D.generated)}</p></div>`; }
   const ps = logPerfs(D, work, from);
   return `<div class="one"><div><p class="eyebrow">본 공연 기록하기 · ${esc(work)}</p><h1>언제 봤어요?</h1></div><p class="small muted">관람일이 지난 회차만 기록할 수 있어요.</p>
     ${ps.map(p => `<a class="card perf" style="text-decoration:none;color:inherit" href="#review/${esc(work)}/${p.date}/${p.time}">${whenTile(p)}<p class="tiny muted">${reviewRoles(D, work, p.cast).map(r => `${esc(r)} ${esc(p.cast[r])}`).join(" · ")}</p>${reviewOf(S, work, p.date, p.time) ? `<p class="small" style="color:var(--ok)">기록 남김 · 눌러서 고치기</p>` : ""}</a>`).join("") || `<div class="card"><p class="small muted">아직 지난 회차가 없어요.</p></div>`}</div>`;
 };
 const logKopis = id => {
-  const s = kopisShow(id), from = today(); if (!s) return V.log();
-  if (LK.id !== id) LK = {id, date: "", time: "", cast: []};
-  const max = s.end && s.end < from ? s.end : from;
-  return `<div class="one"><div class="lkhead">${curPoster(s, "lkposter")}<div><p class="eyebrow">본 공연 기록하기</p><h1>${esc(s.title)}</h1><p class="small muted">${esc(s.venue)} · ${md(s.start)} ~ ${md(s.end)}</p></div></div>
+  const s = kopisShow(id), from = today(), lc = logCastOf(id); if (!s) return V.log();
+  if (LK.id !== id) LK = {id, date: "", time: "", cast: [], rc: {}, auto: false};
+  const max = s.end && s.end < from ? s.end : from, day = lc ? lc.perfs.filter(([d]) => d === LK.date) : [];
+  const n = lc ? Object.keys(LK.rc).length : LK.cast.length;
+  const chip = (on, attrs, label) => `<button type="button" class="chip x ${on ? "on" : ""}" ${attrs} aria-pressed="${on}">${esc(label)}</button>`;
+  const timeBox = day.length ? `<div class="lkt"><span class="tiny muted">시각</span><div class="chips">${day.map(([, t]) => chip(LK.time === t, `data-act="lkTime" data-t="${esc(t)}"`, t)).join("")}</div></div>`
+    : `<label>시각 <span class="muted">(선택)</span><input type="time" id="lkt" value="${esc(LK.time)}"></label>`;
+  const who = lc
+    ? `${lc.roles.map(([r, as]) => `<div class="lkrole"><b>${esc(r)}</b><div class="chips">${as.map(a => chip(LK.rc[r] === a, `data-act="lkRole" data-r="${esc(r)}" data-a="${esc(a)}"`, a)).join("")}</div></div>`).join("")}
+      <p class="tiny muted">${LK.auto ? "그날 회차표대로 채웠어요. 다르면 바꿔 주세요." : "날짜와 시각을 고르면 그 회차 출연진으로 채워져요. 배역마다 한 명을 골라 주세요."}</p>`
+    : `<div class="chips">${[...new Set([...(s.cast || []), ...LK.cast])].map(a => chip(LK.cast.includes(a), `data-act="lkCast" data-a="${esc(a)}"`, a)).join("")}</div>
+      <div class="lkadd"><input id="lkadd" placeholder="목록에 없는 배우 이름" autocomplete="off" maxlength="20" aria-label="목록에 없는 배우 이름"><button type="button" class="chip" data-act="lkAdd">추가</button></div>
+      <p class="tiny muted">KOPIS에는 주요 출연진만 올라와요. 없는 배우는 이름을 적어 추가해 주세요.</p>`;
+  return `<div class="one"><div class="lkhead">${curPoster(s, "lkposter")}<div><p class="eyebrow">본 공연 기록하기</p><h1>${esc(s.title)}</h1><p class="small muted">${esc(s.venue)} · ${md(s.start)} ~ ${s.end.slice(0, 4) !== s.start.slice(0, 4) ? s.end.slice(0, 4) + " " : ""}${md(s.end)}</p></div></div>
     <div class="card"><h3>언제 봤어요?</h3>
-      <div class="lkwhen"><label>날짜<input type="date" id="lkd" min="${esc(s.start)}" max="${esc(max)}" value="${esc(LK.date)}"></label><label>시각 <span class="muted">(선택)</span><input type="time" id="lkt" value="${esc(LK.time)}"></label></div>
+      <div class="lkwhen"><label>날짜<input type="date" id="lkd" min="${esc(s.start)}" max="${esc(max)}" value="${esc(LK.date)}"></label>${timeBox}</div>
       ${s.times ? `<p class="tiny muted">공연 시간: ${esc(s.times)}</p>` : ""}</div>
-    <div class="card"><h3>누가 나왔어요? <span class="small muted">본 배우를 모두 골라 주세요</span></h3>
-      <div class="chips">${(s.cast || []).map(a => { const on = LK.cast.includes(a); return `<button type="button" class="chip x ${on ? "on" : ""}" data-act="lkCast" data-a="${esc(a)}" aria-pressed="${on}">${esc(a)}</button>`; }).join("")}</div>
-      <p class="tiny muted">KOPIS에 올라온 주요 출연진이에요.</p></div>
-    <button class="btn" data-act="lkGo" ${LK.cast.length ? "" : "disabled"}>${LK.cast.length ? `배우 ${LK.cast.length}명 평가하기` : "배우를 골라 주세요"}</button></div>`;
+    <div class="card"><h3>누가 나왔어요? <span class="small muted">${lc ? "회차표의 배우 전체" : "본 배우를 모두 골라 주세요"}</span></h3>${who}</div>
+    <button class="btn" data-act="lkGo" ${n ? "" : "disabled"}>${n ? `배우 ${n}명 평가하기` : "배우를 골라 주세요"}</button></div>`;
 };
 V.me = () => {
   const rows = exportRows();
@@ -1651,7 +1666,7 @@ const reviewChips = (D, S, work, role, actor) => {  // 결정 43 순서: ① 이
 };
 const reviewLabel = t => prefLabel(tagKey(t)) || t;  // 온보딩 질문에서 온 태그는 온보딩 문구로(결정 47)
 const reviewOf = (S, work, date, time) => (S.reviews || []).find(r => r.work === work && r.date === date && r.time === time) || null;
-const newKopisReview = (s, date, time, actors) => ({work: s.title, kopis: s.id, date, time: time || "", cast: Object.fromEntries(actors.map(a => [a, a])), rows: {}, combo: [], note: "", pub: false});  // 배역을 모르니 배우 이름을 줄 이름으로
+const newKopisReview = (s, date, time, actors) => ({work: s.title, kopis: s.id, date, time: time || "", cast: Array.isArray(actors) ? Object.fromEntries(actors.map(a => [a, a])) : {...actors}, rows: {}, combo: [], note: "", pub: false});  // 배역을 모르니 배우 이름을 줄 이름으로
 const newReview = (D, p) => ({work: p.work, date: p.date, time: p.time, cast: Object.fromEntries(reviewRoles(D, p.work, p.cast).map(r => [r, p.cast[r]])), rows: {}, combo: [], note: "", pub: false});
 const setRvRate = (rv, role, rate) => {  // 다시 누르면 풀림(""). 평가가 바뀌면 태그 뜻이 달라지니 태그를 비운다
   if (!REVIEW_RATES.some(x => x[0] === rate) || !(role in rv.cast)) return null;
@@ -1671,8 +1686,9 @@ const toggleRvCombo = (rv, tag) => {  // 어울림 질문: 조합 태그 3개까
   if (cur.length >= REVIEW_MAX) return false;
   rv.combo = [...cur, tag]; return rv.combo;
 };
+const rvRoleCands = (D, rv, role) => ((D.roles[rv.work] || []).find(r => r.role === role) || {}).cast || (((D.logCasts || {})[rv.kopis] || {}).roles || []).find(([r]) => r === role)?.[1] || [];  // 그 배역의 배우 후보: MVP 배역표, 없으면 회차표가 있는 KOPIS 공연의 배역
 const swapRvActor = (D, rv, role, actor) => {  // 다른 배우였어요(결정 50): 그 배역의 다른 배우로. 평가·태그는 바꾼 배우에게 저장된다
-  const cands = ((D.roles[rv.work] || []).find(r => r.role === role) || {}).cast || [];
+  const cands = rvRoleCands(D, rv, role);
   if (!(role in rv.cast) || !cands.includes(actor)) return false;
   rv.cast[role] = actor; return true;
 };
@@ -2684,9 +2700,13 @@ document.addEventListener("click", e => {
     case "rvSwap": { const dr = S.proto?.rdraft; if (!dr || !swapRvActor(D, dr.rv, d.r, d.a)) return; dr.swap = ""; save(); route(); break; }  // 다른 배우였어요(결정 50)
     case "rvPub": { const dr = S.proto?.rdraft; if (!dr) return; dr.rv.pub = d.v === "1"; save(); route(); break; }
     case "lkCast": LK.cast = LK.cast.includes(d.a) ? LK.cast.filter(a => a !== d.a) : [...LK.cast, d.a]; route(); break;
-    case "lkGo": { const s = kopisShow(LK.id), from = today(); if (!s || !LK.cast.length) return;
+    case "lkRole": { if (LK.rc[d.r] === d.a) delete LK.rc[d.r]; else LK.rc[d.r] = d.a; LK.auto = false; route(); break; }  // 배역마다 한 명(다시 누르면 뺀다)
+    case "lkTime": { const lc = logCastOf(LK.id); LK.time = d.t; if (lc) lkFill(lc); route(); break; }
+    case "lkAdd": { const el = $("#lkadd"), a = (el?.value || "").trim().slice(0, 20); if (!a) { el?.focus(); return; } if (!LK.cast.includes(a)) LK.cast = [...LK.cast, a]; route(); $("#lkadd")?.focus(); break; }
+    case "lkGo": { const s = kopisShow(LK.id), from = today(), lc = logCastOf(LK.id), picked = lc ? Object.fromEntries(lc.roles.map(([r]) => [r, LK.rc[r]]).filter(([, a]) => a)) : LK.cast;
+      if (!s || !Object.keys(picked).length) return;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(LK.date) || LK.date < s.start || LK.date > from) { toast("본 날짜를 골라 주세요"); $("#lkd")?.focus(); return; }
-      const rv = reviewOf(S, s.title, LK.date, LK.time) || newKopisReview(s, LK.date, LK.time, LK.cast); RV_MORE = {};
+      const rv = reviewOf(S, s.title, LK.date, LK.time) || newKopisReview(s, LK.date, LK.time, picked); RV_MORE = {};
       S.proto.rdraft = {k: [s.title, LK.date, LK.time].join("|"), entry: "log", rv: JSON.parse(JSON.stringify(rv)), swap: "", done: false, picks: []}; save(); location.hash = "#review"; break; }
     case "rvSave": { const dr = S.proto?.rdraft; if (!dr) return; dr.rv.note = ($("#rvnote")?.value || "").trim(); const out = saveReview(D, S, dr.rv, dr.entry, today());
       if (Object.keys(out.rows).length && !out.kopis) track("after_review", reviewRecord(D, out)); dr.done = true; save(); route(); break; }  // 저장 뒤 같은 화면에서 배우 조건 제안(결정 51). KOPIS 공연 리뷰는 기록 표의 작품 목록 밖이라 이 기기에만 남는다
@@ -2699,7 +2719,8 @@ document.addEventListener("click", e => {
 });
 // 캘린더 날짜 화면의 좌석·금액: 쓰는 동안 저장하고(다시 그리지 않아 커서가 안 튄다), 금액은 칸을 떠날 때 쉼표를 붙여 다시 보여 준다
 document.addEventListener("input", e => {
-  if (e.target.id === "lkd") LK.date = e.target.value; else if (e.target.id === "lkt") LK.time = e.target.value;
+  if (e.target.id === "lkd") { LK.date = e.target.value; const lc = logCastOf(LK.id); if (lc) { LK.time = ""; if (LK.auto) LK.rc = {}; LK.auto = false; lkFill(lc); route(); } }  // 회차표가 있으면 그날 시각 칩·출연진을 다시 그린다(회차표로 채운 출연진은 비우고, 직접 고른 건 둔다)
+  else if (e.target.id === "lkt") LK.time = e.target.value;
   if (e.target.id === "logq") { const q = e.target.value.trim().toLowerCase().replace(/\s+/g, ""); let n = 0;  // 다시 그리지 않고 카드만 숨긴다(입력 중 커서 유지)
     document.querySelectorAll("#loglist [data-t]").forEach(c => { const on = !q || c.dataset.t.replace(/\s+/g, "").includes(q); c.hidden = !on; n += on; }); const none = $("#lognone"); if (none) none.hidden = n > 0; } });
 document.addEventListener("input", e => { const el = e.target.closest?.("[data-pf]"); if (el && setPlanField(S, +el.dataset.i, el.dataset.pf, el.value)) save(); });

@@ -628,7 +628,26 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       const sv = k.S.reviews.find(r => r.kopis === "PF1"), pl = k.S.plans.find(x => x.kopis === "PF1");
       ok(sv && sv.date === "2026-10-03" && sv.rows.x1.rate === "good" && pl && pl.status === "booked" && pl.tagged && pl.dow === "토" && !qlen(k).slice(q0).some(r => r.event === "after_review"), "저장: 리뷰와 본 공연 일정(관람예정·요일 계산)이 남고, 기록 표 밖이라 after_review 는 안 보낸다");
       const dv = k.V.plans("2026-10-03"); ok(/src="https:\/\/x\.example\/p\.jpg"/.test(dv) && /<dd>소극장<\/dd>/.test(dv) && /<span class="pcast">x1<\/span>/.test(dv) && /<dd>-<\/dd>/.test(dv) && /class="pday booked"/.test(dv), "캘린더 날짜 화면: KOPIS 포스터·공연장·고른 배우, 시각이 없으면 -");
-      k.location.hash = "#tag/" + k.S.plans.indexOf(pl); k.route(); ok(k.S.proto.rdraft.rv.rows.x1.rate === "good", "남긴 KOPIS 리뷰도 다시 열어 고칠 수 있다"); }
+      k.location.hash = "#tag/" + k.S.plans.indexOf(pl); k.route(); ok(k.S.proto.rdraft.rv.rows.x1.rate === "good", "남긴 KOPIS 리뷰도 다시 열어 고칠 수 있다");
+      // KOPIS 대표 명단에 없는 배우는 직접 적어 추가
+      const ka = loadApp(HK, {...opts}); ka.route(); ka.V.log("k", "PF1"); ka.q("#lkadd").value = "새배우"; ka.click({act: "lkAdd"});
+      ok(/data-act="lkCast" data-a="새배우" aria-pressed="true"/.test(ka.V.log("k", "PF1")) && /목록에 없는 배우 이름/.test(ka.V.log("k", "PF1")), "목록에 없는 배우를 적어 추가하면 고른 배우로 들어간다"); }
+    // 회차표가 있는 공연(D.logCasts): 배역별 배우 전체, 날짜를 고르면 그날 회차 출연진으로 채움. 끝난 공연(D.pastShows)도 목록에(사용자 요청 2026-10-28)
+    { const HL = JSON.parse(JSON.stringify(HD)); HL.currentShows = [];
+      HL.pastShows = [{id: "PP1", title: "지난 극 [서울]", venue: "대극장", start: "2026-05-01", end: "2026-08-31", cast: ["p1", "q1"], poster: "", past: true}];
+      HL.logCasts = {PP1: {roles: [["주인공", ["p1", "p2"]], ["친구", ["q1", "q2"]], ["엄마", ["r1", "r2", "r3"]]], perfs: [["2026-06-06", "14:00", ["p1", "q2", "r3"]], ["2026-06-06", "19:00", ["p2", "q1", "r1"]], ["2026-06-07", "15:00", ["p2", "q2", "r2"]]]}};
+      const k = loadApp(HL, {...opts}); k.route(); const lg = k.V.log();
+      ok(/href="#log\/k\/PP1"/.test(lg) && /대극장 · 2026\.08 종료/.test(lg), "끝난 공연도 목록에(공연장 · 끝난 달)");
+      let h = k.V.log("k", "PP1"); ok(["p1", "p2", "q1", "q2", "r1", "r2", "r3"].every(a => new RegExp(`data-act="lkRole" data-r="[^"]+" data-a="${a}"`).test(h)) && /<b>엄마<\/b>/.test(h) && !/id="lkadd"/.test(h), "회차표가 있으면 배역별로 회차표 배우 전체(KOPIS 대표 명단 아님)");
+      const inp = v => k.listeners.doc.input.forEach(f => f({target: {id: "lkd", value: v, closest: () => null}}));
+      inp("2026-06-07"); h = k.V.log("k", "PP1");
+      ok(/data-act="lkRole" data-r="주인공" data-a="p2" aria-pressed="true"/.test(h) && /data-r="엄마" data-a="r2" aria-pressed="true"/.test(h) && /data-act="lkTime" data-t="15:00" aria-pressed="true"/.test(h) && /그날 회차표대로 채웠어요/.test(h), "회차가 하나인 날: 시각과 출연진을 회차표대로 채운다");
+      inp("2026-06-06"); h = k.V.log("k", "PP1"); ok((h.match(/data-act="lkTime"/g) || []).length === 2 && !/aria-pressed="true">p1/.test(h) && /data-act="lkGo" disabled/.test(h), "회차가 둘인 날: 시각을 고르기 전엔 비어 있다");
+      k.click({act: "lkTime", t: "19:00"}); k.click({act: "lkRole", r: "엄마", a: "r3"}); h = k.V.log("k", "PP1");
+      ok(/data-r="주인공" data-a="p2" aria-pressed="true"/.test(h) && /data-r="엄마" data-a="r3" aria-pressed="true"/.test(h) && /배우 3명 평가하기/.test(h), "시각을 고르면 그 회차 출연진, 배역마다 한 명으로 바꿀 수 있다");
+      k.click({act: "lkGo"}); const rv = k.V.review();
+      ok(k.S.proto.rdraft.rv.cast.엄마 === "r3" && /<b>주인공<\/b> · p2/.test(rv) && /data-act="rvSwapOpen" data-r="주인공"/.test(rv), "리뷰는 배역 · 배우 줄, 다른 배우였어요는 회차표 배우 중에서");
+      k.click({act: "rvSwapOpen", r: "주인공"}); k.click({act: "rvSwap", r: "주인공", a: "p1"}); ok(k.S.proto.rdraft.rv.cast.주인공 === "p1", "다른 배우였어요로 바꾼다"); }
     const dh1 = app.V.detail(W, "2026-11-01", "14:00"), pc1 = app.V.show(W);
     ok(/<a class="btn" href="#saved\/0">볼 예정에 담았어요 · 예매처로 가기 →<\/a>/.test(dh1) && !/data-act="plan"/.test(dh1.split('class="side"')[1] || dh1) && !/예매처로 이동/.test(dh1), "이미 담은 회차의 회차 상세: 담은 뒤 화면으로(예매처로) 가는 버튼, 막다른 길 없음");
     app.click({act: "calDay", work: W, d: "2026-11-01"}); const pc2 = app.V.show(W);

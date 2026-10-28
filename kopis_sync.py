@@ -6,6 +6,7 @@
   python3 kopis_sync.py              # 프로젝트 루트 .env 의 KOPIS_API_KEY 필요 (data/kopis_runs_YYYY-MM-DD.tsv)
   python3 kopis_sync.py --selftest
   python3 kopis_sync.py --current    # 지금 서울에서 하는(+60일 안에 시작하는) 뮤지컬 목록·출연진 → data/kopis_current_YYYY-MM-DD.tsv + 배우 프로필 커버리지 (--max-calls 로 호출 상한, 상세는 data/kopis_cache/ 에 저장)
+  python3 kopis_sync.py --past       # 최근 1년 안에 끝난 서울 뮤지컬 목록·출연진 → data/kopis_past.tsv (본 공연 기록하기용, 새로 끝난 공연만 상세를 받음)
   python3 kopis_sync.py --boxoffice  # 서울 뮤지컬 예매상황판 주간·월간 순위 → data/kopis_boxoffice_YYYY-MM-DD.tsv (호출 2번, 응답은 data/kopis_cache/boxoffice/ 에 저장). 앱 홈 '지금 하는 공연 전체'의 인기순 정렬용
 
 출력: TSV(작품 공연장 시작 끝 포스터URL 예매처링크 가격안내 출연진 mt20id + RUNS·비교) + "신규 N / 종료 N / 기간 변경 N".
@@ -435,6 +436,101 @@ def run_current(a):
     print(f"\nwrote {out.relative_to(ROOT)} / {name}_excluded.tsv")
 
 
+# ---- --past: 끝난 서울 뮤지컬(공연완료 03). 앱 '본 공연 기록하기'에서 예전에 본 공연을 고르게 한다(사용자 요청 2026-10-28) ----
+# 끝난 공연은 다시 안 바뀌니 지난 파일(data/kopis_past.tsv, 저장소에 올라감)에 상세까지 있는 공연은 다시 받지 않는다. 주간 실행은 새로 끝난 공연만 받는다
+PAST_DAYS = 365   # 끝난 지 이 일수 안의 공연
+PAST_FILE = "kopis_past.tsv"
+PAST_COLS = ["mt20id", "작품", "공연장", "시작", "끝", "출연진", "포스터URL", "관람연령", "아동", "상세"]  # 상세 Y = 상세(출연진·관람연령)까지 받음. N 이면 다음 실행에서 받는다
+
+
+def read_past(path):
+    """지난 --past 파일 → {id: 행 dict}. 없으면 {}."""
+    if not path.exists():
+        return {}
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return {r["mt20id"]: r for r in (dict(zip(PAST_COLS, l.split("\t"))) for l in lines[1:] if l)}
+
+
+def fetch_past(get, today, known=None, days=PAST_DAYS, max_calls=400):
+    """get(path, params) → XML. 오늘-days ~ 어제를 WIN일 창으로 나눠 서울(11) 뮤지컬(GGGA) 공연완료(03) 목록을 받고, known(지난 파일)에 상세가 없는 공연만 상세를 1회 받는다.
+    끝 날짜가 범위 밖인 공연(창과 기간만 겹친 것)은 뺀다. 반환 {rows(지난 파일의 범위 안 공연 + 새 공연), used{list,detail}, capped}"""
+    known, used, capped = known or {}, {"list": 0, "detail": 0}, False
+    lo_all, hi_all = (today - timedelta(days)).isoformat(), (today - timedelta(1)).isoformat()
+
+    def call(kind, path, params):
+        if used["list"] + used["detail"] >= max_calls:
+            raise Cap()
+        used[kind] += 1
+        return get(path, params)
+
+    seen = {}
+    try:
+        for o in range(days, 0, -WIN):
+            lo, hi = today - timedelta(o), today - timedelta(max(o - WIN + 1, 1))
+            page = 1
+            while True:
+                rows = parse_list(call("list", "pblprfr", {"stdate": lo.strftime("%Y%m%d"), "eddate": hi.strftime("%Y%m%d"), "cpage": page, "rows": 100, "shcate": "GGGA", "prfstate": "03", "signgucode": "11"}))
+                for r in rows:
+                    if r["state"] == "공연완료" and lo_all <= r["end"] <= hi_all:
+                        seen.setdefault(r["id"], r)
+                if len(rows) < 100:
+                    break
+                page += 1
+    except Cap:
+        capped = True
+    out = {i: {"id": i, "title": k["작품"], "venue": k["공연장"], "start": k["시작"], "end": k["끝"], "cast": k["출연진"], "poster": k["포스터URL"], "age": k["관람연령"], "child": k["아동"], "detail": k["상세"] == "Y"}
+           for i, k in known.items() if lo_all <= k["끝"] <= hi_all}  # 지난 파일의 공연(범위 안): 목록 호출이 상한에 걸려도 남는다
+    for i, r in seen.items():
+        out.setdefault(i, {**r, "cast": "", "age": "", "child": "", "detail": False})
+    for r in sorted(out.values(), key=lambda r: r["end"], reverse=True):  # 최근에 끝난 공연부터 상세
+        if r["detail"]:
+            continue
+        try:
+            d = parse_detail(call("detail", f"pblprfr/{r['id']}", {}))
+            r.update(cast=d["cast"], age=d["age"], child=d["child"], poster=d["poster2"] or r["poster"], detail=True)
+        except Cap:
+            capped = True
+            break
+        except Exception as e:
+            print(f"! 상세 실패 {r['id']}: {e}", file=sys.stderr)
+    return {"rows": sorted(out.values(), key=lambda r: (r["end"], r["id"]), reverse=True), "used": used, "capped": capped}
+
+
+def write_past(path, rows):
+    lines = ["\t".join(PAST_COLS)] + ["\t".join(clean(x) for x in [r["id"], r["title"], r["venue"], r["start"], r["end"], r["cast"], r["poster"], r["age"], r["child"], "Y" if r["detail"] else "N"]) for r in rows]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def run_past(a):
+    today = date.today()
+    key = env_key("KOPIS_API_KEY")
+    if not key:
+        sys.exit("KOPIS_API_KEY 가 없어요. 프로젝트 루트 .env 에 KOPIS_API_KEY=... 를 넣어 주세요.")
+    path = ROOT / "data" / PAST_FILE
+    try:
+        res = fetch_past(lambda p, q: http_get(key, p, q), today, read_past(path), max_calls=a.max_calls)
+    except RuntimeError as e:
+        sys.exit(f"KOPIS 호출 실패: {e}")
+    write_past(path, res["rows"])
+    nod = sum(not r["detail"] for r in res["rows"])
+    print(f"KOPIS 끝난 뮤지컬(서울, 최근 {PAST_DAYS}일): {len(res['rows'])}개 · 호출 목록 {res['used']['list']}+상세 {res['used']['detail']}회(상한 {a.max_calls})"
+          + (f" · 상세를 아직 못 받은 공연 {nod}개(다음 실행에서 이어 받아요)" if nod else "") + (" · ! 호출 상한에 걸렸어요" if res["capped"] else ""))
+    print(f"wrote {path.relative_to(ROOT)}")
+
+
+PAST_ITEMS = {"PFP01": ("지난 뮤지컬", "2026.03.01", "2026.06.30", "A홀"), "PFP02": ("아주 옛날 뮤지컬", "2024.01.01", "2024.02.01", "B홀"),
+              "PFP03": ("어제 끝난 뮤지컬", "2026.09.01", "2026.10.10", "C홀")}
+
+
+def past_sample_get(path, params):
+    if "/" in path:
+        i = path.rsplit("/", 1)[1]
+        return f"<dbs><db><mt20id>{i}</mt20id><prfcast>배우{i}1, 배우{i}2 등</prfcast><prfage>만 7세 이상</prfage><child>N</child><poster>https://example.com/d/{i}.png</poster></db></dbs>"
+    lo, hi = iso(params["stdate"][:4] + "." + params["stdate"][4:6] + "." + params["stdate"][6:]), iso(params["eddate"][:4] + "." + params["eddate"][4:6] + "." + params["eddate"][6:])
+    rows = [(i, v) for i, v in PAST_ITEMS.items() if iso(v[1]) <= hi and iso(v[2]) >= lo]  # 기간이 창과 겹치는 공연(KOPIS 목록과 같은 방식으로 가정)
+    return "<dbs>" + "".join(f"<db><mt20id>{i}</mt20id><prfnm>{v[0]}</prfnm><prfpdfrom>{v[1]}</prfpdfrom><prfpdto>{v[2]}</prfpdto><fcltynm>{v[3]}</fcltynm><poster>https://example.com/l/{i}.png</poster><prfstate>공연완료</prfstate></db>" for i, v in rows) + "</dbs>"
+
+
 # ---- --boxoffice: 서울 뮤지컬 예매상황판(박스오피스) 주간·월간 순위. 호출은 주간 1 + 월간 1, 응답 XML 은 캐시 폴더에 저장해 같은 날 다시 돌리면 호출 0 ----
 BOX_COLS = ["mt20id", "공연명", "주간순위", "월간순위", "기준일"]
 BOX_SPANS = [("주간", "week", 7), ("월간", "month", 30)]  # (열 이름, 캐시 파일 접두, 기준일까지 며칠). 조회 창은 최대 31일
@@ -602,6 +698,19 @@ def selftest():
         out = Path(td) / "box.tsv"
         write_boxoffice(out, end, ranks)
         assert out.read_text(encoding="utf-8").splitlines() == ["\t".join(BOX_COLS), "PA\t가\t1\t\t2026-10-11", "PB\t나\t2\t1\t2026-10-11", "PC\t다 공연\t\t3\t2026-10-11"]  # 가장 좋은 순위 순(같으면 id 순), out.read_text(encoding="utf-8")
+    # --past: 범위 안에서 끝난 공연만, 최근에 끝난 순. 지난 파일에 상세가 있으면 다시 안 받고, 호출 상한이면 상세 N 으로 남겨 다음에 받는다
+    t0 = date(2026, 10, 11)
+    res = fetch_past(past_sample_get, t0)
+    assert [r["id"] for r in res["rows"]] == ["PFP03", "PFP01"] and all(r["detail"] and r["cast"].startswith("배우") and "/d/" in r["poster"] for r in res["rows"]) and res["used"]["detail"] == 2, res
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "past.tsv"
+        write_past(p, res["rows"])
+        kn = read_past(p)
+        assert set(kn) == {"PFP01", "PFP03"} and kn["PFP01"]["상세"] == "Y" and kn["PFP01"]["출연진"] == "배우PFP011, 배우PFP012 등"
+        res2 = fetch_past(past_sample_get, t0, kn)
+        assert res2["used"]["detail"] == 0 and [r["id"] for r in res2["rows"]] == ["PFP03", "PFP01"], res2["used"]
+    res3 = fetch_past(past_sample_get, t0, max_calls=13)
+    assert res3["capped"] and res3["used"] == {"list": 13, "detail": 0} and not any(r["detail"] for r in res3["rows"]) and len(res3["rows"]) == 2
     print("selftest ok")
 
 
@@ -613,6 +722,7 @@ if __name__ == "__main__":
     ap.add_argument("--current", action="store_true", help="지금 서울에서 하는(+60일 안 시작) 뮤지컬 전체와 출연진, 배우 프로필 커버리지 (data/kopis_current_YYYY-MM-DD.tsv)")
     ap.add_argument("--max-calls", type=int, default=300, help="--current 의 호출 상한(목록+상세, 캐시는 안 셈. 기본 300)")
     ap.add_argument("--refresh", action="store_true", help="--current·--boxoffice 에서 캐시를 무시하고 다시 받는다")
+    ap.add_argument("--past", action="store_true", help=f"최근 {PAST_DAYS}일 안에 끝난 서울 뮤지컬과 출연진 (data/{PAST_FILE}, 지난 파일에 상세가 있는 공연은 다시 안 받는다. --max-calls 상한)")
     ap.add_argument("--boxoffice", action="store_true", help="서울 뮤지컬 예매상황판 주간·월간 순위 (data/kopis_boxoffice_YYYY-MM-DD.tsv, 호출 2번)")
     a = ap.parse_args()
     if a.selftest:
@@ -623,6 +733,9 @@ if __name__ == "__main__":
         sys.exit()
     if a.boxoffice:
         run_boxoffice(a)
+        sys.exit()
+    if a.past:
+        run_past(a)
         sys.exit()
     today = date.today()
     if a.sample:

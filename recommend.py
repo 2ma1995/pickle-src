@@ -519,6 +519,58 @@ def load_current_shows(today=None, path=None, aliases=None):
     return {"asOf": Path(path).stem.removeprefix("kopis_current_"), "shows": sorted(out, key=lambda x: (x["title"], x["start"]))}
 
 
+def load_past_shows(skip=(), path=None, today=None):
+    """data/kopis_past.tsv(kopis_sync.py --past) → 앱 '본 공연 기록하기'의 끝난 공연. 만 18세 이상·아동(child=Y)·skip(현재 공연 ID)·아직 안 끝난 공연은 뺀다.
+    출연진은 KOPIS 가 주는 대표 명단 전부(앞 7명으로 자르지 않는다). 최근에 끝난 공연이 앞."""
+    path = path or DATA / "kopis_past.tsv"
+    if not Path(path).exists():
+        return []
+    today = (today or date.today()).isoformat()
+    out = []
+    for r in csv.DictReader(open(path, encoding="utf-8"), delimiter="\t"):
+        if r["mt20id"] in skip or r["아동"] == "Y" or min_age(r["관람연령"]) >= 18 or r["끝"] >= today:
+            continue
+        out.append({"id": r["mt20id"], "title": r["작품"], "venue": r["공연장"], "start": r["시작"], "end": r["끝"], "cast": parse_cast(r["출연진"]), "poster": https_url(r["포스터URL"]), "past": True})
+    return sorted(out, key=lambda x: (x["end"], x["id"]), reverse=True)
+
+
+def _title_key(s):
+    """KOPIS 제목·회차표 파일 이름 비교용: '뮤지컬'·공백·괄호 글자를 뺀다('디어 에반 핸슨 (Musical Dear Evan Hansen) [서울]' → '디어에반핸슨musicaldearevanhansen서울')."""
+    return re.sub(r"[^0-9a-z가-힣]", "", re.sub(r"^\s*뮤지컬\s*", "", s.lower()))
+
+
+def load_log_casts(shows, sched_dir=None):
+    """MVP 밖 작품의 회차표(data/schedules/*.tsv) → {KOPIS 공연 ID: {roles: [[배역, [배우...]]], perfs: [[날짜, 시각, [배역 순서대로 배우]]]}}.
+    앱 '본 공연 기록하기'가 KOPIS 대표 7명 대신 회차표의 배우 전체를 보여 주고, 날짜·시각을 고르면 그 회차 출연진을 채운다(사용자 요청 2026-10-28).
+    공연 찾기: KOPIS 제목(_title_key)이 작품 이름으로 시작하고 회차 날짜가 공연 기간 안. 회차는 그 공연 기간 안의 것만 붙인다."""
+    out = {}
+    for f in sorted(Path(sched_dir or DATA / "schedules").glob("*.tsv")):
+        work = f.name.rsplit("_", 1)[0]
+        if work in {x[0] for x in RUNS}:
+            continue
+        header, perfs = None, []
+        for line in open(f, encoding="utf-8"):
+            cols = line.rstrip("\n").split("\t")
+            if not cols[0] or cols[0].startswith("#"):
+                continue
+            if cols[0] == "날짜":
+                header = cols
+                continue
+            roles = header[2:-1] if header[-1] == "비고" else header[2:]
+            perfs.append([cols[0], cols[1], [(cols[2 + i] if 2 + i < len(cols) else "").strip() for i in range(len(roles))]])
+        if not header or not perfs:
+            continue
+        roles = header[2:-1] if header[-1] == "비고" else header[2:]
+        key = _title_key(work)
+        for s in shows:
+            mine = [p for p in perfs if s["start"] <= p[0] <= s["end"]]
+            if not mine or not _title_key(s["title"]).startswith(key):
+                continue
+            cast = [list(dict.fromkeys(a for _, _, c in mine for a in [c[i]] if a)) for i in range(len(roles))]
+            out[s["id"]] = {"roles": [[r, c] for r, c in zip(roles, cast)], "perfs": sorted(mine)}
+    return out
+
+
 def voice_tags():
     """사전 순서대로 본 목소리 태그(VOICE = 하위 영역 음색·파워·기술)."""
     return [t for t in ACTOR_TAG_LABELS if t in VOICE]
@@ -710,6 +762,8 @@ def export_js(path, track=True, env_get=None):
             k = nman.get((w, a), 0)
             lst[k:] = sorted(lst[k:], key=lambda v: is_curtain(v["title"]))  # 안정 정렬: 넘버 영상이 먼저, 커튼콜은 뒤(파일 순서는 그대로). 파일이 아직 다시 정렬되기 전이어도 대표 영상은 넘버
     cur = load_current_shows()
+    past = load_past_shows({sh["id"] for sh in cur["shows"]})  # 본 공연 기록하기: 최근 1년 안에 끝난 공연
+    log_casts = load_log_casts(cur["shows"] + past)  # 본 공연 기록하기: 회차표가 있는 MVP 밖 공연은 배우 전체·회차별 출연진
     # 작품 태그: 시드 작품 + KOPIS 현재 공연(작품 이름 = currentShows title). group = 태그 사전 대분류('작품 · 소재' 등)
     linked, lost = link_work_tags(load_work_tags(), seed, [sh["title"] for sh in cur["shows"]], load_known_titles())
     wt = {w: [{"tag": r[C_TAG], "group": group(r)} for r in rows] for w, rows in linked.items()}
@@ -746,7 +800,9 @@ def export_js(path, track=True, env_get=None):
         "seedInfo": load_seed_info(),  # {작품: {age, runtime, times}} KOPIS 에서(시드 작품 극 요약용)
         "areaSource": area_src or "임시 규칙(공연장·공연명에 '대학로')",  # 구분 값의 출처(currentShows·works 의 area)
         "popularityAsOf": pop_asof,  # currentShows·works 의 popularity(예매상황판 주간·월간 중 가장 좋은 순위, 없으면 null) 기준일. 앱은 이 순서로만 정렬하고 숫자는 안 보인다
-        "currentShows": cur["shows"], "currentAsOf": cur["asOf"],  # KOPIS 현재 공연(시드 밖). 앱 홈 '지금 하는 다른 공연'·'○○를 좋아하면'의 후보. 19세 이상·출연진 없음·끝난 공연·시드는 뺌
+        "currentShows": cur["shows"], "currentAsOf": cur["asOf"],
+        "pastShows": past,  # KOPIS 끝난 공연(kopis_past.tsv). 앱 '본 공연 기록하기'에서만 쓴다
+        "logCasts": log_casts,  # {KOPIS 공연 ID: {roles: [[배역, [배우]]], perfs: [[날짜, 시각, [배우]]]}} 회차표(data/schedules)가 있는 MVP 밖 공연. 앱 '본 공연 기록하기' 출연진  # KOPIS 현재 공연(시드 밖). 앱 홈 '지금 하는 다른 공연'·'○○를 좋아하면'의 후보. 19세 이상·출연진 없음·끝난 공연·시드는 뺌
         "voiceAxis": VOICE_AXIS,  # {목소리 태그: 축} 음색 네 태그는 '음색' 한 축, 성량·고음·딕션은 각자 한 축(앱이 같은 축을 찾을 때)
         "workTagLabels": WORK_TAG_LABELS,  # {태그: 대분류} 사전의 작품 태그. 앱 첫 화면 카드가 쓰는 태그 이름이 사전에 있는지 테스트가 확인한다
         "actorTagLabels": ACTOR_TAG_LABELS, "comboTagLabels": COMBO_TAG_LABELS, "actorTagGroups": ACTOR_TAG_GROUPS,
@@ -1124,6 +1180,12 @@ def selftest():
     items = exp["currentShows"] + exp["works"]
     assert all("region" in x and isinstance(x["region"], str) and "popularity" in x and (x["popularity"] is None or isinstance(x["popularity"], int)) for x in items), "region·popularity 키"
     assert any(x["popularity"] for x in exp["currentShows"]) and any(x["popularity"] for x in exp["works"]) and exp["popularityAsOf"] == real_asof, "KOPIS 공연과 시드 작품 모두에 순위가 붙는다"
+    # 본 공연 기록하기: 회차표 → KOPIS 공연. 제목 앞뒤 글자·괄호가 달라도 작품 이름으로 시작하면 찾고, 공연 기간 밖 회차는 안 붙는다
+    assert _title_key("뮤지컬 〈디어 에반 핸슨〉 (Musical) [서울]") == "디어에반핸슨musical서울"
+    lc = load_log_casts([{"id": "PX1", "title": "디어 에반 핸슨 (Musical Dear Evan Hansen) [서울]", "start": "2026-08-01", "end": "2026-11-01"},
+                         {"id": "PX2", "title": "디어 에반 핸슨 [부산]", "start": "2027-01-01", "end": "2027-02-01"}, {"id": "PX3", "title": "엘리자벳", "start": "2026-08-16", "end": "2026-11-15"}])
+    assert set(lc) == {"PX1"} and [r for r, _ in lc["PX1"]["roles"]][:4] == ["에반 핸슨", "하이디 핸슨", "코너 머피", "조이 머피"], lc.keys()
+    assert all(len(c) == len(lc["PX1"]["roles"]) for _, _, c in lc["PX1"]["perfs"]) and dict(lc["PX1"]["roles"])["조이 머피"], "조이 머피 이후 배역도 배우가 다 있다"
     print("selftest ok")
 
 
