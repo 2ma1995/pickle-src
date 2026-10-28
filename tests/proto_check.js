@@ -7,7 +7,8 @@ const block = name => { const m = html.match(new RegExp("// <" + name + ">([\\s\
 const names = "entryRoute, tasteNext, showRef, allShows, showNext, dayHash, calDays, homeRecs, comboRecs, comboEvidence, togglePin, pinsOf, pinStateOf, resetCombo, tasteSnapshot, comboRecord, comboChoiceRecord, shownCombos, pickRecord, actorRecord, " +
   "chipDirs, chipList, draftScore, draftChip, draftActor, applyComboRating, applyActorRating, wrongOf, pinAskOf, setPin, answerPinAsk, DUEL_MAX, duelNext, duelMore, duelCanMore, duelRecord, applyDuel, duelDone, duelTags, dueVisit, answerVisit, skipVisit, addAgain, " +
   "makeTracker, buildVocab, EVENTS, CHIPS, ALGO_VER, TRACK_CFG, TASTE_CARDS, MUSIC_CARDS, " +
-  "homeRows, areaOf, leadRolesOf, defaultSel, curSel, selPerfs, selDates, setSel, setSelCast, relaxHints, monthRange, calMonthOf, calMove, calDayOf, priceMin, priceMinText, duelStatus, iga, likeCurrent, byPopularity, regionTabs, regionKeyOf, showsIn, OTHER_REGION, vrOf, tasteSnapRecord, hiddenShows, hideShow, unhideShow, similarWorks, askActorOf, askTagList";
+  "homeRows, areaOf, leadRolesOf, defaultSel, curSel, selPerfs, selDates, setSel, setSelCast, relaxHints, monthRange, calMonthOf, calMove, calDayOf, priceMin, priceMinText, duelStatus, iga, likeCurrent, byPopularity, regionTabs, regionKeyOf, showsIn, OTHER_REGION, vrOf, tasteSnapRecord, hiddenShows, hideShow, unhideShow, similarWorks, askActorOf, askTagList, " +
+  "SAT, SAT_WHY, setSat, setSatWhy, satOf, likeBonus, satBlocked, shownRecs, recAgain, satRecord, REVIEW_RATES, reviewRoles, reviewChips, reviewLabel, newReview, setRvRate, toggleRvTag, toggleRvCombo, swapRvActor, saveReview, reviewOf, reviewRows, usableReviewTags, reviewSuggest, applySuggest, reviewRecord, fitPairs, logPerfs";
 const L = new Function(block("personal-weights") + block("taste-first") + block("proto-flow") + block("track") + "; return {" + names + "};")();
 const {entryRoute, tasteNext, showRef, allShows, showNext, dayHash, calDays, homeRecs, comboRecs, comboEvidence, togglePin, pinStateOf, resetCombo, tasteSnapshot, comboRecord, comboChoiceRecord, shownCombos, pickRecord, actorRecord,
   chipDirs, chipList, draftScore, draftChip, draftActor, applyComboRating, applyActorRating, wrongOf, pinAskOf, answerPinAsk, duelNext, duelMore, duelCanMore, duelRecord, applyDuel, duelDone, dueVisit, answerVisit, skipVisit, addAgain, makeTracker, buildVocab, EVENTS, CHIPS, TRACK_CFG, homeRows, areaOf, leadRolesOf, defaultSel, curSel, selPerfs, selDates, setSel, setSelCast, relaxHints, monthRange, calMonthOf, calMove, calDayOf, priceMin, priceMinText, duelStatus, iga, likeCurrent, byPopularity, regionTabs, regionKeyOf, showsIn, OTHER_REGION, vrOf, tasteSnapRecord, hiddenShows, hideShow, unhideShow, similarWorks, askActorOf, askTagList} = L;
@@ -211,6 +212,78 @@ addAgain(S, 0, ["a1", "b1", "a2", "x"]); eq([S.plans[0].again, S.prefs.favs], [[
 S = fresh({plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1"}}]}); skipVisit(S, 0); ok(dueVisit(S, FROM) === -1 && !S.plans[0].tagged && S.tags.length === 0, "나중에: 다시 안 묻고 기록은 안 남는다");
 S = fresh({plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1"}}]}); answerVisit(S, 0, {score: 3, chips: []}); ok(S.tags[0].mood === "meh"); S.plans[0].mood = ""; S = fresh({plans: [{date: "2026-10-01", time: "1", cast: {}, work: W}]}); answerVisit(S, 0, {score: 1, chips: []}); ok(S.tags[0].mood === "bad", "3점 meh · 1~2점 bad");
 
+// ===== 4b. v0.9 조합 만족도(docs/261027_2 10.2·10.3절, 결정 41·45·52) =====
+{ const {SAT, SAT_WHY, setSat, setSatWhy, satOf, likeBonus, satBlocked, shownRecs, recAgain, satRecord} = L;
+  let S = fresh(); const recs0 = comboRecs(D, S, W, FROM), c0 = recs0[0];
+  ok(SAT.map(x => x[1]).join("/") === "이 조합이 마음에 들어요/별로예요/모르겠어요" && SAT_WHY.some(x => x[1] === "추천 이유가 와닿지 않아요"), "만족도 3지선다 + '누구 때문인가요?'에 '추천 이유가 와닿지 않아요'(결정 52)");
+  ok(setSat(S, W, c0.key, c0.cast, "like", RUN, 1) === "like" && setSat(S, W, c0.key, c0.cast, "like", RUN, 1) === "" && !satOf(S, W)[c0.key], "같은 답을 다시 누르면 풀린다");
+  ok(setSat(S, W, c0.key, c0.cast, "meh") === null, "정해진 답만");
+  setSat(S, W, c0.key, c0.cast, "unsure", RUN, 1); ok(setSatWhy(S, W, c0.key, "combo") === null, "'누구 때문인가요?'는 별로예요에만");
+  setSat(S, W, c0.key, c0.cast, "dislike", RUN, 1);
+  ok(setSatWhy(S, W, c0.key, "", "없는배우") === null && setSatWhy(S, W, c0.key, "", Object.values(c0.cast)[0]).why === "actor" && setSatWhy(S, W, c0.key, "reason").why === "reason" && !satOf(S, W)[c0.key].actor, "배우는 그 조합의 배우만, 코드는 SAT_WHY 만");
+  ok(!comboRecs(D, S, W, FROM).some(c => c.key === c0.key) && satBlocked(S, W, c0.key, RUN) && !satBlocked(S, W, c0.key, "다른 시즌"), "별로예요 조합은 이번 시즌 동안 다시 추천하지 않는다");
+  eq(satRecord(D, S, W, c0.key), {work: W, run: RUN, cast: c0.cast, answer: "dislike", order: 1, why: "reason"}, "combo_fit 기록 한 줄");
+  // 마음에 들어요: 배우당 +0.5, 같은 배우는 한 번, 조합당 +1.5까지
+  S = fresh(); const L2 = recs0.find(c => c.key !== c0.key);
+  setSat(S, W, c0.key, c0.cast, "like"); setSat(S, W, L2.key, L2.cast, "like");
+  const names = [...new Set([...Object.values(c0.cast), ...Object.values(L2.cast)])];
+  ok(likeBonus(S, W, Object.values(c0.cast)) === Object.values(c0.cast).length * 0.5 && likeBonus(S, W, ["x"]) === 0, "마음에 들어요 조합의 배우는 배우당 +0.5");
+  ok(likeBonus({proto: {sat: {[W]: {k: {a: "like", cast: {A: "p", B: "q", C: "r", D: "s"}}}}}}, W, ["p", "q", "r", "s"]) === 1.5, "조합당 +1.5까지");
+  ok(likeBonus(S, W, [Object.values(c0.cast)[0]]) === 0.5, "같은 배우가 두 조합에서 받아도 한 번만");
+  const withLike = comboRecs(D, S, W, FROM).find(c => c.key === c0.key), base = recs0.find(c => c.key === c0.key);
+  ok(withLike.score === base.score + withLike.liked && withLike.liked > 0, "마음에 들어요 → 그 작품 다음 추천 점수에 더해진다");
+  // 결과 카드 고정 · 다시 추천받기 1회
+  S = fresh(); const sh = shownRecs(D, S, W, FROM); const keys = sh.list.map(x => x.key);
+  ok(sh.list.length === Math.min(2, recs0.length) && !sh.again, "추천 카드는 2개");
+  setSat(S, W, keys[0], sh.list[0].cast, "dislike"); eq(shownRecs(D, S, W, FROM).list.map(x => x.key), keys, "답해도 보여 준 카드는 그대로");
+  const nx = recAgain(D, S, W, FROM);
+  ok(!nx || (!keys.includes(nx.key) && shownRecs(D, S, W, FROM).list.length === 3 && shownRecs(D, S, W, FROM).again), "다시 추천받기: 보여 준 조합·별로예요 조합을 빼고 3번째 카드로");
+  ok(recAgain(D, S, W, FROM) === null, "다시 추천은 한 번만");
+  S.prefs.axes = ["섬세한 표현"]; ok(!shownRecs(D, S, W, FROM).again, "취향이 바뀌면 카드를 새로 고른다");
+}
+
+// ===== 4c. v0.9 관람 후 리뷰(docs/261027_2 11절, 결정 46~51) =====
+{ const {REVIEW_RATES, reviewRoles, reviewChips, reviewLabel, newReview, setRvRate, toggleRvTag, toggleRvCombo, swapRvActor, saveReview, reviewOf, reviewRows, usableReviewTags, reviewSuggest, applySuggest, reviewRecord, fitPairs, logPerfs, setSat} = L;
+  ok(REVIEW_RATES.map(x => x[1]).join("/") === "좋았어요/그냥 그랬어요/아쉬웠어요", "배우별 평가 3단계");
+  const p1 = D.perfs[0]; eq(reviewRoles(D, W, p1.cast), ["A", "B", "C"], "리뷰 줄은 그 회차 핵심 배역 전체(조연 포함, roles 순서)");
+  ok(reviewRoles({roles: {"시카고": [{role: "벨마 켈리", cast: ["x"]}, {role: "에이모스 하트", cast: ["y"]}]}}, "시카고", {"벨마 켈리": "x", "에이모스 하트": "y"}).join() === "벨마 켈리", "시카고 에이모스 하트·메리 선샤인은 리뷰 줄에서 뺀다(결정 28)");
+  let S = fresh(); eq(reviewChips(D, S, W, "A", "a1"), {from: 2, tags: ["성량"]}, "② 온보딩 태그");
+  S.cal = {[W]: {edited: true, axes: ["섬세한 표현"]}}; eq(reviewChips(D, S, W, "A", "a1"), {from: 1, tags: ["감정 전달형"]}, "① 이 작품에서 고친 기대 값이 먼저");
+  S = fresh({prefs: {axes: [], works: [], favs: [], grade: ""}}); eq(reviewChips(D, S, W, "B", "b2"), {from: 3, tags: ["감정 전달형"]}, "③ 태그를 하나도 안 고른 사람은 이 배우의 이번 배역 태그");
+  const Dp = {...D, actorTags: {[W]: {}}, actorProfiles: {a2: {voice: [{tag: "성량"}], role: []}}}; eq(reviewChips(Dp, S, W, "A", "a2"), {from: 4, tags: ["성량"]}, "④ 그것도 없으면 다른 작품 태그");
+  eq(reviewChips({...Dp, actorProfiles: {}}, S, W, "A", "a2"), {from: 0, tags: []}, "띄울 태그가 없으면 from 0(안내 + ＋ 다른 점)");
+  const Dc = {...D, comboTagLabels: {"음색·보컬 조화": "x"}, actorTagLabels: {"성량": "음색"}}; ok(!reviewChips(Dc, fresh({prefs: {axes: ["tag:음색·보컬 조화", "tag:성량"], works: [], favs: [], grade: ""}}), W, "A", "a1").tags.includes("음색·보컬 조화"), "조합 태그는 배우 줄에 띄우지 않는다(결정 47)");
+  ok(reviewLabel("감정 전달형") === "감정이 전해지는 노래" && reviewLabel("성량") === "공간을 채우는 성량" && reviewLabel("없는태그") === "없는태그", "온보딩 질문에서 온 태그는 온보딩 문구로");
+  const rv = newReview(D, p1);
+  ok(setRvRate(rv, "A", "good") === "good" && setRvRate(rv, "A", "good") === "" && !rv.rows.A && setRvRate(rv, "Z", "good") === null, "평가는 다시 누르면 풀리고, 없는 배역은 무시");
+  setRvRate(rv, "A", "good"); ["성량", "고음", "딕션"].forEach(t => toggleRvTag(rv, "A", t));
+  ok(toggleRvTag(rv, "A", "맑음") === false && rv.rows.A.tags.length === 3, "태그는 3개까지(4번째는 막는다)");
+  setRvRate(rv, "A", "bad"); ok(rv.rows.A.tags.length === 0, "평가를 바꾸면 태그를 비운다(좋았던 점 ↔ 아쉬웠던 점)");
+  setRvRate(rv, "B", "meh"); ok(toggleRvTag(rv, "B", "성량") === null, "그냥 그랬어요는 태그를 묻지 않는다");
+  toggleRvTag(rv, "A", "성량"); setRvRate(rv, "C", "good"); toggleRvTag(rv, "C", "성량");
+  toggleRvCombo(rv, "연기합·티키타카"); toggleRvCombo(rv, "?"); eq(rv.combo, ["?"], "'잘 모르겠어요'는 다른 칩과 같이 못 고른다");
+  toggleRvCombo(rv, "a"); toggleRvCombo(rv, "b"); toggleRvCombo(rv, "c"); ok(toggleRvCombo(rv, "d") === false && rv.combo.join() === "a,b,c", "어울림 칩도 3개까지");
+  ok(!swapRvActor(D, rv, "A", "b1") && swapRvActor(D, rv, "A", "a2") && rv.cast.A === "a2" && rv.rows.A.rate === "bad", "다른 배우였어요: 그 배역 배우로만 바꾸고 평가는 바꾼 배우에게");
+  S = fresh(); const out = saveReview(D, S, rv, "log", "2026-11-02");
+  ok(S.reviews.length === 1 && reviewOf(S, W, p1.date, p1.time) === out && S.plans.length === 1 && S.plans[0].tagged, "본 공연 기록하기: 저장하면 그 회차가 내 공연 '본 공연'에 들어간다");
+  rv.note = "고침"; saveReview(D, S, rv, "log"); ok(S.reviews.length === 1 && S.reviews[0].note === "고침" && S.plans.length === 1, "한 회차에 리뷰 1개(다시 저장하면 고친다)");
+  const rows = reviewRows(S.reviews, "u1");
+  eq(rows.map(r => [r.actor, r.tag, r.sign]), [["a2", "성량", "-"], ["c1", "성량", "+"]], "좋았던 점은 +, 아쉬웠던 점은 −, 그냥 그랬어요는 행이 없다");
+  ok(usableReviewTags(rows).length === 0, "한 사람만 남긴 태그는 점수에 안 쓴다(결정 49)");
+  const two = usableReviewTags([...rows, ...rows, {user: "u2", work: W, role: "C", actor: "c1", tag: "성량", sign: "+"}, {user: "u2", work: W, role: "A", actor: "a2", tag: "성량", sign: "-"}, {user: "u3", work: W, role: "A", actor: "a2", tag: "성량", sign: "-"}]);
+  eq(two.map(r => [r.user, r.actor, r.tag]), [["u1", "c1", "성량"], ["u2", "c1", "성량"]], "서로 다른 사용자 2명 이상인 좋았던 점만, 사용자마다 한 줄(아쉬웠던 점은 2명이어도 안 쓴다)");
+  S.prefs.favs = ["c1"]; eq(reviewSuggest(S, out), [{actor: "a2", kind: "avoid"}], "리뷰 뒤 제안: 이미 들어 있는 배우는 묻지 않는다(저장 당시 배우 기준)");
+  applySuggest(S, [{actor: "c1", kind: "avoid"}, {actor: "b1", kind: "fav"}]); ok(!S.prefs.favs.includes("c1") && S.prefs.avoid.includes("c1") && S.prefs.favs.includes("b1"), "체크한 것만 넣고, 반대쪽에 있던 배우는 뺀다");
+  const recd = reviewRecord(D, S.reviews[0]); ok(recd.entry === "log" && recd.actors.length === 3 && !("note" in recd) && recd.combo.length === 3, "after_review 기록: 배우별 평가·태그, 주관식은 안 보낸다");
+  const m = new Map(), T = makeTracker({get: k => m.has(k) ? m.get(k) : null, set: (k, v) => m.set(k, String(v)), del: k => m.delete(k), uuid: () => crypto.randomUUID(), session: crypto.randomUUID(), version: "t", vocab: buildVocab(D), send: async () => { throw new Error("x"); }}, {...TRACK_CFG});
+  ok(T.track("after_review", {...recd, combo: []}) && T.track("combo_fit", {work: W, cast: {A: "a1", B: "b1"}, answer: "dislike", why: "reason", order: 2}), "after_review·combo_fit 이 기록기 검사를 통과한다");
+  // 결정 53: 중간 만족도와 관람 후 평가를 같은 조합으로 묶는다
+  const S5 = fresh(); const pk = comboRecs(D, S5, W, "2026-10-01").find(c => c.cast.A === "a1" && c.cast.B === "b1");
+  setSat(S5, W, pk.key, pk.cast, "like"); const rv5 = newReview(D, p1); setRvRate(rv5, "A", "good"); saveReview(D, S5, rv5);
+  eq(fitPairs(D, S5), [{work: W, date: p1.date, time: p1.time, sat: "like", rates: ["good"]}], "마음에 들 것 같다던 조합 → 관람 후 평가");
+  ok(logPerfs(D, W, "2026-11-03").map(p => p.date).join() === "2026-11-02,2026-11-01", "본 공연 기록하기: 지난 회차만, 최근 순, 대관 제외");
+}
+
 // ===== 5. 기록기 =====
 const vocab = buildVocab(D);
 const uid = () => crypto.randomUUID();
@@ -240,7 +313,7 @@ for (const [bad, why] of [[{work: "아".repeat(100)}, "긴 글"], [{work: "없�
   eq(t2.queue()[0].payload.chips, [{chip: "voice", dir: "+"}, {chip: "actor", dir: "-", actors: ["a1"]}], "칩: 모르는 칩·방향·배우 이름 제외");
   eq(t2.queue()[0].payload.taste, {axes: {"강한 성량": 1}, favs: ["a1"], tags: ["성량"]}, "취향: 모르는 축·범위 밖 값·이름·긴 글·모르는 키 제외"); }
 ok(makeTracker(mkEnv(), {...TRACK_CFG}).track("app_open", {}) === false && makeTracker(mkEnv(), {...TRACK_CFG}).track("page_view", {x: 1}) === false, "사용 지표 이벤트는 정의서에 없어서 기록되지 않는다");
-eq(Object.keys(EVENTS), ["combo_rating", "combo_choice", "actor_pick", "role_duel", "actor_rating", "video_reaction", "taste_snapshot", "rec_feedback"], "이벤트 8종(영상 반응·취향 스냅숏·추천 줄 피드백 포함)");
+eq(Object.keys(EVENTS), ["combo_rating", "combo_choice", "actor_pick", "role_duel", "actor_rating", "video_reaction", "taste_snapshot", "rec_feedback", "combo_fit", "after_review"], "이벤트 10종(조합 만족도·관람 후 리뷰 포함, docs/261027_2 v0.9)");
 { const e2 = mkEnv(), t2 = makeTracker(e2, {...TRACK_CFG, maxBytes: 120}); ok(t2.track("combo_rating", good()) === false && t2.queue().length === 0, "기록 하나가 한도(4KB)를 넘으면 버린다"); }
 { const e2 = mkEnv(), t2 = makeTracker(e2, {...TRACK_CFG, cap: 5}); for (let i = 0; i < 8; i++) t2.track("combo_rating", good()); const qq = t2.queue(); ok(qq.length === 5 && qq[0].payload.seq === 3, "큐는 200건(여기선 5)까지, 오래된 것부터 버린다"); }
 { const e2 = mkEnv({uuid: () => null}), t2 = makeTracker(e2, {...TRACK_CFG}); ok(t2.track("combo_rating", good()) === false && t2.queue().length === 0, "무작위 번호를 못 만들면 기록하지 않는다(대체 난수 없음)"); }
@@ -373,8 +446,43 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     eq(h2(html2), ["누구로 볼까요?", "이 조합으로 볼 수 있는 날"], "덩어리 제목은 둘(요약은 카드)");
     ok(/<h1>극<\/h1>/.test(html2) && /정보 더 보기/.test(html2) && /class="why1 big"/.test(html2) === false || true, "요약에 제목·[정보 더 보기]");
     for (const old of ["왜 추천했어요?", "공연 정보</h3>", "작품 분위기", "다음 추천 조합</h3>", "추천 조합 <span", ">주연<"]) ok(!html2.includes(old), "옛 섹션이 없다: " + old);
-    ok(!/이상형 월드컵/.test(html2) && !/class="card fb"/.test(html2) && !/이 조합 어때요/.test(html2), "공연 화면에 월드컵도 '이 조합 어때요?' 카드도 없다");
+    ok(!/이상형 월드컵/.test(html2) && !/class="card fb"/.test(html2), "공연 화면에 월드컵도 별점 평가 카드도 없다");
+    { const nCard = (html2.match(/class="card rcard"/g) || []).length;  // v0.9(docs/261027_2 10.2절): 추천 조합 카드마다 '이 조합 어때요?' 3지선다, 답 안 해도 된다
+      ok(nCard >= 1 && nCard <= 2 && (html2.match(/이 조합 어때요\?/g) || []).length === nCard && (html2.match(/data-act="sat" /g) || []).length === nCard * 3 && /이 조합이 마음에 들어요/.test(html2) && !/누구 때문인가요/.test(html2), "추천 조합 카드(2개까지)마다 '이 조합 어때요?' 마음에 들어요/별로예요/모르겠어요"); }
     ok((html2.match(/pickc on/g) || []).length === 2 && !/PICK/.test(html2) && (html2.match(/class="pickb">추천 조합</g) || []).length === 1 && /class="chip x on" data-act="selCombo" data-work="극" data-i="0"/.test(html2), "추천 조합(1순위)이 미리 선택돼 있고, 배우 칩엔 PICK 배지가 없고 '추천 조합' 표시는 조합 선택 칸에 한 번만");
+    // v0.9 조합 만족도 화면(10.2·10.3절): 별로예요 → 누구 때문인가요? → 배우 → 피하고 싶은 배우 추가(동의할 때만)
+    { const sa = boot(); sa.location.hash = "#show/" + W; sa.route();
+      sa.click({act: "sat", work: W, i: "0", a: "dislike"}); let hs = sa.V.show(W);
+      ok(/누구 때문인가요\?/.test(hs) && /조합 자체가 별로예요/.test(hs) && /추천 이유가 와닿지 않아요/.test(hs) && /넘어가기/.test(hs), "별로예요 → '누구 때문인가요?' 배우 칩 + 조합 자체 · 추천 이유 · 넘어가기");
+      const c0 = sa.S.proto.shown[W].list[0], a0 = Object.values(c0.cast)[0];
+      sa.click({act: "satWhy", work: W, i: "0", who: a0}); hs = sa.V.show(W);
+      ok(hs.includes(`${a0} 배우를 피하고 싶은 배우에 추가할까요?`) && !(sa.S.proto.pins?.[W]?.avoid || []).includes(a0), "배우를 고르면 추가할지 묻고, 묻기만 해서는 빼지 않는다");
+      sa.click({act: "satAvoid", work: W, i: "0", y: "1"});
+      ok(sa.S.proto.pins[W].avoid.includes(a0) && sa.S.proto.shown[W].list[0].key === c0.key && sa.V.show(W).includes(`${a0} 배우를 이 작품에서 뺐어요`), "동의하면 이 작품에서만 빼고, 보여 준 카드는 그대로");
+      const ev = JSON.parse(sa.store.get("pickle_q") || "[]").map(r => r.event); ok(ev.filter(e => e === "combo_fit").length === 2 && ev.includes("actor_pick"), "combo_fit(답 · 누구 때문인가요) 두 줄과 actor_pick 한 줄");
+      const sb2 = boot(); sb2.location.hash = "#show/" + W; sb2.route(); sb2.click({act: "sat", work: W, i: "1", a: "like"});
+      ok(/좋아한 조합으로 기억할게요/.test(sb2.V.show(W)), "마음에 들어요 → 좋아한 조합 안내");
+      sb2.click({act: "recAgain", work: W}); hs = sb2.V.show(W);
+      ok((hs.match(/class="card rcard"/g) || []).length === 3 && /다시 추천은 한 번만 할 수 있어요/.test(hs) && !/data-act="recAgain"/.test(hs) && (hs.match(/aria-pressed="true">이 조합이 마음에 들어요/g) || []).length === 1, "다시 추천받기: 3번째 카드가 붙고 버튼은 안내로 바뀐다(앞 카드 답은 그대로)"); }
+    // v0.9 관람 후 리뷰(11.1절) · 본 공연 기록하기(11.2절): 담지 않은 지난 회차도 누구나
+    { const ra = loadApp(HD, {...opts, now: "2026-11-03T12:00:00", hash: "#log"}); ra.route();
+      ok(/어떤 작품을 봤어요\?/.test(ra.V.log()) && /href="#log\/극"/.test(ra.V.log()), "본 공연 기록하기: 지난 회차가 있는 작품");
+      const lg = ra.V.log(W); ok(/href="#review\/극\/2026-11-02\/14:00"/.test(lg) && /href="#review\/극\/2026-11-01\/14:00"/.test(lg) && !/2026-11-04|2026-11-05/.test(lg), "지난 회차만 최근 순(앞으로 있을 회차·대관 제외)");
+      ra.location.hash = "#review/극/2026-11-01/14:00"; ra.route(); let rh = ra.V.review(W, "2026-11-01", "14:00");
+      ok(/극 공연 어땠어요\?/.test(rh) && (rh.match(/class="rvrow"/g) || []).length === 3 && !/어떤 점이 좋았나요/.test(rh) && /비공개 글은 나만 볼 수 있어요/.test(rh), "배우마다 한 줄(조연 포함), 평가 전엔 태그 없음, 주관식 기본 비공개");
+      ra.click({act: "rvRate", r: "A", v: "good"}); rh = ra.V.review(W, "2026-11-01", "14:00");
+      ok(/어떤 점이 좋았나요\? <span>\(3개까지\)/.test(rh) && /data-act="rvTag" data-r="A" data-t="성량"[^>]*>공간을 채우는 성량</.test(rh), "좋았어요 → 칩(온보딩 태그를 온보딩 문구로)");
+      ra.click({act: "rvRate", r: "B", v: "bad"}); ok(/어떤 점이 아쉬웠나요\?/.test(ra.V.review(W, "2026-11-01", "14:00")), "아쉬웠어요 → '어떤 점이 아쉬웠나요?'");
+      ra.click({act: "rvTag", r: "A", t: "성량"}); ra.click({act: "rvSwapOpen", r: "A"}); ra.click({act: "rvSwap", r: "A", a: "a2"});
+      ok(ra.S.proto.rdraft.rv.cast.A === "a2" && ra.S.proto.rdraft.rv.rows.A.tags.join() === "성량", "다른 배우였어요: 평가·태그는 바꾼 배우에게");
+      ra.click({act: "rvPub", v: "1"}); ok(/공개하면 다른 사람의 추천 근거 문장에 이름 없이 보일 수 있어요/.test(ra.V.review(W, "2026-11-01", "14:00")), "공개를 고르면 안내");
+      ra.click({act: "rvSave"}); rh = ra.V.review(W, "2026-11-01", "14:00");
+      ok(/저장했어요/.test(rh) && /a2 배우를 꼭 보고 싶은 배우\(가능하면 포함\)에 넣기/.test(rh) && /b1 배우를 피하고 싶은 배우에 넣기/.test(rh) && /data-act="rvSug" data-y="1" disabled/.test(rh), "저장 뒤 배우 조건 제안(기본은 선택 안 됨)");
+      const q = JSON.parse(ra.store.get("pickle_q") || "[]").filter(r => r.event === "after_review"); ok(q.length === 1 && q[0].payload.entry === "log" && q[0].payload.actors.length === 2 && !JSON.stringify(q[0].payload).includes("note"), "after_review 한 줄(주관식 원문 없음)");
+      ra.click({act: "rvPick", a: "a2", k: "fav"}); ra.click({act: "rvSug", y: "1"});
+      ok(ra.S.prefs.favs.includes("a2") && !(ra.S.prefs.avoid || []).includes("b1") && ra.location.hash === "#plans" && ra.S.plans.length === 1 && ra.S.plans[0].tagged && ra.S.reviews.length === 1, "체크한 배우만 넣고 내 공연으로. 담지 않았던 회차도 본 공연에 들어간다");
+      ok(/기록 남김 ✓ <a href="#tag\/0">고치기<\/a>/.test(ra.V.plans()) || (ra.click({act: "plansTab", t: "done"}), /기록 남김 ✓ <a href="#tag\/0">고치기<\/a>/.test(ra.V.plans())), "남긴 리뷰는 내 공연에서 다시 열어 고칠 수 있다");
+      ra.location.hash = "#tag/0"; ra.route(); ok(ra.S.proto.rdraft.rv.rows.A.rate === "good" && ra.S.proto.rdraft.rv.pub === true, "다시 열면 남긴 리뷰가 채워져 있다(한 회차 1개)"); }
     ok((html2.match(/class="actorx"/g) || []).length === 2 && (html2.match(/<div class="month"/g) || []).length === 1, "배우 특징은 고른 배우만(배역마다 1명), 달력은 한 달 하나");
     ok(/조연도 보기/.test(html2) && !/class="actor"/.test(html2.split("조연도 보기")[0].split('id="cast"')[1] || ""), "조연은 접혀 있다");
     eq(app.CTA, {act: "toDates", text: "이 조합으로 날짜 보기 ↓"}, "폰 아래 고정 버튼은 ②의 주 버튼(날짜로)");
@@ -578,7 +686,8 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     ok((sb.match(/class="star on"/g) || []).length === 3 && /aria-pressed="true"/.test(sb) && /끌린 점이 있나요\?/.test(sb) && /안 맞은 점이 있나요\?/.test(sb), "별을 누르면 바로 그 점수가 선택되고(별 3개 켜짐) 칩이 이어서 나온다");
     app9.click({act: "rateScore", id: Object.keys(app9.RATE_CTX)[0], n: "3"}); ok(((app9.sheetBody().match(/class="star on"/g)) || []).length === 0, "같은 별을 다시 누르면 해제");
     const vis = loadApp(HD2, {...opts, storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: [], grade: ""}, plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1", B: "b1", C: "c1"}, tagged: false}], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); vis.route();
-    ok((vis.V.home().match(/class="star /g) || []).length === 5 && /<span>별로였어요<\/span><span>아주 좋았어요<\/span>/.test(vis.V.home()), "관람 후 질문도 같은 별점, 양 끝은 '별로였어요 / 아주 좋았어요'");
+    { const vh = vis.V.home();  // v0.9(docs/261027_2 11절): 홈의 관람 후 카드는 별점 없이 리뷰 화면으로 보낸다(배우별 평가는 리뷰에서)
+      ok(!/class="star /.test(vh) && /극 공연 어땠어요\?/.test(vh) && /href="#tag\/0">기록 남기기</.test(vh) && /data-act="visitSkip" data-i="0"/.test(vh), "관람 후 알림 카드: '○○ 공연 어땠어요?' + [기록 남기기]·[나중에], 별점 없음"); }
     const dh = app9.V.duel(W); ok(/끌리는 배우 고르기 · 극/.test(dh) && /\d+\/\d+번째/.test(dh) && !/월드컵|이상형|판\)|\d+판/.test(dh), "끌리는 배우 고르기: 이름과 'n/m번째'(월드컵·승패 말 없음)");
     app9.click({act: "duel", work: W, r: "left"}); app9.click({act: "duel", work: W, r: "tie"}); ok(/2번 골랐어요/.test(app9.V.duel(W)), "고른 횟수는 'n번 골랐어요'");
     ok(/>한 번 더 고를래요</.test(html) && !/>더 해 볼래요</.test(html), "'더 해 볼래요' → '한 번 더 고를래요'");
@@ -1144,8 +1253,8 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         const oldRoutes = ["#works", "#pick/" + W0, "#when/" + W0 + "/unseen", "#result", "#cal/" + W0, "#day/" + W0 + "/" + fut[0].date, "#cshow/PF0", "#onboard/2", "#detail/없는작품/2026-10-12/14:00"];
         for (const h of oldRoutes) { const [name, ...args] = decodeURIComponent(h.slice(1)).split("/"); let out; try { out = a1.V[name](...args); } catch (e) { throw new Error("예전 주소 " + h + " 가 깨졌다: " + e.message); } ok(typeof out === "string" && out.length > 20, "예전 주소 " + h + " 도 깨지지 않고 화면이 나온다(없는 회차는 안내 한 줄)"); }
         // 예전 관람 기록은 추천에 그대로 합쳐지고, 지난 볼 예정은 관람 후 질문으로 이어진다
-        ok(!!(a1.D.actorTags[W0] && a1.D.actorTags[W0][actorOf(past[0])] || []).find(r => r.src === "내 관람" && r.tag === "성량"), "예전 관람 기록(태그)이 추천 데이터에 합쳐진다");
-        ok(/class="star /.test(a1.V.home()) && /다녀오셨어요/.test(a1.V.home()), "지난 볼 예정(예전 앱에서 담은 것)은 홈에서 관람 후 질문으로 이어진다");
+        ok(!((a1.D.actorTags[W0] && a1.D.actorTags[W0][actorOf(past[0])]) || []).some(r => r.src === "내 관람" || /^관람평:/.test(r.src || "")), "이 기기 혼자 남긴 관람 태그는 추천 데이터에 합치지 않는다(결정 49: 서로 다른 사용자 2명 이상)");
+        ok(/공연 어땠어요\?/.test(a1.V.home()) && /href="#tag\/\d+">기록 남기기</.test(a1.V.home()), "지난 볼 예정(예전 앱에서 담은 것)은 홈에서 관람 후 리뷰로 이어진다");
         // 저장해도 예전 키는 그대로: 여러 동작 뒤에도 예전 값이 같고, 새로 생긴 건 덧붙이기뿐
         const before = JSON.parse(JSON.stringify(L0));
         a1.click({act: "areaTab", t: "대학로"}); a1.click({act: "themeToggle"}); a1.click({act: "obGo", to: "2"}); a1.click({act: "pin", work: W0, a: actorOf(fut[0]), k: "star"});
@@ -1155,12 +1264,12 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         eq({prefs: s1.prefs, query: s1.query, cal: s1.cal, votes: s1.votes, likes: s1.likes, stats: s1.stats, requests: s1.requests, noPersonal: s1.noPersonal, plansTab: s1.plansTab}, {prefs: before.prefs, query: before.query, cal: before.cal, votes: before.votes, likes: before.likes, stats: before.stats, requests: before.requests, noPersonal: before.noPersonal, plansTab: before.plansTab}, "취향·질의·달력·투표·설문·통계·요청·설정은 저장 뒤에도 값이 그대로다");
         eq(s1.plans.slice(0, 3), before.plans, "예전 볼 예정 3건은 그대로(새로 담은 건 뒤에 덧붙는다)"); ok(s1.plans.length === 4 && s1.plans[3].work === W0 && s1.plans[3].date === fut[1].date, "새 볼 예정은 덧붙기만 했다");
         eq(s1.tags.slice(0, 1), before.tags, "예전 관람 기록은 그대로");
-        ok(Object.keys(s1).every(k => legacyKeys.includes(k) || ["proto"].includes(k)), "새로 생긴 최상위 키는 proto 하나뿐: " + Object.keys(s1).filter(k => !legacyKeys.includes(k)));
+        ok(Object.keys(s1).every(k => legacyKeys.includes(k) || ["proto", "reviews"].includes(k)), "새로 생긴 최상위 키는 proto·reviews(관람 후 리뷰)뿐: " + Object.keys(s1).filter(k => !legacyKeys.includes(k)));
         const newKeys = [...a1.store.keys()].filter(k => k !== "pickle_v2"); ok(newKeys.every(k => ["pickle_anon", "pickle_q", "pickle_track_off", "pickle_theme"].includes(k)), "저장소에 새로 생긴 키는 익명 ID·기록 큐·기록 설정·판뿐: " + newKeys);
         // 관람 후 질문에 답해도 예전 기록이 지워지지 않는다(기록이 덧붙는다)
-        const a2 = boot(L0); a2.route(); const rid = Object.keys(a2.RATE_CTX)[0] || (a2.V.home(), Object.keys(a2.RATE_CTX)[0]);
-        a2.click({act: "rateScore", id: Object.keys(a2.RATE_CTX)[0], n: "5"}); a2.click({act: "rateSend", id: Object.keys(a2.RATE_CTX)[0]}); const s2 = snap(a2);
-        ok(s2.tags.length === 2 && JSON.stringify(s2.tags[0]) === JSON.stringify(before.tags[0]) && s2.tags[1].mood === "good" && s2.plans[0].date === before.plans[0].date && s2.likes.length === 1 && s2.votes.length === 1, "관람 후 평가: 예전 기록은 그대로, 새 기록은 덧붙기");
+        const a2 = boot(L0); a2.location.hash = "#tag/0"; a2.route(); const role0 = Object.keys(a2.S.proto.rdraft.rv.cast)[0];
+        a2.click({act: "rvRate", r: role0, v: "good"}); a2.click({act: "rvSave"}); const s2 = snap(a2);
+        ok(s2.tags.length === 1 && JSON.stringify(s2.tags[0]) === JSON.stringify(before.tags[0]) && s2.reviews.length === 1 && s2.reviews[0].rows[role0].rate === "good" && s2.plans[0].date === before.plans[0].date && s2.plans[0].tagged && s2.likes.length === 1 && s2.votes.length === 1, "관람 후 리뷰: 예전 기록은 그대로, 새 리뷰는 reviews 에 덧붙기");
         // 예전 상태에 새 키가 이미 섞여 있어도(다시 열기) 예전 키를 덮어쓰지 않는다
         const a3 = boot(s1, "", {pickle_theme: "dark", pickle_anon: "11111111-2222-4333-8444-555555555555", pickle_track_off: "1"});
         ok(a3.location.hash === "#home" && a3.TRK.isOff() && a3.store.get("pickle_anon") === "11111111-2222-4333-8444-555555555555", "저장된 기록 설정(끔)·익명 ID 는 다시 열어도 그대로 읽는다(기록 끔이면 ID 를 새로 안 만든다)");
@@ -1199,9 +1308,12 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         // 문구 통일 세부
         const meP = scrP["#me"]; ok(/노래|맑고 부드러운 음색/.test(meP) && !/<span class="tag hit">(가창|맑은 음색|강한 성량|감정 크게)<\/span>/.test(meP), "내 취향에 고른 취향이 홈과 같은 말(노래·맑고 부드러운 음색)로 보인다");
         ok(/<h2>본 조합 기록<\/h2>/.test(scrP["#plans"]) && !/아카이브/.test(scrP["#plans"]), "내 공연: '내 캐스팅 아카이브' → '본 조합 기록'");
-        ok(/관람 기록 남기기/.test(scrP["#plans"]) && /관람 기록 남기기|관람 기록/.test(scrP["#tag/1"]) && /오늘 공연 어땠어요\?/.test(scrP["#tag/1"]) && /인상 깊었던 배우/.test(scrP["#tag/1"]) && !/가장 인상/.test(scrP["#tag/1"]), "보고 난 뒤 기록은 '관람 기록 남기기'로 통일, 높임말 통일('어땠어요?'), '가장 인상 깊었던' → '인상 깊었던'");
-        const tg = bootT(undefined); tg.location.hash = "#tag/1"; tg.V.tag("1"); tg.click({act: "tActor", a: Object.values(past[1].cast)[0], r: Object.keys(past[1].cast)[0]}); const tgH = tg.V.tag("1");
-        ok(/내 취향에 가까웠던 쪽/.test(tgH) && /다음 추천에 반영돼요/.test(tgH) && !/더 좋았던 쪽|비교 카드|PICK CAST/.test(tgH), "같은 배역 비교 안내(배우를 고르면 나오는 카드): '더 좋았던 쪽' → '내 취향에 가까웠던 쪽'");
+        ok(/관람 기록 남기기|본 공연 기록하기/.test(scrP["#plans"]) && /관람 기록/.test(scrP["#tag/1"]) && /공연 어땠어요\?/.test(scrP["#tag/1"]) && /배우마다 어땠어요\?/.test(scrP["#tag/1"]) && !/오늘 공연 어땠어요|인상 깊었던 배우|추천이 맞았어요/.test(scrP["#tag/1"]), "관람 후 리뷰(v0.9): '○○ 공연 어땠어요?' → 배우마다 평가. 예전 기분 3지선다·인상 깊었던 배우·점수 없음");
+        { const tg = bootT(undefined); tg.location.hash = "#tag/1"; tg.route(); const rv = tg.S.proto.rdraft.rv, roles = Object.keys(rv.cast), all = Object.keys(past[1].cast);
+          ok(roles.length >= 2 && roles.every(r => all.includes(r)), "실제 데이터: 리뷰 줄은 그 회차 핵심 배역 전체(주연/조연 구분 없음)");
+          tg.click({act: "rvRate", r: roles[0], v: "good"}); const h1 = tg.V.tag("1");
+          ok(/어떤 점이 좋았나요\?/.test(h1) && /＋ 다른 점/.test(h1) && /다른 배우였어요/.test(h1), "실제 데이터: 좋았어요 → '어떤 점이 좋았나요?' 칩 + ＋ 다른 점 + 다른 배우였어요");
+          tg.click({act: "rvMore", r: roles[0]}); const h2x = tg.V.tag("1"); ok(/캐릭터 해석|신체 표현|가창|연기/.test(h2x) && !/data-act="rvTag"[^>]*data-t="(연기합·티키타카|음색·보컬 조화)"/.test(h2x), "실제 데이터: ＋ 다른 점은 배우 태그 영역별 전체(조합 태그는 배우 줄에 없다)"); }
         ok(/취향 고르기 1\/2/.test(scrP["#taste/1"]) && /나의 PICKLE 취향|아직 비어 있는 내 취향 카드/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "온보딩은 1/2·2/2, 홈은 내 취향 카드, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
         ok(!/점수·순위/.test(scrP["#home"]) && /MY PICKLE TASTE/.test(scrP["#home"]) && !/지금 하는 공연 전체|내 취향 추천/.test(scrP["#home"]), "홈: 점수·순위 말이 없고, 작품 추천 목록(내 취향 추천·지금 하는 공연 전체) 없이 취향 카드만");
