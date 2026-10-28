@@ -224,12 +224,14 @@ eq(["", "star", "avoid", "avoid"].map((b, i) => pickRecord(D, W, "b1", b, ["star
 eq(actorRecord(D, S, "PF123456", "x", {score: 2, chips: [{chip: "wrong", dir: "-"}, {chip: "voice", dir: "-"}]}), {show_id: "PF123456", actor: "x", score: 2, chips: [{chip: "wrong", dir: "-", actors: ["x"]}, {chip: "voice", dir: "-"}]}, "배우 한 명 평가: 설명이 틀렸어요는 그 배우로");
 
 // ===== 4. 관람 후 =====
-S = fresh({plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1", B: "b1"}}, {work: W, date: "2026-12-01", time: "14:00", cast: {A: "a2", B: "b1"}}]});
-ok(dueVisit(S, FROM) === 0 && dueVisit(S, "2026-09-01") === -1, "날짜가 지난 볼 예정만 묻는다");
+S = fresh({plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1", B: "b1"}}, {work: W, date: "2026-12-01", time: "14:00", cast: {A: "a2", B: "b1"}, status: "booked"}]});
+ok(dueVisit(S, FROM) === -1 && dueVisit(S, "2026-12-02") === 1, "미정일정은 날짜가 지나도 묻지 않고, 관람예정만 묻는다(2026-10-28 사용자 결정)");
+S.plans[0].status = "booked";
+ok(dueVisit(S, FROM) === 0 && dueVisit(S, "2026-09-01") === -1, "날짜가 지난 관람예정만 묻는다");
 answerVisit(S, 0, {score: 5, chips: [{chip: "voice", dir: "+", actors: []}]}, "2026-10-10");
 ok(S.plans[0].asked && S.plans[0].tagged && S.plans[0].mood === "good" && S.tags.length === 1 && S.tags[0].mood === "good" && S.tags[0].score === 5 && dueVisit(S, FROM) === -1, "점수 한 번이 관람 기록이 된다(좋았어요)");
 addAgain(S, 0, ["a1", "b1", "a2", "x"]); eq([S.plans[0].again, S.prefs.favs], [["a1", "b1", "a2"], ["a1", "b1", "a2"]], "또 보고 싶은 배우는 좋아하는 배우로(3명까지)");
-S = fresh({plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1"}}]}); skipVisit(S, 0); ok(dueVisit(S, FROM) === -1 && !S.plans[0].tagged && S.tags.length === 0, "나중에: 다시 안 묻고 기록은 안 남는다");
+S = fresh({plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1"}, status: "booked"}]}); skipVisit(S, 0); ok(dueVisit(S, FROM) === -1 && !S.plans[0].tagged && S.tags.length === 0, "나중에: 다시 안 묻고 기록은 안 남는다");
 S = fresh({plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1"}}]}); answerVisit(S, 0, {score: 3, chips: []}); ok(S.tags[0].mood === "meh"); S.plans[0].mood = ""; S = fresh({plans: [{date: "2026-10-01", time: "1", cast: {}, work: W}]}); answerVisit(S, 0, {score: 1, chips: []}); ok(S.tags[0].mood === "bad", "3점 meh · 1~2점 bad");
 
 // ===== 4b. v0.9 조합 만족도(docs/261027_2 10.2·10.3절, 결정 41·45·52) =====
@@ -528,7 +530,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     { const nx = boot(); nx.location.hash = "#show/" + W; nx.route(); nx.click({act: "sat", work: W, i: "0", a: "like"});
       ok(/좋아한 조합 <span class="small muted">1개<\/span>/.test(nx.V.plans()) && /좋아한 조합/.test(nx.V.me()) && /href="#find\/극\/actor">다시 찾기/.test(nx.V.plans()), "마음에 들어요 조합은 내 공연·내 취향의 '좋아한 조합'에");
       nx.click({act: "plan", work: W, date: "2026-11-01", time: "14:00"}); let sv = nx.V.saved("0");
-      ok(!/알려 드릴까요|notifyAsk/.test(sv) && /관람일이 지나면 홈에서 '어땠어요\?'를 물어볼게요/.test(sv) && !/Notification\./.test(html) && !/브라우저 알림 켜기/.test(nx.V.me()), "관람 후 알림은 홈 배너만: 푸시 권한을 묻지 않고 브라우저 알림 코드도 없다(사용자 결정 2026-10-28)");
+      ok(!/알려 드릴까요|notifyAsk/.test(sv) && /관람예정으로 바꿔 두면 관람일이 지난 뒤 홈에서 '어땠어요\?'를 물어볼게요/.test(sv) && !/Notification\./.test(html) && !/브라우저 알림 켜기/.test(nx.V.me()), "관람 후 알림은 홈 배너만: 푸시 권한을 묻지 않고 브라우저 알림 코드도 없다(사용자 결정 2026-10-28)");
       const sx = {prefs: {axes: ["tag:성량", "강한 성량"], prio: "노래", works: [], favs: ["a1"], must: ["a1"], avoid: ["b2"], grade: ""}};
       const ts = tasteSnapshot(D, sx); ok(ts.prio === "노래" && ts.tags.includes("성량") && ts.axes["강한 성량"] === -1, "취향 스냅숏에 우선순위와 새 질문 답(tag:)이 실린다");
       const tr = tasteSnapRecord(D, sx, buildVocab(D).actors); ok(tr.prio === "노래" && tr.must.join() === "a1" && tr.avoid.join() === "b2" && nx.TRK.track("taste_snapshot", tr) !== undefined && nx.TRK.stats().dropped === 0, "taste_snapshot 기록: 우선순위·반드시 포함·피하고 싶은 배우까지, 검사 통과"); }
@@ -741,7 +743,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     app9.click({act: "rateScore", id: Object.keys(app9.RATE_CTX).pop(), n: "3"}); sb = rb();
     ok((sb.match(/class="star on"/g) || []).length === 3 && /aria-pressed="true"/.test(sb) && /끌린 점이 있나요\?/.test(sb) && /안 맞은 점이 있나요\?/.test(sb), "별을 누르면 바로 그 점수가 선택되고(별 3개 켜짐) 칩이 이어서 나온다");
     app9.click({act: "rateScore", id: Object.keys(app9.RATE_CTX).pop(), n: "3"}); ok(((rb().match(/class="star on"/g)) || []).length === 0, "같은 별을 다시 누르면 해제");
-    const vis = loadApp(HD2, {...opts, storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: [], grade: ""}, plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1", B: "b1", C: "c1"}, tagged: false}], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); vis.route();
+    const vis = loadApp(HD2, {...opts, storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: [], grade: ""}, plans: [{work: W, date: "2026-10-01", time: "14:00", cast: {A: "a1", B: "b1", C: "c1"}, tagged: false, status: "booked"}], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); vis.route();
     { const vh = vis.V.home();  // v0.9(docs/261027_2 11절): 홈의 관람 후 카드는 별점 없이 리뷰 화면으로 보낸다(배우별 평가는 리뷰에서)
       ok(!/class="star /.test(vh) && /극 공연 어땠어요\?/.test(vh) && /href="#tag\/0">기록 남기기</.test(vh) && /data-act="visitSkip" data-i="0"/.test(vh), "관람 후 알림 카드: '○○ 공연 어땠어요?' + [기록 남기기]·[나중에], 별점 없음"); }
     const dh = app9.V.duel(W); ok(/끌리는 배우 고르기 · 극/.test(dh) && /\d+\/\d+번째/.test(dh) && !/월드컵|이상형|판\)|\d+판/.test(dh), "끌리는 배우 고르기: 이름과 'n/m번째'(월드컵·승패 말 없음)");
@@ -1330,7 +1332,10 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         for (const h of oldRoutes) { const [name, ...args] = decodeURIComponent(h.slice(1)).split("/"); let out; try { out = a1.V[name](...args); } catch (e) { throw new Error("예전 주소 " + h + " 가 깨졌다: " + e.message); } ok(typeof out === "string" && out.length > 20, "예전 주소 " + h + " 도 깨지지 않고 화면이 나온다(없는 회차는 안내 한 줄)"); }
         // 예전 관람 기록은 추천에 그대로 합쳐지고, 지난 볼 예정은 관람 후 질문으로 이어진다
         ok(!((a1.D.actorTags[W0] && a1.D.actorTags[W0][actorOf(past[0])]) || []).some(r => r.src === "내 관람" || /^관람평:/.test(r.src || "")), "이 기기 혼자 남긴 관람 태그는 추천 데이터에 합치지 않는다(결정 49: 서로 다른 사용자 2명 이상)");
-        ok(/공연 어땠어요\?/.test(a1.V.home()) && /href="#tag\/\d+">기록 남기기</.test(a1.V.home()), "지난 볼 예정(예전 앱에서 담은 것)은 홈에서 관람 후 리뷰로 이어진다");
+        { const pi = a1.S.plans.findIndex(x => x.date < NOW && !x.tagged && !x.asked);
+          ok(!/공연 어땠어요\?/.test(a1.V.home()) && pi >= 0 && /관람 기록 남기기/.test(a1.V.plans(a1.S.plans[pi].date)), "지난 볼 예정(예전 앱에서 담은 것)은 미정일정이라 홈에서 묻지 않고, 캘린더 날짜 화면에서 기록할 수 있다");
+          const ab = boot(L0); ab.click({act: "planStatus", i: String(pi), s: "booked"});  // a1 은 아래 '예전 값 그대로' 점검에 쓰니 따로 띄운다
+          ok(/공연 어땠어요\?/.test(ab.V.home()) && /href="#tag\/\d+">기록 남기기</.test(ab.V.home()), "관람예정으로 바꾸면 홈에서 관람 후 리뷰로 이어진다"); }
         // 저장해도 예전 키는 그대로: 여러 동작 뒤에도 예전 값이 같고, 새로 생긴 건 덧붙이기뿐
         const before = JSON.parse(JSON.stringify(L0));
         a1.click({act: "areaTab", t: "대학로"}); a1.click({act: "themeToggle"}); a1.click({act: "obGo", to: "2"}); a1.click({act: "pin", work: W0, a: actorOf(fut[0]), k: "star"});

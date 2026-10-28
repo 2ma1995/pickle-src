@@ -1047,7 +1047,7 @@ V.saved = i => {
       <a class="btn ghost" href="#plans/${x.date}">캘린더에서 보기</a>
       <button class="btn ghost" data-go="#home">홈으로</button>
     </div>
-    <p class="tiny muted" style="text-align:center">관람일이 지나면 홈에서 '어땠어요?'를 물어볼게요.</p>`;
+    <p class="tiny muted" style="text-align:center">${booked ? "관람일이 지나면" : "관람예정으로 바꿔 두면 관람일이 지난 뒤"} 홈에서 '어땠어요?'를 물어볼게요.</p>`;
 };
 
 const likedCard = () => { const L = likedCombos(S); return L.length ? `<div class="card"><h3>좋아한 조합 <span class="small muted">${L.length}개</span></h3>${L.map(x => `<p class="small"><b>${esc(x.work)}</b> · ${Object.entries(x.cast).map(([r, a]) => `${esc(r)} ${esc(a)}`).join(" · ")} <a href="#find/${esc(x.work)}/actor">다시 찾기</a></p>`).join("")}</div>` : ""; };
@@ -1523,7 +1523,7 @@ const applyDuel = (S, work, cur, result) => {
 };
 
 // ---- 관람 후: '볼 예정'에 담은 공연 날짜가 지났고 아직 안 물었으면 한 번만 묻는다(본 조합 1~5 + 같은 이유 칩 → 또 보고 싶은 배우는 선택). 답하거나 건너뛰면 asked 로 닫힌다
-const dueVisit = (S, from) => (S.plans || []).findIndex(x => x.date < from && !x.asked && !x.tagged);
+const dueVisit = (S, from) => (S.plans || []).findIndex(x => x.date < from && !x.asked && !x.tagged && planStatus(x) === "booked");  // 관람예정(예매함)으로 바꾼 일정만 묻는다(사용자 결정 2026-10-28). 미정일정은 실제로 봤는지 몰라서 안 묻는다
 const answerVisit = (S, i, rating, at = "") => {
   const x = (S.plans || [])[i]; if (!x) return null;
   x.asked = true; x.tagged = true; x.again = []; x.rating = {score: rating.score, chips: ratingChips(rating)};
