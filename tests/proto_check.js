@@ -496,8 +496,21 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       af.click({act: "acSet", work: W, a: "b1", k: "maybe"}); ok(!/같은 배역이라/.test(af.V.find(W, "actor")) && /class="card rcard"/.test(af.V.find(W, "actor")), "제안을 누르면 풀리고 다시 추천된다");
       af.click({act: "acSet", work: W, a: "b1", k: ""}); af.q("#acAvoid").value = "b2"; af.click({act: "acAvoidAdd", work: W});
       ok(af.S.cal[W].ac.extra.includes("b2") && !af.S.cal[W].ac.pick.some(x => x.a === "b2") && !(af.S.prefs.avoid || []).includes("b2"), "이 작품에 한해 피하고 싶은 배우를 더한다(공통 값은 그대로)");
-      const dl = af.V.find(W, "date"); ok(/반드시 포함 a1 · 피하는 배우 2명 적용 중 <a href="#find\/극\/actor">바꾸기<\/a>/.test(dl) && /이 작품에는 없는배우 배우가 나오지 않아요/.test(dl) && /id="dates"/.test(dl), "날짜 먼저: 배우 조건 줄 + [바꾸기]는 배우 먼저 화면으로");
+      const dl = af.V.find(W, "date"); ok(/반드시 포함 a1 · 피하는 배우 2명 적용 중 <a href="#find\/극\/actor">바꾸기<\/a>/.test(dl) && /이 작품에는 없는배우 배우가 나오지 않아요/.test(dl) && /data-act="dfDay"/.test(dl), "날짜 먼저: 배우 조건 줄 + [바꾸기]는 배우 먼저 화면으로");
       af.click({act: "acReset", work: W}); ok(!af.S.cal[W].ac && /a1 · 반드시/.test(af.V.find(W, "actor")), "평소 배우 조건으로 되돌리기"); }
+    // 날짜 먼저(7절): 회차 달력 → 하루씩/기간 → 고른 날짜의 추천 조합 → 그 조합의 회차(밖은 펼치기)
+    { const df = boot(); df.location.hash = `#find/${W}/date`; df.route(); let h = df.V.find(W, "date");
+      ok(/언제 볼 수 있어요\?/.test(h) && /data-act="dfMode" data-work="극" data-v="day">하루씩/.test(h) && /class="on" data-act="dfMode" data-work="극" data-v="day"/.test(h) && (h.match(/data-act="dfDay"/g) || []).length === 4 && !/class="card rcard"/.test(h), "날짜 먼저: 하루씩이 기본, 회차 있는 날만 누를 수 있고(대관 제외), 날짜를 고르기 전엔 추천이 없다");
+      df.click({act: "dfDay", work: W, d: "2026-11-01"}); df.click({act: "dfDay", work: W, d: "2026-11-02"}); h = df.V.find(W, "date");
+      ok(/고른 날짜에 볼 수 있는 조합/.test(h) && /11\/1 ×/.test(h) && /11\/2 ×/.test(h) && /고른 날짜 중 회차 1개/.test(h) && /data-dd="1"/.test(h) && !/a2[^<]*<\/p><p class="tiny muted">고른 날짜/.test(h), "하루씩 여러 날: 그 날짜에 나오는 조합만 카드로(회차 수는 고른 날짜 안)");
+      const sh = df.S.proto.shown[W + "#날짜"]; ok(sh && sh.list.every(x => x.cast.A === "a1"), "고른 날짜(11/1·11/2)엔 a1 조합만");
+      df.click({act: "selCombo", work: W, dd: "1", i: "0"}); h = df.V.find(W, "date");
+      ok(/이 조합의 회차/.test(h) && /class="card perf"/.test(h), "조합을 누르면 고른 날짜 안의 그 조합 회차");
+      df.click({act: "sat", work: W, dd: "1", i: "0", a: "like"}); ok(Object.values(df.S.proto.sat[W]).some(e => e.a === "like"), "날짜 먼저 카드에서도 만족도 답변");
+      df.click({act: "dfMode", work: W, v: "range"}); df.click({act: "dfDay", work: W, d: "2026-11-02"}); ok(/11\/2부터 · 끝 날짜를 눌러 주세요/.test(df.V.find(W, "date")), "기간: 시작 날짜를 누르면 끝 날짜를 묻는다");
+      df.click({act: "dfDay", work: W, d: "2026-11-04"}); eq(df.S.cal[W].dates, ["2026-11-02", "2026-11-03", "2026-11-04"], "기간: 시작~끝 사이 회차 있는 날 모두(결정 19)");
+      const dm = boot({storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: ["a2"], must: ["a2"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {[W]: {actors: [], period: "all", dates: ["2026-11-01"]}}, proto: {}})}});
+      const hm = dm.V.find(W, "date"); ok(/이 날짜엔 맞는 조합이 없어요/.test(hm) && /a2 배우는 고른 날짜에 나오지 않아요\. 다음 출연은 11\/3이에요/.test(hm) && /class="day has pin dim"/.test(hm), "반드시 포함 배우가 고른 날짜에 안 나오면: 0개 + 다음 출연일, 그날은 흐리게(13절)"); }
     // v0.9 관람 후 리뷰(11.1절) · 본 공연 기록하기(11.2절): 담지 않은 지난 회차도 누구나
     { const ra = loadApp(HD, {...opts, now: "2026-11-03T12:00:00", hash: "#log"}); ra.route();
       ok(/어떤 작품을 봤어요\?/.test(ra.V.log()) && /href="#log\/극"/.test(ra.V.log()), "본 공연 기록하기: 지난 회차가 있는 작품");
@@ -1255,7 +1268,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
           const fl = m.V.find();
           ok((fl.match(/class="wcard/g) || []).length >= 1 && /href="#find\/[^"]+"/.test(fl) && /어떤 작품의 조합을 찾아볼까요\?/.test(fl), "작품 고르기: 작품 카드가 나오고, 고를 수 있는 작품은 #find/작품으로");
           const how = m.V.find(W0, "how"); ok(/href="#find\/[^"]+\/date">날짜 먼저 고르기/.test(how) && /href="#find\/[^"]+\/actor">배우 먼저 고르기/.test(how), "찾는 방법 고르기: 날짜 먼저 · 배우 먼저");
-          ok(/id="dates"/.test(m.V.find(W0, "date")) && /id="cast"/.test(m.V.find(W0, "actor")), "날짜 먼저 → 기존 달력, 배우 먼저 → 기존 '누구로 볼까요?'로 이어진다");
+          ok(/언제 볼 수 있어요\?/.test(m.V.find(W0, "date")) && /data-act="dfDay"/.test(m.V.find(W0, "date")) && /누구를 꼭 보고 싶어요?/.test(m.V.find(W0, "actor")), "실제 데이터: 날짜 먼저 → 회차 달력, 배우 먼저 → 배우 조건 화면");
           const mm = boot({...L0, prefs: {...(L0.prefs || {}), favs: ["없는배우X"], must: ["없는배우X"]}}); ok(!/없는배우X/.test(mm.V.find()) && /이 작품에는 없는배우X 배우가 나오지 않아요/.test(mm.V.find(W0, "how")), "반드시 포함 배우가 작품에 없으면 작품을 고른 뒤 안내(작품 고르기 화면에는 없다, 결정 25)");
           const left = w => m.D.perfs.filter(p => p.work === w.name && !(p.notes || []).some(n => /대관/.test(n)) && p.date >= NOW).length, shown = [...fl.matchAll(/<b>([^<]+)<\/b>/g)].map(x => x[1]);
           const want = m.D.works.filter(w => w.runs.some(r => r.end >= NOW)).sort((a, b) => (left(a) || Infinity) - (left(b) || Infinity) || a.name.localeCompare(b.name, "ko")).map(w => w.name);
