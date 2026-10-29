@@ -1,19 +1,11 @@
 /* app.css — 앱 디자인 층. index.html 이 theme.css 다음에 읽는다(예전 앱 index_legacy_2026-10-11.html 은 이 파일을 안 읽는다).
    구성 원칙: 포스터 중심 · 글 상자 카드는 줄이고 면(배경색)과 여백·글씨 크기로 위계 · 선은 구분선 정도 · 그림자 없음 · 강조색은 딱 세 곳(주 버튼 · 선택 상태 · 별. 영상 모달의 ⭐ 담기 버튼 테두리는 주 버튼으로 본다).
-   판: 주소 뒤 ?theme=light(기본, 밝은 판) / ?theme=dark(어두운 판). <html data-theme> 는 index.html 맨 위 작은 스크립트가 정한다(우선순위: 주소 ?theme= > 저장한 값 > 밝은 판).
+   판: 하나뿐이다(사용자 요청 2026-10-29: 다크·밝은 화면 구분 없이 통일). 바탕은 예전 어두운 판의 검정(#12171C), 강조색은 버건디.
 
-   ★ 강조색(사용자가 정함): 예전 주 색 #B23A48(hover #982F3B). 바꾸려면 아래 두 블록(밝은 판 · 어두운 판)의 --accent 계열만 바꾼다.
-     --on-accent 는 강조색 위 글자색, --accent-soft/--accent-tint 는 강조색 계열의 아주 연한 면(선택 카드 배경 등).
-     어두운 판은 같은 색상 계열에서 바탕(#1B2128 면)과 3:1 을 넘도록 최소한만 밝혔다(#B23A48 → #BD3E4C, 별·선택 표시 기준).
+   ★ 강조색(사용자가 정함): 버건디 #BD3E4C(예전 밝은 판 #B23A48 과 같은 색상 계열, 면 #1B2128 위에서 3:1 을 넘도록 최소한만 밝힘). 바꾸려면 아래 블록의 --accent 계열만 바꾼다.
+     --on-accent 는 강조색 위 글자색, --accent-soft/--accent-tint 는 강조색 계열의 어두운 면(선택 카드 배경 등).
    버전: index.html 이 이 파일을 ?v= 로 부른다. 고칠 때마다 그 숫자를 올려야 브라우저가 옛 걸 안 쓴다. */
-:root,:root[data-theme="light"]{
-  color-scheme:light;
-  --accent:#B23A48; --accent-hover:#982F3B; --accent-soft:#FDF2F4; --accent-tint:#FBE8EA; --on-accent:#FFFFFF;
-  --bg:#FFFFFF; --surface:#F5F5F7; --soft:#EBEBEF; --line:#E3E3E8; --divider:#E3E3E8; --outside:#F5F5F7; --dash:#BDBDC6;
-  --fg:#16161A; --muted:#5F5F69; --faint:#5F5F69; --ok:#1A6F45; --warn:#8A5A00; --star-off:#80808B;
-  --veil:rgba(255,255,255,.78); --scrim:rgba(0,0,0,.42);
-}
-:root[data-theme="dark"]{
+:root{
   color-scheme:dark;
   --accent:#BD3E4C; --accent-hover:#A83643; --accent-soft:#2B1B20; --accent-tint:#3A2229; --on-accent:#FFFFFF;
   --bg:#12171C; --surface:#1B2128; --soft:#262E37; --line:#2D3640; --divider:#2D3640; --outside:#1B2128; --dash:#4B5663;
@@ -211,11 +203,6 @@ button.day.has,.day.has{background:var(--soft);color:var(--fg);cursor:pointer}
 .sheet h3{font-size:19px}
 
 /* ---- 명암 버튼: 왼쪽 아래에 떠 있는 작은 원(모든 화면). 폰에서 아래 고정 버튼(#cta)이 있으면 그 위로 올린다. 그림자 없음 ---- */
-.themebtn{position:fixed;left:12px;bottom:76px;z-index:6;width:44px;height:44px;padding:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;background:var(--bg);color:var(--fg);border:2px solid var(--muted)}
-.themebtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.themebtn:hover{background:var(--soft)}
-#cta:not([hidden]) ~ .themebtn{bottom:132px}
-@media (min-width:900px){.themebtn,#cta:not([hidden]) ~ .themebtn{left:24px;bottom:24px}}
 
 /* ---- 홈: 줄 설명 · 지역 칩 · 캐스팅 일정 표시 ---- */
 .hsub{margin:-6px 0 0;font-size:13px;color:var(--muted)}
@@ -271,10 +258,8 @@ html.lock,html.lock body{overflow:hidden}  /* 시트가 열려 있는 동안 뒤
 
 /* ==== 무대 층(2026-10-28 사용자 요청: 뮤지컬 예매 서비스처럼, 포스터가 주인공) ==== */
 /* 머리줄: 판 버튼은 떠 있는 동그라미 대신 오른쪽 칸 */
-.top .themebtn{position:static;width:36px;height:36px;border:0;background:transparent;color:var(--fg);justify-self:end;border-radius:8px}
-.top .themebtn:hover{background:var(--soft)}
 .top .brand{letter-spacing:.02em}
-@media (min-width:900px){.top{grid-template-columns:40px auto 1fr 40px}.top:has(#back[hidden]){grid-template-columns:auto 1fr 40px}.top .themebtn{position:static}.pcal{max-width:560px;width:100%;justify-self:center}}
+@media (min-width:900px){.top{grid-template-columns:40px auto 1fr 40px}.top:has(#back[hidden]){grid-template-columns:auto 1fr 40px}.pcal{max-width:560px;width:100%;justify-self:center}}
 /* 하단 탭: 선 아이콘 */
 .tabs a{display:grid;justify-items:center;gap:3px;font-weight:600;letter-spacing:-.01em}
 .tabs a svg.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;filter:none;opacity:1}
@@ -441,3 +426,29 @@ html.lock,html.lock body{overflow:hidden}  /* 시트가 열려 있는 동안 뒤
 .avtag{display:inline-flex;align-items:center;gap:6px}
 .phrow{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
 .phrow:first-child{border-top:0}
+
+/* ---- 2026-10-29 사용자 요청: 판 하나(어두운 바탕 + 버건디) · 홈 정리 ---- */
+/* 버튼·칩은 둥근 알약 모양, 카드는 면(surface)으로만 구분(참고: 테마 블랙1 · 테마2) */
+.btn{border-radius:999px}
+.card{border-color:transparent;background:var(--surface);border-radius:16px}
+.tabs{background:var(--surface);border-top-color:var(--line)}
+/* 홈 '지금 하는 공연 전체': 위 '배우 조합 추천받기'와 간격을 세 배로(main gap 의 두 배를 더한다), 제목 옆 검색창, 5줄씩 더보기 */
+.hsec.hall{margin-top:calc(var(--hgap, 22px) * 2)}
+@media (min-width:900px){.hsec.hall{--hgap:24px}}
+.hall .hhead{align-items:center;flex-wrap:wrap}
+.homeq{flex:1 1 160px;max-width:280px;min-height:40px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--fg);font:inherit;font-size:14px}
+.homeq:focus{border-color:var(--fg);outline:none}
+.hsort{margin:-6px 0 0}
+.hmore{justify-self:center;width:auto;min-width:200px;margin-top:18px}
+#homegrid{display:grid}
+/* 넓은 화면(900px 이상)만: 취향 카드 뒤에 작품 포스터를 부채꼴로(가운데 포스터는 카드 위로 살짝 보인다). 폰에선 숨긴다 */
+.tcstage{display:grid}
+.tcfan{display:none}
+@media (min-width:900px){
+  .tcstage{position:relative;padding:140px 0 24px;overflow-x:clip}
+  .tcfan{display:block;position:absolute;inset:0;pointer-events:none}
+  .tcfan img{position:absolute;left:50%;top:150px;width:170px;aspect-ratio:2/3;object-fit:cover;border-radius:14px;opacity:.8;transform:translate(-50%,-50%) translateY(760px) rotate(var(--a)) translateY(-760px)}
+  .tcstage .tcwrap{position:relative;z-index:1}
+}
+/* 카드(면) 안의 입력칸은 바탕색으로 한 단 내려서 칸이 보이게 */
+.card :is(input,select,textarea){background:var(--bg);border-color:var(--line)}
