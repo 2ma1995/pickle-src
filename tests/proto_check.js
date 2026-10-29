@@ -725,32 +725,25 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
   // ===== 9. 디자인(두 판·강조색 세 곳·별점·포스터 중심) =====
   { const css = fs.readFileSync(path.join(__dirname, "../app/app.css"), "utf8"), inline = html.slice(html.indexOf("<style>"), html.indexOf("</style>"));
     // 판 고르기와 스타일 파일 버전
-    // 판 정하기(머리 스크립트): ?theme= > 저장한 값 > 밝은 판
-    const headJs = html.match(/<script>\/\* 판:[^*]*\*\/([\s\S]*?)<\/script>/)[1];
-    const pickTheme = (search, saved, broken = false) => { const attrs = {}; new Function("document", "location", "localStorage", "URLSearchParams", headJs)({documentElement: {setAttribute: (k, v) => { attrs[k] = v; }}}, {search}, broken ? {getItem() { throw new Error("blocked"); }} : {getItem: () => saved}, URLSearchParams); return attrs["data-theme"]; };
-    eq([pickTheme("", null), pickTheme("?theme=dark", null), pickTheme("?theme=light", "dark"), pickTheme("", "dark"), pickTheme("?theme=dark", "light"), pickTheme("?theme=blue", "dark"), pickTheme("?x=1", "pink"), pickTheme("", "dark", true), pickTheme("?theme=dark", "light", true)],
-      ["light", "dark", "light", "dark", "dark", "dark", "light", "light", "dark"], "판 우선순위: ?theme= 주소 값 > 저장된 값 > 기본(밝은 판). 엉뚱한 값은 무시, 저장소가 막혀도 동작");
+    ok(!/<script>\/\* 판:/.test(html), "판을 고르는 머리 스크립트가 없다(판이 하나)");
     const vers = [...html.matchAll(/href="(theme|app)\.css\?v=(\d{8}[a-z]+)"/g)];
     ok(vers.length === 2 && vers[0][1] === "theme" && vers[1][1] === "app" && vers[0][2] === vers[1][2], "index.html 이 theme.css·app.css 를 ?v= 버전을 붙여 부른다(같은 숫자)");
     ok(html.indexOf("theme.css?v=") < html.indexOf("app.css?v="), "app.css 가 theme.css 다음(덮어쓰는 순서)");
     ok(/<script src="data\.js"><\/script>/.test(html), "data.js 는 배포 스크립트가 버전을 붙일 수 있게 src=\"data.js\" 그대로");
     // 토큰과 글자 대비(밝은 판·어두운 판)
     const vars = re => { const m = css.match(re); assert(m, "토큰 블록 없음: " + re); return Object.fromEntries([...m[1].matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)].map(x => [x[1], x[2].trim()])); };
-    const light = vars(/:root,:root\[data-theme="light"\]\{([^}]*)\}/), dark = vars(/:root\[data-theme="dark"\]\{([^}]*)\}/);
+    const dark = vars(/:root\{\s*color-scheme:dark;([^}]*)\}/);
     const lum = h => { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4); return .2126 * r + .7152 * g + .0722 * b; };
     const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
-    for (const [name, t] of [["밝은 판", light], ["어두운 판", dark]]) {
+    ok(!/data-theme="light"|data-theme="dark"/.test(css), "app.css 에 판별 토큰 블록이 하나뿐(밝은 판 없음)");
+    for (const [name, t] of [["판", dark]]) {
       for (const text of ["fg", "muted", "faint", "ok", "warn"]) for (const bg of ["bg", "surface", "soft"]) ok(ratio(t[text], t[bg]) >= 4.5, `${name}: ${text} 글씨가 ${bg} 위에서 4.5:1 이상 (${ratio(t[text], t[bg]).toFixed(2)})`);
-      ok(ratio(t["on-accent"], t.accent) >= 4.5, `${name}: 강조색 위 글씨 4.5:1 이상 (${ratio(t["on-accent"], t.accent).toFixed(2)})`);
+      ok(ratio(t["on-accent"], t.accent) >= 4.5, `${name}: 강조색 위 글씨 4.5:1 이상`);
       for (const bg of ["bg", "surface"]) ok(ratio(t.accent, t[bg]) >= 3 && ratio(t["star-off"], t[bg]) >= 3, `${name}: 별(켜짐·꺼짐)이 ${bg} 위에서 3:1 이상`);
-      ok(/^#[0-9a-fA-F]{6}$/.test(t.accent), `${name}: 강조색은 변수 하나(--accent)로 정한다`);
+      for (const soft of ["accent-soft", "accent-tint"]) ok(ratio(t.fg, t[soft]) >= 4.5 && ratio(t.muted, t[soft]) >= 4.5, `${name}: ${soft} 면 위 fg·muted 글씨 4.5:1 이상`);
+      ok(ratio(t["on-accent"], t["accent-hover"]) >= 4.5, `${name}: hover 색 위 글씨 4.5:1 이상`);
     }
-    ok((css.match(/--accent:\s*#/g) || []).length === 2, "강조색 정의는 판마다 한 줄씩(--accent 두 줄만 바꾸면 됨)");
-    ok(light.accent === "#B23A48" && light["accent-hover"] === "#982F3B" && light["accent-soft"] === "#FDF2F4" && light["accent-tint"] === "#FBE8EA" && light["on-accent"] === "#FFFFFF", "밝은 판 강조색: 사용자가 정한 #B23A48(hover #982F3B, soft #FDF2F4, tint #FBE8EA, 위 글자 흰색)");
-    ok(dark["on-accent"] === "#FFFFFF" && /^#[0-9a-fA-F]{6}$/.test(dark["accent-hover"]) && ratio(dark["accent-hover"], dark["on-accent"]) >= 4.5, "어두운 판: 같은 색상 계열, 위 글자 흰색, hover 위 글자도 4.5:1 이상");
-    for (const [name, t] of [["밝은 판", light], ["어두운 판", dark]]) { for (const soft of ["accent-soft", "accent-tint"]) ok(ratio(t.fg, t[soft]) >= 4.5 && ratio(t.muted, t[soft]) >= 4.5, `${name}: ${soft} 면 위 fg·muted 글씨 4.5:1 이상`); ok(ratio(t["on-accent"], t["accent-hover"]) >= 4.5, `${name}: hover 색 위 글씨 4.5:1 이상`); }
-    const hue = h => { const [r, g, b] = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; return d === 0 ? 0 : (mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60; };
-    ok(Math.abs(hue(dark.accent) - hue(light.accent)) < 4, "어두운 판 강조색은 밝은 판과 같은 색상(hue) 계열");
+    ok((css.match(/--accent:\s*#/g) || []).length === 1 && dark.bg === "#12171C" && dark.accent === "#BD3E4C", "판 하나: 바탕은 예전 어두운 판 검정 #12171C, 강조색은 버건디 #BD3E4C 한 줄");
     // 강조색은 주 버튼·선택 상태·별에만
     const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
     const okSel = /^(:root|\.btn(:hover)?$|\.chip(\.[\w-]+)*\.on|\.chip\.x\.on|\.card>\.chip\.x\.on|\.mood\.on$|\.obcard\.on|\.obcard\.on::after|\.day\.has\.pin$|\.star\.on$|\.obcard.*\.on:hover|\.vbtn\[aria-pressed="true"\](:hover)?$|\.vtc\[aria-pressed="true"\]$|\.sheet \.chsec \.chip\.x\.on$|\.vpin(:hover|\.on)?$|\.tabs a\.on$|\.(lg|cday|spill|pday)\.booked(::before)?$|\.pday\.booked \.pseg button\.on$)/;  // 시트: 고른 답·고른 특징 칩(선택 상태), ⭐ 담기 버튼(주 버튼) 테두리. 고른 탭·내 공연 캘린더의 관람예정(예매함) 표시도 선택 상태
@@ -772,24 +765,9 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     ok(!/class="hero-bg"/.test(show9) || /<img class="hero-bg"[^>]*alt=""[^>]*aria-hidden="true"/.test(show9), "흐린 배경 포스터는 장식(alt 없음·aria-hidden)");
     ok(/class="chip pickc/.test(show9) && !/class="head"/.test(show9), "② 배우는 둥근 이름 칩(pickc)");
 
-    // 왼쪽 아래 명암 버튼
-    ok(/<button id="themebtn" class="themebtn" type="button" data-act="themeToggle"><\/button>/.test(html) && html.indexOf('<header class="top">') < html.indexOf('id="themebtn"') && html.indexOf('id="themebtn"') < html.indexOf("</header>") && /\.top \.themebtn\{position:static;/.test(css), "명암 버튼은 머리줄 오른쪽(2026-10-28: 떠 있는 동그라미가 글을 가려서)");
-    ok(/\.themebtn\{position:fixed;left:12px;bottom:76px;[^}]*background:var\(--bg\);color:var\(--fg\);border:2px solid var\(--muted\)\}/.test(css) && /#cta:not\(\[hidden\]\) ~ \.themebtn\{bottom:132px\}/.test(css), "버튼: 왼쪽 아래 원형, 고정 버튼이 있으면 그 위로, 테두리 --muted(바탕과 3:1 이상)");
-    ok(/min-width:900px\)\{\.themebtn,#cta:not\(\[hidden\]\) ~ \.themebtn\{left:24px;bottom:24px\}/.test(css), "넓은 화면에선 고정 버튼이 없어서 올리지 않는다");
-    let tb = loadApp(HD2, {...opts, hash: "#home", theme: "light"}); tb.route(); tb.listeners.doc.click.length;
-    ok(tb.q("#themebtn").attrs["aria-label"] === "어두운 화면으로 바꾸기" && /<svg/.test(tb.q("#themebtn").innerHTML), "밝은 판에선 '어두운 화면으로 바꾸기'(달 아이콘)");
-    tb.click({act: "themeToggle"});
-    ok(tb.root.attrs["data-theme"] === "dark" && tb.store.get("pickle_theme") === "dark" && tb.q("#themebtn").attrs["aria-label"] === "밝은 화면으로 바꾸기" && tb.q("#themebtn").attrs.title === "밝은 화면으로 바꾸기", "누르면 새로고침 없이 어두운 판으로 바뀌고 저장·이름(aria-label)이 바뀐다");
-    ok(/<circle/.test(tb.q("#themebtn").innerHTML), "어두운 판에선 해 아이콘");
-    tb.click({act: "themeToggle"}); ok(tb.root.attrs["data-theme"] === "light" && tb.store.get("pickle_theme") === "light" && tb.q("#themebtn").attrs["aria-label"] === "어두운 화면으로 바꾸기", "다시 누르면 밝은 판");
-    ok(!tb.store.has("pickle_q") && !tb.store.has("pickle_anon") && !Object.keys(EVENTS).some(e => /theme|dark|light/i.test(e)), "명암 전환은 track 에 남기지 않는다(정의서 밖)");
-    tb.click({act: "themeToggle"}); const saved = tb.store.get("pickle_theme");
-    const again = loadApp(HD2, {...opts, hash: "#home", storage: {pickle_theme: saved}, theme: pickTheme("", saved)}); again.route();
-    ok(again.root.attrs["data-theme"] === "dark" && again.q("#themebtn").attrs["aria-label"] === "밝은 화면으로 바꾸기", "새로고침해도(저장된 값으로 시작) 같은 판 + 버튼 이름도 맞다");
-    const withUrl = loadApp(HD2, {...opts, hash: "#home", search: "?theme=dark&v=3", theme: "dark"}); withUrl.route(); withUrl.click({act: "themeToggle"});
-    ok(withUrl.root.attrs["data-theme"] === "light" && withUrl.location.search === "?theme=light&v=3" && withUrl.location.hash === "#home", "주소에 ?theme= 이 있으면 그 값도 맞춰서(다른 값·해시는 그대로) 새로고침해도 같은 판");
-    const blocked = loadApp(HD2, {...opts, hash: "#home", theme: "light"}); blocked.q("#themebtn"); const origSet = blocked.store.set; blocked.store.set = () => { throw new Error("quota"); };
-    let threw = false; try { blocked.click({act: "themeToggle"}); } catch (e) { threw = true; } ok(!threw && blocked.root.attrs["data-theme"] === "dark", "저장이 안 돼도(예외) 화면은 바뀐다");
+    // 명암 버튼은 없다(2026-10-29 사용자 요청: 다크·밝은 화면 구분 없이 통일)
+    ok(!/themebtn|themeToggle|pickle_theme/.test(html) && !/\.themebtn/.test(css) && /<html lang="ko" data-theme="dark">/.test(html) && /<meta name="color-scheme" content="dark">/.test(html), "판 하나: 명암 버튼·저장 값 없음, 처음부터 어두운 판");
+    { const tb = loadApp(HD2, {...opts, hash: "#home"}); tb.route(); let threw = false; try { tb.click({act: "themeToggle"}); } catch (e) { threw = true; } ok(!threw && !tb.store.has("pickle_theme"), "옛 명암 동작이 남아 있지 않다"); }
     // 별점(배우 한 명 평가에 남은 상자): 큰 별 5개, 양 끝 말, 누르면 바로 선택
     const rb = () => app9.ratingBox({key: "actor|t|a1", kind: "actor", title: "a1, 내 취향이었나요?", bare: true, lo: "안 맞아요", hi: "딱 맞아요", show: W, actor: "a1", actors: ["a1"]});
     let sb = rb();
@@ -873,7 +851,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const css = fs.readFileSync(path.join(__dirname, "../app/app.css"), "utf8"), bar = (css.match(/\.chips\.afilter\{([^}]*)\}/) || [])[1] || "";
     ok(/flex-wrap:nowrap/.test(bar) && /overflow-x:auto/.test(bar) && /scrollbar-width:none/.test(bar) && /margin-inline:calc\(var\(--gut\) \* -1\)/.test(bar) && /\.afilter \.chip\{[^}]*flex:none[^}]*white-space:nowrap/.test(css) && /\.chips\.afilter::-webkit-scrollbar\{display:none\}/.test(css), "지역 칩 CSS: 줄바꿈 없는 한 줄 가로 스크롤(스크롤바 숨김, 화면 가장자리까지, 칩은 안 줄어듦)");
     ok(/const keepBar = document\.querySelector\("\.afilter"\)/.test(html) && /\.chip\[aria-pressed="true"\]/.test(html.split("function route()")[1].split("window.addEventListener")[0]), "route(): 칩 줄 스크롤 위치를 유지하고 눌린 칩이 밖이면 보이게 민다");
-    ok(/app\.css\?v=20261029b/.test(html), "app.css 캐시 번호를 올렸다");
+    ok(/app\.css\?v=20261029c/.test(html), "app.css 캐시 번호를 올렸다");
     const styleBlock = html.split("<style>")[1].split("</style>")[0], gh = styleBlock.indexOf("[hidden]{display:none!important}"), topBtn = styleBlock.indexOf(".top button[hidden]{visibility:hidden;display:block!important}"), undoRule = styleBlock.indexOf(".undobar{");
     ok(gh >= 0 && gh < undoRule && gh < styleBlock.indexOf(".top button{") && topBtn > gh, "전역 [hidden]{display:none!important} 가 <style> 맨 앞쪽에 있다(.undobar 처럼 display 를 정한 클래스가 hidden 을 못 덮는다)");
     ok(topBtn >= 0 && /^\.top button\[hidden\]/.test(styleBlock.slice(topBtn)) && !/^\[hidden\]/.test(".top button[hidden]"), "뒤로 버튼 자리 규칙(.top button[hidden]{visibility:hidden;display:block!important})은 그대로 — 선택자가 더 구체적이라 전역 규칙을 이긴다");
@@ -1472,6 +1450,20 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
           ok(/어떤 점이 좋았나요\?/.test(h1) && /＋ 추가하기/.test(h1) && /다른 배우였어요/.test(h1), "실제 데이터: 좋았어요 → '어떤 점이 좋았나요?' 칩 + ＋ 추가하기 + 다른 배우였어요");
           ok([...grp("가창"), ...grp("연기")].every(t => has(h1, t)) && ![...grp("캐릭터 해석"), ...grp("신체 표현")].some(t => has(h1, t)), "처음엔 태그 사전의 배우-가창·배우-연기 태그 전부, 캐릭터 해석·신체 표현은 숨김");
           tg.click({act: "rvMore", r: roles[0]}); const h2x = tg.V.tag("1"); ok([...grp("캐릭터 해석"), ...grp("신체 표현")].every(t => has(h2x, t)) && !/data-act="rvTag"[^>]*data-t="(연기합·티키타카|음색·보컬 조화)"/.test(h2x), "실제 데이터: ＋ 추가하기는 배우-캐릭터 해석·배우-신체 표현(조합 태그는 배우 줄에 없다)"); }
+        // 2026-10-29 사용자 요청: 카드 완성하기 알림 없음 · 배우 세 칸 한 줄 · 홈 검색·5줄씩 더보기 · 넓은 화면 부채꼴 포스터
+        { const hm = bootT(undefined); hm.location.hash = "#taste/2"; hm.route(); hm.q("#toast").textContent = ""; hm.click({act: "obGo", to: "3"});
+          ok(hm.location.hash === "#home" && hm.q("#toast").textContent === "", "취향 카드 완성하기를 누르면 알림 없이 홈으로");
+          hm.location.hash = "#taste/1"; hm.route(); const t1 = hm.q("#view").innerHTML, fr = t1.split('class="favrow"')[1] || "";
+          ok(/본진 배우[\s\S]*애정 배우[\s\S]*피하고 싶은 배우/.test(fr) && (fr.split('<div class="card">').length - 1) >= 3, "본진·애정·피하고 싶은 배우는 한 줄(favrow) 세 칸");
+          hm.location.hash = "#home"; hm.route(); const h0 = hm.q("#view").innerHTML, n0 = (h0.split('id="homegrid"')[1].match(/class="pcard"/g) || []).length, total = +h0.match(/지금 하는 공연 전체<span class="count">(\d+)개/)[1];
+          ok(/<input id="homeq" class="homeq" type="search"/.test(h0) && h0.indexOf("지금 하는 공연 전체") < h0.indexOf('id="homeq"'), "'지금 하는 공연 전체' 제목 옆 검색창");
+          ok(n0 === Math.min(25, total) && (total > 25) === /data-act="homeMore"/.test(h0), "처음엔 5줄(넓은 화면 5칸 × 5줄)만, 넘치면 더보기");
+          if (total > 25) { hm.click({act: "homeMore"}); ok((hm.q("#homegrid").innerHTML.match(/class="pcard"/g) || []).length === Math.min(50, total), "더보기를 누르면 5줄 더"); }
+          const first = h0.split('id="homegrid"')[1].match(/<span class="pt">([^<]+)</)[1];
+          hm.q("#homeq").value = first; hm.listeners.doc.input.forEach(f => f({target: {id: "homeq", value: first, closest: () => null}}));
+          ok(hm.q("#homegrid").innerHTML.includes(`<span class="pt">${first}<`), "제목으로 검색하면 그 공연이 보인다");
+          hm.listeners.doc.input.forEach(f => f({target: {id: "homeq", value: "없는공연제목zz", closest: () => null}})); ok(/검색 결과가 없어요/.test(hm.q("#homegrid").innerHTML), "검색 결과가 없으면 안내");
+          ok(/<div class="tcstage"><div class="tcfan" aria-hidden="true">(<img src="[^"]+" alt="" style="--a:-?\d+deg">){1,5}<\/div><div class="tcwrap">/.test(h0), "취향 카드 뒤 부채꼴 포스터(장식, 넓은 화면에서만 CSS로 보임)"); }
         ok(/취향 고르기 1\/2/.test(scrP["#taste/1"]) && /나의 뮤지컬 관극 취향|아직 비어 있는 내 취향 카드/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "온보딩은 1/2·2/2, 홈은 내 취향 카드, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
         ok(!/점수·순위/.test(scrP["#home"]) && /MY PICKLE TASTE/.test(scrP["#home"]) && /지금 하는 공연 전체/.test(scrP["#home"]) && !/내 취향 추천/.test(scrP["#home"]), "홈: 점수·순위 말이 없고, 취향 카드 아래 지금 하는 공연 전체(내 취향 추천 줄은 없다)");
