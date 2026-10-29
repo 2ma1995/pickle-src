@@ -133,11 +133,12 @@ main:is([data-view=onboard],[data-view=taste]) .one{background:none;border:0;pad
 .pt{font-size:14px;font-weight:700;line-height:1.35;letter-spacing:-.02em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .pw{font-size:12px;line-height:1.45;color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .pbadge{position:absolute;left:6px;top:6px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(0,0,0,.74);color:#fff}
-.pgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 10px}
-.pgrid .pt{font-size:12.5px}
-@media (min-width:600px){.pgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:22px 14px}.pgrid .pt{font-size:13.5px}}
-@media (min-width:900px){.pgrid{grid-template-columns:repeat(5,minmax(0,1fr))}}
-@media (min-width:1100px){.pgrid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.pgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px 8px}  /* 화면 너비와 상관없이 한 줄 5개(사용자 요청 2026-10-29) */
+.pgrid .pcard{gap:5px}
+.pgrid .pt{font-size:12px;line-height:1.3;word-break:keep-all;overflow-wrap:anywhere}
+.pgrid .pw{font-size:10.5px;line-height:1.3}
+.pgrid .prank{font-size:20px}
+@media (min-width:600px){.pgrid{gap:20px 12px}.pgrid .pt{font-size:13px}.pgrid .pw{font-size:11.5px}}
 .visit .card{background:var(--surface)}
 
 /* ---- 공연 화면 ① 히어로: 포스터를 흐리게 깐 배경 위에 큰 제목 ---- */
