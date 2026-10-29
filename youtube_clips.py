@@ -61,6 +61,9 @@ NUMBERS = {
     "사의찬미": ["도쿄찬가", "이 세상에 없는 곳", "난 그런 사랑을 원해", "날개가 찢긴 한 마리 물새"],
     "빨래": ["서울살이 몇핸가요", "참 예뻐요", "슬플 땐 빨래를 해", "한 걸음 두 걸음"],
     "팬레터": ["섬세한 팬레터", "내가 죽었을 때", "별이 반짝이는 시간", "그녀를 만나면", "고백"],
+    "레베카": ["레베카", "Rebecca", "행복을 병 속에", "신이여", "나 오직 그대만", "칼날 같은 그 미소", "어젯밤 꿈에 맨덜리", "영원한 생명", "하루 또 하루"],
+    "스위니토드": ["Epiphany", "에피파니", "Johanna", "조안나", "Pretty Women", "프리티 우먼", "Not While I'm Around", "A Little Priest", "The Worst Pies in London",
+              "Poor Thing", "My Friends", "마이 프렌즈", "By the Sea", "Green Finch and Linnet Bird", "The Ballad of Sweeney Todd"],
     "렛미플라이": ["세상은 변해가", "미래 탐사", "컵케이크", "돌멩이", "여행"],
 }
 # 공식 채널 추정용 이름 조각(공백·대소문자 무시). 공연장은 RUNS에서 가져오고, 제작사는 확실한 것만 둔다. 모자라면 --official 로 추가.
@@ -131,22 +134,26 @@ def search_sample(key, work, actor):
             v(3, "다른 공연 쇼케이스", "샘플 개인 채널", "50000")]
 
 
+def role_files():
+    """배역표: MVP 배역표(data/mvp/roles.tsv, MVP 5개 작품)를 먼저, 그다음 roles_*.tsv 최신본(MVP 밖 작품). 같은 작품·배우는 먼저 읽은 쪽(2026-10-29 레베카·스위니토드 추가)."""
+    return [p for p in [ROOT / "data" / "mvp" / "roles.tsv", *sorted((ROOT / "data").glob("roles_*.tsv"))[-1:]] if p.exists()]
+
+
 def load_actors(all_tags):
-    """roles_*.tsv 최신본 → 작품별 [(배우, 배역, 비중)]. 태그 없는 배우 먼저, 그 안에서 주연 먼저. all_tags=False 면 태그 있는 배우는 뺀다."""
-    path = sorted((ROOT / "data").glob("roles_*.tsv"))[-1]
+    """배역표(role_files) → 작품별 [(배우, 배역, 비중)]. 태그 없는 배우 먼저, 그 안에서 주연 먼저. all_tags=False 면 태그 있는 배우는 뺀다."""
+    paths = role_files()
     tagged = set(load_tags()[0])  # {(작품, 배우)}
     per = defaultdict(dict)
-    for r in csv.DictReader(open(path, encoding="utf-8"), delimiter="\t"):
+    for r in (r for p in paths for r in csv.DictReader(open(p, encoding="utf-8"), delimiter="\t")):
         for a in (x.strip() for x in r["캐스트 배우"].split(",")):
             if a and (all_tags or (r["작품"], a) not in tagged):
                 per[r["작품"]].setdefault(a, (r["배역"], r["비중"]))  # 한 배우가 여러 배역이면 먼저 나온 배역
-    return {w: sorted(((a, *v) for a, v in d.items()), key=lambda x: ((w, x[0]) in tagged, x[2] != "주연")) for w, d in per.items()}, path.name
+    return {w: sorted(((a, *v) for a, v in d.items()), key=lambda x: ((w, x[0]) in tagged, x[2] != "주연")) for w, d in per.items()}, "+".join(p.name for p in paths)
 
 
 def actor_names():
-    """roles_*.tsv 최신본의 모든 배우 이름(n()을 거쳐 공백·기호를 뺀 형태). 따옴표 안 글이 이 중 하나면 넘버가 아니라 사람 이름이다."""
-    path = sorted((ROOT / "data").glob("roles_*.tsv"))[-1]
-    return {n(x) for r in csv.DictReader(open(path, encoding="utf-8"), delimiter="\t") for x in r["캐스트 배우"].split(",") if n(x)}
+    """배역표(role_files)의 모든 배우 이름(n()을 거쳐 공백·기호를 뺀 형태). 따옴표 안 글이 이 중 하나면 넘버가 아니라 사람 이름이다."""
+    return {n(x) for p in role_files() for r in csv.DictReader(open(p, encoding="utf-8"), delimiter="\t") for x in r["캐스트 배우"].split(",") if n(x)}
 
 
 def harvest(videos, work, names=None):
@@ -239,7 +246,7 @@ def main(a):
     for r in prev_rows:
         k = (r["작품"], r["배우"]); best[k] = min(best.get(k, 9), tier(r["채널"], official, r["공식채널(추정)"] == "Y", r["배우"]))
     # 공식·전문 영상이 없는 배우(영상 없음 → 직캠뿐) 먼저, 그 안에서 주연 먼저. 한도가 남으면 나머지도 다시 찾는다
-    todo = sorted(((w, act, role, lead) for w, lst in actors.items() for act, role, lead in lst if (w, act) not in manual),
+    todo = sorted(((w, act, role, lead) for w, lst in actors.items() for act, role, lead in lst if (w, act) not in manual and (not a.works or w in a.works)),  # --works: 이 작품들만 검색(나머지는 지난 파일 영상을 이어 쓴다)
                   key=lambda x: (best.get((x[0], x[1]), 9) < 2, x[3] != "주연", -best.get((x[0], x[1]), 9)))[:a.max_calls]
     raw, calls = {}, 0
     try:
@@ -434,6 +441,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sample", action="store_true", help="키 없이 샘플 응답으로 실행")
     ap.add_argument("--max-calls", type=int, default=95, help="이번 실행 검색(search.list) 호출 상한 (기본 95, 주연 먼저)")
+    ap.add_argument("--works", nargs="*", default=[], help="이 작품들만 검색 (예: --works 레베카 스위니토드 시카고). 비우면 전체")
     ap.add_argument("--top", type=int, default=2, help="배우당 남길 영상 수 (기본 2)")
     ap.add_argument("--official", nargs="*", default=[], help="공식 채널로 볼 채널 이름 조각 추가 (예: --official 쇼노트 신시)")
     ap.add_argument("--channels", action="store_true", help="검색 대신 제작사 공식 채널 업로드 목록을 훑는다 (채널당 ≈ 영상 수/50 유닛)")
