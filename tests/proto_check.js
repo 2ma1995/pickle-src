@@ -483,7 +483,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     { const nCard = (html2.match(/class="card rcard"/g) || []).length;  // v0.9(docs/261027_2 10.2절): 추천 조합 카드마다 '이 조합 어때요?' 3지선다, 답 안 해도 된다
       ok(nCard >= 1 && nCard <= 2 && (html2.match(/이 조합 어때요\?/g) || []).length === nCard && (html2.match(/data-act="sat" /g) || []).length === nCard * 3 && /이 조합이 마음에 들어요/.test(html2) && !/누구 때문인가요/.test(html2), "추천 조합 카드(2개까지)마다 '이 조합 어때요?' 마음에 들어요/별로예요/모르겠어요");
       ok(/<ul class="why"><li class="small">a1 · 공간을 채우는 성량<\/li>/.test(html2) && /c1 배우는 아직 모인 정보가 적어요/.test(html2) && !/\d+%|\d+점/.test((html2.match(/<ul class="why">[\s\S]*?<\/ul>/g) || []).join("")), "카드마다 추천 이유(배우 · 맞는 특징, 온보딩 문구), 근거 없는 배우는 '정보가 적어요', 이유에 점수·퍼센트 없음(10절)"); }
-    ok((html2.match(/pickc on/g) || []).length === 3 && !/PICK/.test(html2) && (html2.match(/class="pickb">추천 조합</g) || []).length === 1 && /class="chip x on" data-act="selCombo" data-work="극" data-i="0"/.test(html2), "추천 조합(1순위)이 미리 선택돼 있고, 배우 칩엔 PICK 배지가 없고 '추천 조합' 표시는 조합 선택 칸에 한 번만");
+    ok((html2.match(/pickc on/g) || []).length === 3 && !/PICK/.test(html2) && (html2.match(/class="pickb">추천 조합</g) || []).length === 1 && /class="rcpick on" data-act="selCombo" data-work="극" data-i="0"/.test(html2), "추천 조합(1순위)이 미리 선택돼 있고, 배우 칩엔 PICK 배지가 없고 '추천 조합' 표시는 조합 선택 칸에 한 번만");
     // v0.9 조합 만족도 화면(10.2·10.3절): 별로예요 → 누구 때문인가요? → 배우 → 피하고 싶은 배우 추가(동의할 때만)
     { const sa = boot(); sa.location.hash = "#show/" + W; sa.route();
       sa.click({act: "sat", work: W, i: "0", a: "dislike"}); let hs = sa.V.show(W);
@@ -498,23 +498,32 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       ok(/좋아한 조합으로 기억할게요/.test(sb2.V.show(W)), "마음에 들어요 → 좋아한 조합 안내");
       sb2.click({act: "recAgain", work: W}); hs = sb2.V.show(W);
       ok((hs.match(/class="card rcard"/g) || []).length === 3 && /다시 추천은 한 번만 할 수 있어요/.test(hs) && !/data-act="recAgain"/.test(hs) && (hs.match(/aria-pressed="true">이 조합이 마음에 들어요/g) || []).length === 1, "다시 추천받기: 3번째 카드가 붙고 버튼은 안내로 바뀐다(앞 카드 답은 그대로)"); }
-    // 배우 먼저(8절) · 날짜 먼저 배우 조건 줄(7절 A2)
+    // 배우 먼저(8절, 2026-10-29 세 화면) · 날짜 먼저 배우 조건 줄(7절 A2)
     { const af = boot({storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: ["b2", "a1", "없는배우"], must: ["a1", "없는배우"], avoid: ["a2"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}});
       af.location.hash = `#find/${W}/actor`; af.route(); let h = af.V.find(W, "actor");
-      ok(/누구를 꼭 보고 싶어요\?/.test(h) && /이 작품에는 없는배우 배우가 나오지 않아요/.test(h) && /a1 · 반드시/.test(h) && /b2 · 가능하면/.test(h) && /a2 · 피함/.test(h) && /<b>C<\/b>/.test(h), "배우 먼저: 온보딩 값이 미리 채워져 있고(조연 배역 포함), 작품에 없는 반드시 포함 배우는 안내");
-      ok(/a1 배우와 볼 수 있는 조합/.test(h) && /class="card rcard"/.test(h) && /id="dates"/.test(h), "추천 조합 카드와 달력이 이어진다");
-      { const cards = h.split('class="card rcard"').slice(1);  // 사용자 요청(2026-10-28): 조합을 고르기 전에도 카드 왼쪽 위에 날짜·시간
+      ok(/누구를 꼭 보고 싶어요\?/.test(h) && /data-a="a1"[^>]*>[^<]*<span class="acic"[^>]*>★<\/span>a1/.test(h) && /data-a="b2"[^>]*>[^<]*<span class="acic"[^>]*>✓<\/span>b2/.test(h) && /a2 · 피함/.test(h) && /<b>C<\/b>/.test(h), "① 배우 고르기: 온보딩 값이 미리 채워져 있다(★ 반드시 · ✓ 가능하면, 조연 배역 포함)");
+      ok(!/나오지 않아요/.test(h) && !/배우를 누르면/.test(h) && !/순위대로/.test(h) && !/data-act="acMove"/.test(h), "작품에 없는 배우 안내·'배우를 누르면…' 문구·순위 블록이 없다");
+      ok(/class="aclegend"><span><b class="acic">✓<\/b> 가능하면 포함<\/span><span><b class="acic">★<\/b> 반드시 포함<\/span>/.test(h) && h.indexOf("aclegend") < h.indexOf("rolebox"), "제목 아래·배역 블록 위 오른쪽에 ✓·★ 설명");
+      ok((h.match(/class="accell"/g) || []).length === (h.match(/class="acvid/g) || []).length && /class="acvid( none)?"/.test(h), "배우 칸마다 이름 밑에 영상(없으면 영상 찾아보기)");
+      ok(!/class="card rcard"/.test(h) && !/id="dates"/.test(h) && /<a class="btn" href="#find\/극\/actor\/recs">확인/.test(h), "① 화면엔 추천 조합·달력이 없고 확인 버튼으로 다음 화면");
+      let hr = af.V.find(W, "actor", "recs");
+      ok(/a1 배우와 볼 수 있는 조합/.test(hr) && /class="card rcard"/.test(hr) && !/id="dates"/.test(hr) && /data-nav="1"/.test(hr) && /<b class="acic">★<\/b> a1/.test(hr), "② 추천 조합 화면: 카드만(고른 배우 요약), 달력은 없다");
+      { const cards = hr.split('class="card rcard"').slice(1);  // 사용자 요청(2026-10-28): 조합을 고르기 전에도 카드 왼쪽 위에 날짜·시간
         ok(cards.length && cards.every(c => /^><div class="rcwhen"><b class="rcd">\d\d\.\d\d <span>\([일월화수목금토]\)<\/span> \d\d:\d\d<\/b>/.test(c)), "추천 조합 카드마다 맨 위(왼쪽 위)에 가장 가까운 날짜·시간, 그 밑에 출연진"); }
-      af.click({act: "acSet", work: W, a: "b1", k: "maybe"}); af.click({act: "acMove", work: W, a: "b1", d: "-1"}); h = af.V.find(W, "actor");
-      ok(af.S.cal[W].ac.pick.map(x => x.a).join() === "b2,b1,a1" && af.S.prefs.favs.join() === "b2,a1,없는배우", "배우를 누르면 가능하면 포함, 순위는 이 작품에만(온보딩 값은 그대로)");
-      af.click({act: "acSet", work: W, a: "a2", k: "maybe"}); ok(!af.S.cal[W].ac.pick.some(x => x.a === "a2"), "공통 피하고 싶은 배우는 여기서 보고 싶은 배우로 못 바꾼다");
+      af.click({act: "selCombo", work: W, nav: "1", i: "0"}); const hc = af.V.find(W, "actor", "cal");
+      ok(af.location.hash === "#find/극/actor/cal" && /id="dates"/.test(hc) && !/class="card rcard"/.test(hc) && /다른 조합 고르기/.test(hc), "③ 이 조합 고르기 → 고른 조합의 캘린더만");
+      ok(!/class="s k">\d+회/.test(hc) && /<span class="red">토<\/span><span class="red">일<\/span>/.test(hc) && /class="day (has|none)[^"]*red/.test(hc), "캘린더: 'N회' 글자 없음, 토·일·공휴일 빨간 숫자");
+      af.click({act: "acCycle", work: W, a: "b1"}); ok(af.S.cal[W].ac.pick.find(x => x.a === "b1")?.must === false, "한 번 누르면 ✓ 가능하면 포함");
+      af.click({act: "acCycle", work: W, a: "b1"}); ok(af.S.cal[W].ac.pick.find(x => x.a === "b1")?.must === true, "두 번 누르면 ★ 반드시 포함");
+      af.click({act: "acCycle", work: W, a: "b1"}); ok(!af.S.cal[W].ac.pick.some(x => x.a === "b1") && af.S.prefs.favs.join() === "b2,a1,없는배우", "세 번 누르면 취소(온보딩 값은 그대로)");
+      af.click({act: "acCycle", work: W, a: "a2"}); ok(!af.S.cal[W].ac.pick.some(x => x.a === "a2"), "공통 피하고 싶은 배우는 여기서 보고 싶은 배우로 못 바꾼다");
       af.click({act: "acSet", work: W, a: "b1", k: "must"}); af.click({act: "acSet", work: W, a: "b2", k: "must"}); h = af.V.find(W, "actor");
-      ok(/b2와 b1[은는] 같은 배역이라 한 회차에 함께 나오지 않아요/.test(h) && /data-a="b1" data-k="maybe">b1[을를] 가능하면 포함으로 바꾸기/.test(h) && /이 조건에 맞는 조합이 없어요/.test(h), "같은 배역의 반드시 포함 둘: 순위 낮은 쪽을 가능하면으로 바꾸자고 제안(자동으로 풀지 않는다)");
-      af.click({act: "acSet", work: W, a: "b1", k: "maybe"}); ok(!/같은 배역이라/.test(af.V.find(W, "actor")) && /class="card rcard"/.test(af.V.find(W, "actor")), "제안을 누르면 풀리고 다시 추천된다");
+      ok(/b2와 b1[은는] 같은 배역이라 한 회차에 함께 나오지 않아요/.test(h) && /data-a="b1" data-k="maybe">b1[을를] 가능하면 포함으로 바꾸기/.test(h) && /이 조건에 맞는 조합이 없어요/.test(af.V.find(W, "actor", "recs")), "같은 배역의 반드시 포함 둘: 바꾸자고 제안하고, 추천 화면은 0개(자동으로 풀지 않는다)");
+      af.click({act: "acSet", work: W, a: "b1", k: "maybe"}); ok(!/같은 배역이라/.test(af.V.find(W, "actor")) && /class="card rcard"/.test(af.V.find(W, "actor", "recs")), "제안을 누르면 풀리고 다시 추천된다");
       af.click({act: "acSet", work: W, a: "b1", k: ""}); af.q("#acAvoid").value = "b2"; af.click({act: "acAvoidAdd", work: W});
       ok(af.S.cal[W].ac.extra.includes("b2") && !af.S.cal[W].ac.pick.some(x => x.a === "b2") && !(af.S.prefs.avoid || []).includes("b2"), "이 작품에 한해 피하고 싶은 배우를 더한다(공통 값은 그대로)");
-      const dl = af.V.find(W, "date"); ok(/반드시 포함 a1 · 피하는 배우 2명 적용 중 <a href="#find\/극\/actor">바꾸기<\/a>/.test(dl) && /이 작품에는 없는배우 배우가 나오지 않아요/.test(dl) && /data-act="dfDay"/.test(dl), "날짜 먼저: 배우 조건 줄 + [바꾸기]는 배우 먼저 화면으로");
-      af.click({act: "acReset", work: W}); ok(!af.S.cal[W].ac && /a1 · 반드시/.test(af.V.find(W, "actor")), "평소 배우 조건으로 되돌리기"); }
+      const dl = af.V.find(W, "date"); ok(/반드시 포함 a1 · 피하는 배우 2명 적용 중 <a href="#find\/극\/actor">바꾸기<\/a>/.test(dl) && !/나오지 않아요/.test(dl) && /data-act="dfDay"/.test(dl), "날짜 먼저: 배우 조건 줄 + [바꾸기]는 배우 먼저 화면으로(작품에 없는 배우 안내는 없다)");
+      af.click({act: "acReset", work: W}); ok(!af.S.cal[W].ac && /<span class="acic"[^>]*>★<\/span>a1/.test(af.V.find(W, "actor")), "평소 배우 조건으로 되돌리기"); }
     // 날짜 먼저(7절): 회차 달력 → 하루씩/기간 → 고른 날짜의 추천 조합 → 그 조합의 회차(밖은 펼치기)
     { const df = boot(); df.location.hash = `#find/${W}/date`; df.route(); let h = df.V.find(W, "date");
       ok(/언제 볼 수 있어요\?/.test(h) && /data-act="dfMode" data-work="극" data-v="day">하루씩/.test(h) && /class="on" data-act="dfMode" data-work="극" data-v="day"/.test(h) && (h.match(/data-act="dfDay"/g) || []).length === 4 && !/class="card rcard"/.test(h), "날짜 먼저: 하루씩이 기본, 회차 있는 날만 누를 수 있고(대관 제외), 날짜를 고르기 전엔 추천이 없다");
@@ -527,7 +536,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       df.click({act: "dfMode", work: W, v: "range"}); df.click({act: "dfDay", work: W, d: "2026-11-02"}); ok(/11\/2부터 · 끝 날짜를 눌러 주세요/.test(df.V.find(W, "date")), "기간: 시작 날짜를 누르면 끝 날짜를 묻는다");
       df.click({act: "dfDay", work: W, d: "2026-11-04"}); eq(df.S.cal[W].dates, ["2026-11-02", "2026-11-03", "2026-11-04"], "기간: 시작~끝 사이 회차 있는 날 모두(결정 19)");
       const dm = boot({storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: ["a2"], must: ["a2"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {[W]: {actors: [], period: "all", dates: ["2026-11-01"]}}, proto: {}})}});
-      const hm = dm.V.find(W, "date"); ok(/이 날짜엔 맞는 조합이 없어요/.test(hm) && /a2 배우는 고른 날짜에 나오지 않아요\. 다음 출연은 11\/3이에요/.test(hm) && /class="day has pin dim"/.test(hm), "반드시 포함 배우가 고른 날짜에 안 나오면: 0개 + 다음 출연일, 그날은 흐리게(13절)"); }
+      const hm = dm.V.find(W, "date"); ok(/이 날짜엔 맞는 조합이 없어요/.test(hm) && /a2 배우는 고른 날짜에 나오지 않아요\. 다음 출연은 11\/3이에요/.test(hm) && /class="day has pin dim[ "]/.test(hm), "반드시 포함 배우가 고른 날짜에 안 나오면: 0개 + 다음 출연일, 그날은 흐리게(13절)"); }
     // 좋아한 조합(10.3절) · 관람 후 알림 권한(결정 42) · 취향 스냅숏(16절 할 일)
     { const nx = boot(); nx.location.hash = "#show/" + W; nx.route(); nx.click({act: "sat", work: W, i: "0", a: "like"});
       ok(/좋아한 조합 <span class="small muted">1개<\/span>/.test(nx.V.plans()) && /좋아한 조합/.test(nx.V.me()) && /href="#find\/극\/actor">다시 찾기/.test(nx.V.plans()), "마음에 들어요 조합은 내 공연·내 취향의 '좋아한 조합'에");
@@ -1353,7 +1362,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
           ok((fl.match(/class="wcard/g) || []).length >= 1 && /href="#find\/[^"]+"/.test(fl) && /어떤 작품의 조합을 찾아볼까요\?/.test(fl), "작품 고르기: 작품 카드가 나오고, 고를 수 있는 작품은 #find/작품으로");
           const how = m.V.find(W0, "how"); ok(/href="#find\/[^"]+\/date">날짜 먼저 고르기/.test(how) && /href="#find\/[^"]+\/actor">배우 먼저 고르기/.test(how), "찾는 방법 고르기: 날짜 먼저 · 배우 먼저");
           ok(/언제 볼 수 있어요\?/.test(m.V.find(W0, "date")) && /data-act="dfDay"/.test(m.V.find(W0, "date")) && /누구를 꼭 보고 싶어요?/.test(m.V.find(W0, "actor")), "실제 데이터: 날짜 먼저 → 회차 달력, 배우 먼저 → 배우 조건 화면");
-          const mm = boot({...L0, prefs: {...(L0.prefs || {}), favs: ["없는배우X"], must: ["없는배우X"]}}); ok(!/없는배우X/.test(mm.V.find()) && /이 작품에는 없는배우X 배우가 나오지 않아요/.test(mm.V.find(W0, "how")), "반드시 포함 배우가 작품에 없으면 작품을 고른 뒤 안내(작품 고르기 화면에는 없다, 결정 25)");
+          const mm = boot({...L0, prefs: {...(L0.prefs || {}), favs: ["없는배우X"], must: ["없는배우X"]}}); ok(!/없는배우X/.test(mm.V.find()) && !/없는배우X/.test(mm.V.find(W0, "how")) && !/없는배우X/.test(mm.V.find(W0, "actor")), "반드시 포함 배우가 작품에 없어도 안내 문구를 띄우지 않는다(2026-10-29 사용자 요청, 결정 25를 대신함)");
           const left = w => m.D.perfs.filter(p => p.work === w.name && !(p.notes || []).some(n => /대관/.test(n)) && p.date >= NOW).length, shown = [...fl.matchAll(/<b>([^<]+)<\/b>/g)].map(x => x[1]);
           const want = m.D.works.filter(w => w.runs.some(r => r.end >= NOW)).sort((a, b) => (left(a) || Infinity) - (left(b) || Infinity) || a.name.localeCompare(b.name, "ko")).map(w => w.name);
           eq(shown, want, "작품 고르기: 남은 회차가 적은 순, 회차 미공개는 맨 뒤, 공연이 끝난 작품은 없다(결정 32·35)");
