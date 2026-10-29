@@ -529,7 +529,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       const ph = loadApp(HP, {...opts, storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: ["a1"], avoid: ["a2"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); ph.route();
       const hr = ph.V.find(W, "actor", "recs"), card = hr.split('class="card rcard"')[1] || "";
       ok(/^><div class="rcwhen">[\s\S]*?<\/div><div class="rcast"><div class="rca"><span class="avi "><img src="https:\/\/upload\.example\/a1\.jpg"[^>]*><\/span><b>a1<\/b><span>A<\/span><\/div>/.test(card) && /<span class="avi none " aria-hidden="true">b<\/span><b>b1<\/b><span>B<\/span>/.test(card), "추천 조합 카드: 날짜·시간 밑에 사진(없으면 첫 글자) → 이름 → 배역");
-      ok(/배우 사진: 위키미디어 공용 · <a href="#photos">사진 출처<\/a>/.test(hr), "사진이 있으면 출처 링크");
+      ok(!/사진 출처/.test(hr) && !/사진 출처/.test(ph.V.find(W, "actor")) && /<a href="#photos">배우 사진 출처<\/a>/.test(ph.V.me()), "카드 아래 사진 출처 링크는 없고(사용자 요청), 내 취향 맨 아래에 작은 링크");
       const ha = ph.V.find(W, "actor"); ok(/<span class="tag avtag"><span class="avi sm"><img src="https:\/\/upload\.example\/a2\.jpg"/.test(ha), "피하고 싶은 배우에도 같은 사진");
       const pp = ph.V.photos(); ok(/<b>a1<\/b><br><span class="muted">찍은이 · CC BY 4\.0 · <a href="https:\/\/commons\.example\/a1" target="_blank" rel="noopener">원본<\/a>/.test(pp), "사진 출처 화면: 저작자 · 라이선스 · 원본"); }
     // 날짜 먼저(7절, 2026-10-29 세 화면): 회차 달력(기간이 먼저·기본, 여러 기간 더하기, 하루씩 빼기·더하기) → 다음 → 고른 날짜의 추천 조합 → 이 조합 고르기 → 그 조합의 캘린더만

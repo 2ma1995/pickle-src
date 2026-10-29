@@ -1247,6 +1247,7 @@ V.me = () => {
     <section class="sec">${onboardBody("2", true)}</section>
     <button class="btn" data-act="meDone">확인</button>
     ${likedCard()}
+    ${Object.keys(D.actorPhotos || {}).length ? `<p class="tiny muted"><a href="#photos">배우 사진 출처</a> · 위키미디어 공용</p>` : ""}
     ${rows.length && debugOn() ? `<div class="card"><h3>팀 시트로 내보내기</h3><p class="small muted">'태그 기록' 탭 맨 아래에 붙여 넣는 TSV ${rows.length}줄이에요.</p><button class="btn ghost" data-act="copyTsv">TSV 복사</button><pre>${esc(rows.map(r => r.join("\t")).join("\n"))}</pre></div>` : ""}
     </div>`;
 };
@@ -2285,7 +2286,6 @@ const dateRecs = (w, dates, byDate, all, c, never) => {
 const AC_ICON = {maybe: "✓", must: "★"};
 const avatar = (a, cls = "") => { const p = (D.actorPhotos || {})[a];
   return p ? `<span class="avi ${cls}"><img src="${esc(p.src)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>` : `<span class="avi none ${cls}" aria-hidden="true">${esc([...a][0] || "")}</span>`; };
-const photoCredit = names => names.some(a => (D.actorPhotos || {})[a]) ? `<p class="tiny muted">배우 사진: 위키미디어 공용 · <a href="#photos">사진 출처</a></p>` : "";
 V.photos = () => { const ps = Object.entries(D.actorPhotos || {}).sort(([a], [b]) => a.localeCompare(b, "ko"));
   return `<div class="one"><div><p class="eyebrow">배우 사진 출처</p><h1>사진 출처</h1></div><p class="small muted">배우 사진은 위키미디어 공용(Wikimedia Commons)에서 자유 이용 라이선스로 공개된 사진만 써요. 사진이 없는 배우는 이름 첫 글자로 보여 드려요.</p>
     <div class="card">${ps.map(([a, p]) => `<div class="phrow">${avatar(a)}<span class="small"><b>${esc(a)}</b><br><span class="muted">${esc(p.by)} · ${esc(p.lic)} · <a href="${esc(p.page)}" target="_blank" rel="noopener">원본</a></span></span></div>`).join("") || `<p class="small muted">아직 사진이 없어요.</p>`}</div></div>`; };
@@ -2307,7 +2307,7 @@ const actorFirst = (w, step) => {
       <p class="aclegend"><span><b class="acic">✓</b> 가능하면 포함</span><span><b class="acic">★</b> 반드시 포함</span><span class="muted">한 번 더 누르면 취소</span></p></div>
     <section class="sec">${roles}</section>
     ${clashLine}
-    <div class="card"><h3>피하고 싶은 배우 <span class="small muted">선택</span></h3><div class="chips">${c.avoid.map(a => `<span class="tag avtag">${avatar(a, "sm")}${esc(a)}</span>`).join("")}${c.extra.map(a => `<button class="chip x on avtag" data-act="acSet" data-work="${W}" data-a="${esc(a)}" data-k="">${avatar(a, "sm")}${esc(a)} ×</button>`).join("")}</div>${photoCredit([...c.avoid, ...c.extra])}
+    <div class="card"><h3>피하고 싶은 배우 <span class="small muted">선택</span></h3><div class="chips">${c.avoid.map(a => `<span class="tag avtag">${avatar(a, "sm")}${esc(a)}</span>`).join("")}${c.extra.map(a => `<button class="chip x on avtag" data-act="acSet" data-work="${W}" data-a="${esc(a)}" data-k="">${avatar(a, "sm")}${esc(a)} ×</button>`).join("")}</div>
       <div class="row"><input id="acAvoid" list="acActors" placeholder="이 작품에 한해 더 피할 배우" autocomplete="off" style="flex:1"><button class="chip" data-act="acAvoidAdd" data-work="${W}">추가</button></div><datalist id="acActors">${[...workCastSet(D, work)].sort().map(a => `<option value="${esc(a)}">`).join("")}</datalist>
       <p class="tiny muted">${c.avoid.length ? "회색은 모든 작품에 적용 중인 배우예요('내 취향'에서 바꿔요). " : ""}이 배우가 나오는 회차는 배역과 상관없이 빼요.</p></div>
     ${c.edited ? `<button class="chip x" data-act="acReset" data-work="${W}">평소 배우 조건으로 되돌리기</button>` : ""}
@@ -2444,7 +2444,7 @@ const satCards = (work, sel, inDates = null, nav = false) => {  // nav: 배우 �
   const more = sh.again ? `<p class="tiny muted">다시 추천은 한 번만 할 수 있어요</p>`
     : sh.list.length < 2 ? `<p class="tiny muted">이 조건에서는 조합이 하나뿐이에요</p>`
     : `<button class="btn ghost" data-act="recAgain" data-work="${W}"${DD}>다시 추천받기</button>`;
-  return `${sh.list.map(card).join("")}${more}${photoCredit(sh.list.flatMap(c => Object.values(c.cast)))}`;
+  return `${sh.list.map(card).join("")}${more}`;
 };
 const castSection = (ref, taste, want) => {
   const work = ref.key, from = today(), sel = curSel(D, S, work, from), recs = taste ? comboRecs(D, S, work, from) : [], {star, avoid} = pinsOf(S, work), cmp = S.proto?.cmp?.[work];
