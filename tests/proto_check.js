@@ -558,7 +558,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       ok(ra.S.proto.rdraft.rv.cast.A === "a2" && ra.S.proto.rdraft.rv.rows.A.tags.join() === "성량", "다른 배우였어요: 평가·태그는 바꾼 배우에게");
       ra.click({act: "rvPub", v: "1"}); ok(/공개하면 다른 사람의 추천 근거 문장에 이름 없이 보일 수 있어요/.test(ra.V.review(W, "2026-11-01", "14:00")), "공개를 고르면 안내");
       ra.click({act: "rvSave"}); rh = ra.V.review(W, "2026-11-01", "14:00");
-      ok(/저장했어요/.test(rh) && /a2 배우를 꼭 보고 싶은 배우\(가능하면 포함\)에 넣기/.test(rh) && /b1 배우를 피하고 싶은 배우에 넣기/.test(rh) && /data-act="rvSug" data-y="1" disabled/.test(rh), "저장 뒤 배우 조건 제안(기본은 선택 안 됨)");
+      ok(/저장했어요/.test(rh) && /a2 배우를 애정 배우에 넣기/.test(rh) && /b1 배우를 피하고 싶은 배우에 넣기/.test(rh) && /data-act="rvSug" data-y="1" disabled/.test(rh), "저장 뒤 배우 조건 제안(기본은 선택 안 됨)");
       const q = JSON.parse(ra.store.get("pickle_q") || "[]").filter(r => r.event === "after_review"); ok(q.length === 1 && q[0].payload.entry === "log" && q[0].payload.actors.length === 2 && !JSON.stringify(q[0].payload).includes("note"), "after_review 한 줄(주관식 원문 없음)");
       ra.click({act: "rvPick", a: "a2", k: "fav"}); ra.click({act: "rvSug", y: "1"});
       ok(ra.S.prefs.favs.includes("a2") && !(ra.S.prefs.avoid || []).includes("b1") && ra.location.hash === "#plans" && ra.S.plans.length === 1 && ra.S.plans[0].tagged && ra.S.reviews.length === 1, "체크한 배우만 넣고 내 공연으로. 담지 않았던 회차도 본 공연에 들어간다");
@@ -861,7 +861,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const css = fs.readFileSync(path.join(__dirname, "../app/app.css"), "utf8"), bar = (css.match(/\.chips\.afilter\{([^}]*)\}/) || [])[1] || "";
     ok(/flex-wrap:nowrap/.test(bar) && /overflow-x:auto/.test(bar) && /scrollbar-width:none/.test(bar) && /margin-inline:calc\(var\(--gut\) \* -1\)/.test(bar) && /\.afilter \.chip\{[^}]*flex:none[^}]*white-space:nowrap/.test(css) && /\.chips\.afilter::-webkit-scrollbar\{display:none\}/.test(css), "지역 칩 CSS: 줄바꿈 없는 한 줄 가로 스크롤(스크롤바 숨김, 화면 가장자리까지, 칩은 안 줄어듦)");
     ok(/const keepBar = document\.querySelector\("\.afilter"\)/.test(html) && /\.chip\[aria-pressed="true"\]/.test(html.split("function route()")[1].split("window.addEventListener")[0]), "route(): 칩 줄 스크롤 위치를 유지하고 눌린 칩이 밖이면 보이게 민다");
-    ok(/app\.css\?v=20261028a/.test(html), "app.css 캐시 번호를 올렸다");
+    ok(/app\.css\?v=20261029b/.test(html), "app.css 캐시 번호를 올렸다");
     const styleBlock = html.split("<style>")[1].split("</style>")[0], gh = styleBlock.indexOf("[hidden]{display:none!important}"), topBtn = styleBlock.indexOf(".top button[hidden]{visibility:hidden;display:block!important}"), undoRule = styleBlock.indexOf(".undobar{");
     ok(gh >= 0 && gh < undoRule && gh < styleBlock.indexOf(".top button{") && topBtn > gh, "전역 [hidden]{display:none!important} 가 <style> 맨 앞쪽에 있다(.undobar 처럼 display 를 정한 클래스가 hidden 을 못 덮는다)");
     ok(topBtn >= 0 && /^\.top button\[hidden\]/.test(styleBlock.slice(topBtn)) && !/^\[hidden\]/.test(".top button[hidden]"), "뒤로 버튼 자리 규칙(.top button[hidden]{visibility:hidden;display:block!important})은 그대로 — 선택자가 더 구체적이라 전역 규칙을 이긴다");
@@ -1042,19 +1042,26 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       const D9o = JSON.parse(JSON.stringify(D9)); D9o.actorProfiles = {...(D9o.actorProfiles || {}), "프로필만": {voice: [], role: [{tag: "관계 중심", work: "x"}, {tag: "춤·안무 표현", work: "x"}]}};  // 선택 질문(해석·움직임)에 근거가 있게
       const aO = loadApp(D9o, {...opts3, hash: "#taste/1", storage: {pickle_v2: JSON.stringify({prefs: null, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); aO.route();
       const v1 = aO.q("#view").innerHTML;
-      ok(/보고 싶은 배우가 있나요\?/.test(v1) && /취향 고르기 1\/2/.test(v1) && /피하고 싶은 배우/.test(v1), "1/2 는 배우 단계(보고 싶은·피하고 싶은 배우)");
-      aO.q("#fav").value = "a1"; aO.click({act: "addFav"});
-      ok(/반드시 포함/.test(aO.q("#view").innerHTML) && /가능하면 포함/.test(aO.q("#view").innerHTML), "추가한 배우마다 반드시/가능하면 포함");
-      aO.click({act: "obMust", a: "a1", m: "1"}); eq(aO.S.prefs.must, ["a1"], "반드시 포함");
-      aO.click({act: "obMust", a: "a1", m: ""}); eq(aO.S.prefs.must, [], "가능하면 포함으로 되돌림");
-      aO.click({act: "obMust", a: "a1", m: "1"}); aO.q("#avoidIn").value = "a1"; aO.click({act: "addAvoid"});
-      ok(!aO.S.prefs.favs.includes("a1") && !aO.S.prefs.must.includes("a1") && aO.S.prefs.avoid.includes("a1"), "피하고 싶은 배우로 옮기면 보고 싶은 배우·반드시에서 빠진다");
-      aO.q("#fav").value = "a1"; aO.click({act: "addFav"}); ok(aO.S.prefs.favs.includes("a1") && !aO.S.prefs.avoid.includes("a1"), "다시 보고 싶은 배우로 넣으면 피하고 싶은 배우에서 빠진다");
-      aO.click({act: "obMust", a: "a1", m: "1"}); aO.click({act: "rmFav", a: "a1"}); ok(!aO.S.prefs.must.includes("a1"), "보고 싶은 배우에서 빼면 반드시도 풀린다");
+      ok(/좋아하는 배우가 있나요\?/.test(v1) && /취향 고르기 1\/2/.test(v1) && /본진 배우/.test(v1) && /애정 배우/.test(v1) && /피하고 싶은 배우/.test(v1) && !/반드시 포함|가능하면 포함/.test(v1), "1/2 는 배우 단계(본진·애정·피하고 싶은 배우, 반드시/가능하면 선택지 없음)");
+      aO.q("#favB").value = "b1"; aO.click({act: "addFav", k: "b"}); aO.q("#fav").value = "a1"; aO.click({act: "addFav"});
+      eq([aO.S.prefs.favs, aO.S.prefs.bonjin], [["b1", "a1"], ["b1"]], "본진 배우·애정 배우를 따로 받는다(둘 다 좋아하는 배우)");
+      ok(/본진 배우[\s\S]*data-act="rmFav" data-a="b1"[\s\S]*애정 배우[\s\S]*data-act="rmFav" data-a="a1"/.test(aO.q("#view").innerHTML), "각 칸에 그 배우가 보인다");
+      aO.q("#favB").value = "a1"; aO.click({act: "addFav", k: "b"}); eq([aO.S.prefs.favs, aO.S.prefs.bonjin], [["b1", "a1"], ["b1", "a1"]], "애정 배우를 본진 칸에 넣으면 본진으로 옮긴다");
+      aO.q("#fav").value = "a1"; aO.click({act: "addFav"}); eq(aO.S.prefs.bonjin, ["b1"], "다시 애정 칸에 넣으면 애정으로");
+      aO.q("#avoidIn").value = "a1"; aO.click({act: "addAvoid"});
+      ok(!aO.S.prefs.favs.includes("a1") && aO.S.prefs.avoid.includes("a1"), "피하고 싶은 배우로 옮기면 좋아하는 배우에서 빠진다");
+      aO.q("#fav").value = "a1"; aO.click({act: "addFav"}); ok(aO.S.prefs.favs.includes("a1") && !aO.S.prefs.avoid.includes("a1"), "다시 좋아하는 배우로 넣으면 피하고 싶은 배우에서 빠진다");
+      aO.click({act: "rmFav", a: "b1"}); aO.click({act: "rmFav", a: "a1"}); ok(!aO.S.prefs.favs.length && !(aO.S.prefs.bonjin || []).length, "빼면 본진에서도 빠진다");
       aO.q("#avoidIn").value = "b1"; aO.click({act: "addAvoid"}); aO.click({act: "rmAvoid", a: "b1"}); eq(aO.S.prefs.avoid, [], "피하고 싶은 배우 빼기");
       aO.location.hash = "#taste/2"; aO.route(); const v3 = aO.q("#view").innerHTML;
       ok(/공연을 볼 때 무엇을 기대하나요\?/.test(v3) && /가장 기대하는 것은/.test(v3) && /어떤 목소리에 더 끌리나요\?/.test(v3) && /노래를 들을 때/.test(v3) && /어떤 감정 표현에/.test(v3), "2/2 는 우선순위 + 필수 질문 셋(제목 '공연을 볼 때 무엇을 기대하나요?')");
       ok(/선명하고 쨍한/.test(v3) && /유쾌하고 코믹한/.test(v3) && !/날카로운/.test(v3), "선택지: 선명하고 쨍한(날카로운 아님)·코믹 연기");
+      { const anyBtn = () => aO.q("#view").innerHTML.match(/<button class="chip x[^"]*" data-act="obPick" data-q="tone" data-t=""[^>]*>/)[0];
+        ok(!/ on"/.test(anyBtn()), "상관없어요: 처음엔 꺼짐");
+        aO.click({act: "obPick", q: "tone", t: ""}); ok(/class="chip x on"/.test(anyBtn()) && /aria-pressed="true"/.test(anyBtn()) && aO.S.prefs.any.includes("tone"), "상관없어요를 누르면 다른 버튼처럼 켜진다");
+        aO.click({act: "obPick", q: "tone", t: "맑음"}); ok(!/ on"/.test(anyBtn()) && !aO.S.prefs.any.includes("tone"), "선택지를 고르면 상관없어요는 꺼진다");
+        aO.click({act: "obPick", q: "tone", t: ""}); ok(/ on"/.test(anyBtn()) && !aO.S.prefs.axes.includes("tag:맑음"), "다시 상관없어요: 그 질문을 비우고 켜진다");
+        aO.click({act: "obPick", q: "tone", t: ""}); ok(!/ on"/.test(anyBtn()), "한 번 더 누르면 꺼진다"); }
       aO.click({act: "obPrio", v: "노래"}); eq(aO.S.prefs.prio, "노래", "우선순위 하나");
       aO.click({act: "obPrio", v: "연기"}); eq(aO.S.prefs.prio, "연기", "다른 걸 누르면 바뀐다");
       aO.click({act: "obPrio", v: "연기"}); eq(aO.S.prefs.prio, "", "다시 누르면 풀린다");
@@ -1344,8 +1351,11 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
           // 티켓 카드(2026-10-28 사용자 요청): 맨 위 '나의 뮤지컬 관극 취향' → 한 줄 요약(가장 크게) → 분류별 태그 칸 → 왼쪽 아래 수정하기(온보딩 처음부터) · 맨 아래 업데이트 날짜
           { const iT = front.indexOf("나의 뮤지컬 관극 취향"), iB = front.indexOf('class="tkcell tkbig'), iG = front.indexOf('class="tkgrid"'), iE = front.indexOf('class="tkedit" data-go="#taste/1">수정하기');
             ok(iT > 0 && iT < iB && iB < iG && iG < iE && /<svg class="tkcurtain"/.test(front), "앞면 티켓: 제목 → 요약 → 분류별 태그 → 수정하기(#taste/1) 순서, 커튼 그림");
-            const t = boot({...L0, prefs: {axes: ["tag:맑음", "tag:성량"], prio: "노래", favs: ["카이"], must: ["카이"], avoid: [], grade: "", works: [], at: "2026-10-28"}}); t.location.hash = "#home"; t.route(); const tf = t.q("#view").innerHTML;
-            ok(/<span class="tkk">목소리<\/span><span class="tkv">맑고 깨끗한<\/span>/.test(tf) && /<span class="tkk">노래<\/span><span class="tkv">공간을 채우는 성량<\/span>/.test(tf) && /<span class="tkk">가장 기대하는 것<\/span><span class="tkv">노래<\/span>/.test(tf) && /보고 싶은 배우<\/span><span class="tkv">카이 \(반드시\)/.test(tf), "고른 태그는 질문별 칸(목소리·노래·가장 기대하는 것·보고 싶은 배우)으로 나눠 보인다");
+            const t = boot({...L0, prefs: {axes: ["tag:맑음", "tag:성량"], prio: "노래", favs: ["카이", "a1", "a2"], bonjin: ["카이"], must: ["카이"], avoid: [], grade: "", works: [], at: "2026-10-28"}}); t.location.hash = "#home"; t.route(); const tf = t.q("#view").innerHTML;
+            ok(/<span class="tkk">목소리<\/span><span class="tkv">맑고 깨끗한<\/span>/.test(tf) && /<span class="tkk">노래<\/span><span class="tkv">공간을 채우는 성량<\/span>/.test(tf) && /<span class="tkk">가장 기대하는 것<\/span><span class="tkv">노래<\/span>/.test(tf) && !/반드시/.test(tf), "고른 태그는 질문별 칸(목소리·노래·가장 기대하는 것)으로 나눠 보인다");
+            ok(/<span class="tkcell wide"><span class="tkk">노래<\/span>[^]*?<span class="tkcell"><span class="tkk">본진 배우<\/span><span class="tkv">카이<\/span><\/span><span class="tkcell"><span class="tkk">애정 배우<\/span><span class="tkv">a1 · a2<\/span>/.test(tf), "본진 배우 | 애정 배우는 같은 줄 왼쪽·오른쪽 칸(앞의 짝 없는 칸은 한 줄로 늘린다)");
+            const t2 = boot({...L0, prefs: {axes: [], favs: ["a1"], avoid: [], grade: "", works: []}}); t2.location.hash = "#home"; t2.route();
+            ok(/본진 배우<\/span><span class="tkv">—<\/span><\/span><span class="tkcell"><span class="tkk">애정 배우<\/span><span class="tkv">a1</.test(t2.q("#view").innerHTML), "한쪽만 있어도 두 칸(빈 쪽은 —)");
             ok(/<span class="tkdate">2026\.10\.28 업데이트<\/span>/.test(tf) && tf.indexOf("tkdate") > tf.indexOf("tkedit"), "맨 아래 작은 글씨로 마지막 업데이트 날짜");
             t.click({act: "obPrio", v: "연기"}); ok(t.S.prefs.at === NOW, "취향을 고치면 업데이트 날짜가 오늘로");
             // 2026-10-29 사용자 요청: ADMIT ONE·SEAT 글자 없음, 배우 호흡·그 밖의 취향·피하고 싶은 배우 숨김, 수정하기·공유하기·저장하기 한 줄, 그 아래 왼쪽 오페라글라스·좌석 + 업데이트 날짜
@@ -1435,7 +1445,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         const dbg = bootT(undefined, "?debug=1"); dbg.location.hash = "#me"; const meD = dbg.V.me();
         ok(/팀 시트로 내보내기/.test(meD) && /TSV 복사/.test(meD) && !/팀 시트로 내보내기|TSV/.test(scrP["#me"]) && !/팀 시트로 내보내기|TSV/.test(scrL["#me"]), "'팀 시트로 내보내기'·TSV 는 ?debug=1 일 때만 보인다");
         ok(!/이 브라우저에만 저장돼요|주로 보는 좌석 등급|내가 남긴 관람 기록/.test(scrP["#me"]) && !/recommend|가안|팀 시트와/.test(meD), "내 취향: 맨 아래 저장 안내 문구·좌석 등급·관람 기록 상자는 뺐다(사용자 요청 2026-10-28), 내부 파일 이름 없음");
-        { const mp = scrP["#me"], i1 = mp.indexOf("꼭 보고 싶은 배우 · 피하고 싶은 배우"), i2 = mp.indexOf("공연을 볼 때 기대하는 것"), i3 = mp.indexOf('data-act="meDone">확인');
+        { const mp = scrP["#me"], i1 = mp.indexOf("좋아하는 배우 · 피하고 싶은 배우"), i2 = mp.indexOf("공연을 볼 때 기대하는 것"), i3 = mp.indexOf('data-act="meDone">확인');
           ok(i1 > 0 && i1 < i2 && i2 < i3 && /class="mecol"/.test(mp) && !/class="cards2"/.test(mp), "내 취향: ① 배우 ② 기대 ③ 확인 순서로 한 줄(한 칸)");
           ok(!/class="chip x on" data-act="obPick"/.test(mp), "기대 질문의 '상관없어요'는 기본으로 켜져(빨간 버튼) 있지 않다"); }
         dbg.route(); ok(/dbgb/.test(dbg.q("#dbg").innerHTML), "?debug=1 이면 연습 모드에서 📝 기록 확인 버튼이 보인다");
@@ -1446,8 +1456,10 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
         { const tg = bootT(undefined); tg.location.hash = "#tag/1"; tg.route(); const rv = tg.S.proto.rdraft.rv, roles = Object.keys(rv.cast), all = Object.keys(past[1].cast);
           ok(roles.length >= 2 && roles.every(r => all.includes(r)), "실제 데이터: 리뷰 줄은 그 회차 핵심 배역 전체(주연/조연 구분 없음)");
           tg.click({act: "rvRate", r: roles[0], v: "good"}); const h1 = tg.V.tag("1");
-          ok(/어떤 점이 좋았나요\?/.test(h1) && /＋ 다른 점/.test(h1) && /다른 배우였어요/.test(h1), "실제 데이터: 좋았어요 → '어떤 점이 좋았나요?' 칩 + ＋ 다른 점 + 다른 배우였어요");
-          tg.click({act: "rvMore", r: roles[0]}); const h2x = tg.V.tag("1"); ok(/캐릭터 해석|신체 표현|가창|연기/.test(h2x) && !/data-act="rvTag"[^>]*data-t="(연기합·티키타카|음색·보컬 조화)"/.test(h2x), "실제 데이터: ＋ 다른 점은 배우 태그 영역별 전체(조합 태그는 배우 줄에 없다)"); }
+          const grp = n => (tg.D.actorTagGroups.find(([g]) => g === "배우 · " + n) || [, []])[1], has = (h, t) => h.includes(`data-act="rvTag" data-r="${roles[0]}" data-t="${t}"`);
+          ok(/어떤 점이 좋았나요\?/.test(h1) && /＋ 추가하기/.test(h1) && /다른 배우였어요/.test(h1), "실제 데이터: 좋았어요 → '어떤 점이 좋았나요?' 칩 + ＋ 추가하기 + 다른 배우였어요");
+          ok([...grp("가창"), ...grp("연기")].every(t => has(h1, t)) && ![...grp("캐릭터 해석"), ...grp("신체 표현")].some(t => has(h1, t)), "처음엔 태그 사전의 배우-가창·배우-연기 태그 전부, 캐릭터 해석·신체 표현은 숨김");
+          tg.click({act: "rvMore", r: roles[0]}); const h2x = tg.V.tag("1"); ok([...grp("캐릭터 해석"), ...grp("신체 표현")].every(t => has(h2x, t)) && !/data-act="rvTag"[^>]*data-t="(연기합·티키타카|음색·보컬 조화)"/.test(h2x), "실제 데이터: ＋ 추가하기는 배우-캐릭터 해석·배우-신체 표현(조합 태그는 배우 줄에 없다)"); }
         ok(/취향 고르기 1\/2/.test(scrP["#taste/1"]) && /나의 뮤지컬 관극 취향|아직 비어 있는 내 취향 카드/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "온보딩은 1/2·2/2, 홈은 내 취향 카드, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
         ok(!/점수·순위/.test(scrP["#home"]) && /MY PICKLE TASTE/.test(scrP["#home"]) && /지금 하는 공연 전체/.test(scrP["#home"]) && !/내 취향 추천/.test(scrP["#home"]), "홈: 점수·순위 말이 없고, 취향 카드 아래 지금 하는 공연 전체(내 취향 추천 줄은 없다)");
