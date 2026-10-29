@@ -457,7 +457,7 @@ button.tcard:focus-visible,.tk .btn:focus-visible,.tkedit:focus-visible{outline:
 .tkfoot .tkicons svg{width:30px;height:18px}.tkfoot .tkicons svg+svg{width:18px;height:18px}
 .tk.back .tkbig{text-align:center;padding:34px 14px}
 .tk.tcard.back{background:var(--tk-bg);padding:0;text-align:left}  /* 뒷면은 .tcard 의 투명 바탕·여백을 덮어 앞면과 같은 틀로 */
-.tchint{display:block;padding:14px 0 6px;font-size:12px;color:var(--tk-mute);text-align:center}
+.tchint{display:block;padding:16px 0 8px;font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--tk-burg2);text-align:center}  /* 카드를 눌러 추천받기: 크게·버건디(사용자 요청 2026-10-29) */
 .tkperf{position:relative;height:22px;margin-top:6px}
 .tkperf::before{content:"";position:absolute;left:18px;right:18px;top:50%;border-top:2px dashed var(--tk-line)}
 .tkperf::after{content:"";position:absolute;inset:0 -11px;background:radial-gradient(circle at 0 50%,var(--bg) 10px,transparent 11px),radial-gradient(circle at 100% 50%,var(--bg) 10px,transparent 11px)}
@@ -512,8 +512,8 @@ a.wcard:hover{border-color:var(--hl)}
 .howlist .btn{display:grid;gap:2px;justify-items:start;text-align:left;padding:16px}
 .howlist .btn small{font-weight:400;opacity:.85}
 </style>
-<link rel="stylesheet" href="theme.css?v=20261029c">
-<link rel="stylesheet" href="app.css?v=20261029c">  <!-- 스타일을 고칠 때마다 theme.css·app.css 의 ?v= 숫자를 같이 올린다(브라우저가 옛 스타일을 기억하지 않게) -->
+<link rel="stylesheet" href="theme.css?v=20261029d">
+<link rel="stylesheet" href="app.css?v=20261029d">  <!-- 스타일을 고칠 때마다 theme.css·app.css 의 ?v= 숫자를 같이 올린다(브라우저가 옛 스타일을 기억하지 않게) -->
 </head>
 <body>
 <div class="shell">
@@ -2197,9 +2197,13 @@ const tasteCells = p => {
 };
 const ymd = d => String(d || "").replace(/-/g, ".");
 const PREF_ACTS = new Set(["obPick", "obPrio", "addFav", "rmFav", "addAvoid", "rmAvoid"]);  // 실제로 값을 바꾸는 동작만(건너뛰기·확인은 날짜를 바꾸지 않는다)
-// 넓은 화면(900px 이상)에서만: 취향 카드 뒤에 배우 조합을 추천받는 작품 포스터를 부채꼴로(사용자 요청 2026-10-29, 첫 화면 참고 이미지). 장식이라 읽기 도구엔 숨긴다
-const tkFan = from => { const ws = MVP_WORKS(from).filter(w => w.poster).slice(0, 5), mid = (ws.length - 1) / 2;
-  return `<div class="tcstage"><div class="tcfan" aria-hidden="true">${ws.map((w, i) => `<img src="${esc(w.poster)}" alt="" style="--a:${(i - mid) * 18}deg">`).join("")}</div>`; };
+// 첫 화면 무대(넓은 화면 900px 이상만, 사용자 요청 2026-10-29 · 첫 화면 참고 이미지): 맨 위 큰 문구 → 반원형 무대.
+// 무대 = '지금 하는 공연 전체' 인기 1~10위 포스터를 왼쪽부터 순서대로 오목한 원기둥 벽에 붙인다(원근: 가운데는 멀어서 작고 양쪽은 가까워 크다). 앞 가운데가 취향 카드(포스터의 약 2배)
+// 포스터는 장식이라 읽기 도구엔 숨긴다. 폰에선 문구·포스터 모두 숨긴다(CSS)
+const FAN_STEP = 10.5;  // 포스터 사이 각도(도). rotateY 는 양수가 왼쪽이라 1위가 왼쪽 끝에 오도록 (가운데 - i)를 곱한다. 원기둥 반지름 1000px 에서 포스터 너비 180px + 틈 약 4px
+const fanPosters = from => byPopularity(allShows(D, from), from).map(x => showRef(D, x.key)).filter(Boolean).map(r => r.kind === "seed" ? r.w.poster : r.s.poster).filter(Boolean).slice(0, 10);
+const tkFan = from => { const ps = fanPosters(from), mid = (ps.length - 1) / 2;
+  return `<div class="tcstage"><h1 class="tchero">내 취향을 입력하고<br>배우 조합을 추천받아요</h1><div class="tcarena"><div class="tcfan" aria-hidden="true">${ps.map((u, i) => `<img src="${esc(u)}" alt="" referrerpolicy="no-referrer" style="--a:${((mid - i) * FAN_STEP).toFixed(1)}deg">`).join("")}</div>`; };
 V.home = () => {
   const p = S.prefs, from = today(), due = S.proto?.vd ? S.proto.vd.i : dueVisit(S, from);
   Object.keys(RATE_CTX).forEach(k => delete RATE_CTX[k]);
@@ -2209,7 +2213,7 @@ V.home = () => {
     <section class="tk empty" aria-label="아직 비어 있는 내 취향 카드">${TK_CURTAIN}
       <div class="tkveilbg" aria-hidden="true">${TK_HEAD}<div class="tkcell tkbig">나의 뮤지컬 관극 취향</div>
         <div class="tkgrid"><span class="tkcell"><span class="tkk">목소리</span><span class="tcskel w60"></span></span><span class="tkcell"><span class="tkk">노래</span><span class="tcskel w40"></span></span><span class="tkcell"><span class="tkk">본진 배우</span><span class="tcskel w60"></span></span><span class="tkcell"><span class="tkk">애정 배우</span><span class="tcskel w60"></span></span></div></div>
-      <div class="tkveil"><button class="btn tkset" data-go="#taste/1">내 취향 설정하기</button><p class="tcsub">좋아하는 배우와 기대하는 점을 고르면 나에게 맞는 배우 조합을 추천해 드려요.</p></div></section></div></div>`;
+      <div class="tkveil"><button class="btn tkset" data-go="#taste/1">내 취향 설정하기</button><p class="tcsub">좋아하는 배우와 기대하는 점을 고르면 나에게 맞는 배우 조합을 추천해 드려요.</p></div></section></div></div></div>`;
   const cells = tasteCells(p);
   // 앞·뒷면 같은 틀: 커튼 → 머리 → 본문 → 절취선 → 버튼 줄 → (왼쪽) 오페라글라스·좌석 · (오른쪽) 업데이트 날짜
   const foot = `<div class="tkfoot"><span class="tkicons">${TK_GLASS}${TK_SEAT}</span>${p.at ? `<span class="tkdate">${ymd(p.at)} 업데이트</span>` : ""}</div>`;
@@ -2227,7 +2231,7 @@ V.home = () => {
         <div class="tkperf" aria-hidden="true"></div>
         <div class="tkbtns" data-noshot><button type="button" class="tkedit" data-go="#taste/1">수정하기</button><button type="button" class="tkedit" data-act="tkShare">공유하기</button><button type="button" class="tkedit" data-act="tkSave">저장하기</button></div>${foot}</div>`;
   if (!CARD_BACK) prepCardImg();
-  return `${visit}${tkFan(from)}<div class="tcwrap">${card}</div></div>${homeWorks(from)}
+  return `${visit}${tkFan(from)}<div class="tcwrap">${card}</div></div></div>${homeWorks(from)}
     ${privacyLink() ? `<p class="tiny muted">${privacyLink().replace(/^\s*·\s*/, "")}</p>` : ""}`;
 };
 // 홈 아래 작품 목록(사용자 요청 2026-10-28: 홈이 비어 보이지 않게). ① 배우 조합을 추천받을 수 있는 작품(#find/작품) ② 지금 하는 공연 전체(KOPIS, 인기순·지역 칩, #show/…)

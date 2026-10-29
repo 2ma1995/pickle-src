@@ -851,7 +851,7 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
     const css = fs.readFileSync(path.join(__dirname, "../app/app.css"), "utf8"), bar = (css.match(/\.chips\.afilter\{([^}]*)\}/) || [])[1] || "";
     ok(/flex-wrap:nowrap/.test(bar) && /overflow-x:auto/.test(bar) && /scrollbar-width:none/.test(bar) && /margin-inline:calc\(var\(--gut\) \* -1\)/.test(bar) && /\.afilter \.chip\{[^}]*flex:none[^}]*white-space:nowrap/.test(css) && /\.chips\.afilter::-webkit-scrollbar\{display:none\}/.test(css), "지역 칩 CSS: 줄바꿈 없는 한 줄 가로 스크롤(스크롤바 숨김, 화면 가장자리까지, 칩은 안 줄어듦)");
     ok(/const keepBar = document\.querySelector\("\.afilter"\)/.test(html) && /\.chip\[aria-pressed="true"\]/.test(html.split("function route()")[1].split("window.addEventListener")[0]), "route(): 칩 줄 스크롤 위치를 유지하고 눌린 칩이 밖이면 보이게 민다");
-    ok(/app\.css\?v=20261029c/.test(html), "app.css 캐시 번호를 올렸다");
+    ok(/app\.css\?v=20261029d/.test(html), "app.css 캐시 번호를 올렸다");
     const styleBlock = html.split("<style>")[1].split("</style>")[0], gh = styleBlock.indexOf("[hidden]{display:none!important}"), topBtn = styleBlock.indexOf(".top button[hidden]{visibility:hidden;display:block!important}"), undoRule = styleBlock.indexOf(".undobar{");
     ok(gh >= 0 && gh < undoRule && gh < styleBlock.indexOf(".top button{") && topBtn > gh, "전역 [hidden]{display:none!important} 가 <style> 맨 앞쪽에 있다(.undobar 처럼 display 를 정한 클래스가 hidden 을 못 덮는다)");
     ok(topBtn >= 0 && /^\.top button\[hidden\]/.test(styleBlock.slice(topBtn)) && !/^\[hidden\]/.test(".top button[hidden]"), "뒤로 버튼 자리 규칙(.top button[hidden]{visibility:hidden;display:block!important})은 그대로 — 선택자가 더 구체적이라 전역 규칙을 이긴다");
@@ -1463,7 +1463,11 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
           hm.q("#homeq").value = first; hm.listeners.doc.input.forEach(f => f({target: {id: "homeq", value: first, closest: () => null}}));
           ok(hm.q("#homegrid").innerHTML.includes(`<span class="pt">${first}<`), "제목으로 검색하면 그 공연이 보인다");
           hm.listeners.doc.input.forEach(f => f({target: {id: "homeq", value: "없는공연제목zz", closest: () => null}})); ok(/검색 결과가 없어요/.test(hm.q("#homegrid").innerHTML), "검색 결과가 없으면 안내");
-          ok(/<div class="tcstage"><div class="tcfan" aria-hidden="true">(<img src="[^"]+" alt="" style="--a:-?\d+deg">){1,5}<\/div><div class="tcwrap">/.test(h0), "취향 카드 뒤 부채꼴 포스터(장식, 넓은 화면에서만 CSS로 보임)"); }
+          const fan = h0.match(/<div class="tcstage"><h1 class="tchero">내 취향을 입력하고<br>배우 조합을 추천받아요<\/h1><div class="tcarena"><div class="tcfan" aria-hidden="true">((?:<img [^>]+>)*)<\/div><div class="tcwrap">/);
+          const imgs = fan ? [...fan[1].matchAll(/<img src="([^"]+)" alt="" referrerpolicy="no-referrer" style="--a:(-?[\d.]+)deg">/g)] : [];
+          ok(fan && imgs.length === Math.min(10, total) && +imgs[0][2] > 0 && +imgs[imgs.length - 1][2] < 0 && Math.abs(+imgs[0][2] + +imgs[imgs.length - 1][2]) < 1e-9, "첫 화면 무대: 큰 문구 → 인기 포스터 10장(왼쪽부터 1위, 가운데 기준 좌우 대칭 각도) → 앞쪽 취향 카드");
+          const gridPosters = [...h0.split('id="homegrid"')[1].matchAll(/<img class="pi" src="([^"]+)"/g)].map(m => m[1]).slice(0, 10);
+          ok(imgs.every((m, i) => m[1] === gridPosters[i]), "무대 포스터 = '지금 하는 공연 전체' 인기순 1~10위"); }
         ok(/취향 고르기 1\/2/.test(scrP["#taste/1"]) && /나의 뮤지컬 관극 취향|아직 비어 있는 내 취향 카드/.test(scrP["#home"]) && /평가하지 않고, 끌리는 특징만 골라요/.test(scrP["#taste/2"]), "온보딩은 1/2·2/2, 홈은 내 취향 카드, '우열' 문장은 '평가하지 않고 … 특징만'");
         ok(/좌석 배치도|예매처로 이동|볼 예정에 담/.test(scrP["#detail"]) && !/예매처에서 [\d/()월화수목금토일 ]+ ?\d*:?\d* 좌석 보기|링크로 받지/.test(scrP["#detail"]), "회차 상세: 예매 버튼은 '예매처로 이동', 개발 말('링크로 받지 않아서')이 없다");
         ok(!/점수·순위/.test(scrP["#home"]) && /MY PICKLE TASTE/.test(scrP["#home"]) && /지금 하는 공연 전체/.test(scrP["#home"]) && !/내 취향 추천/.test(scrP["#home"]), "홈: 점수·순위 말이 없고, 취향 카드 아래 지금 하는 공연 전체(내 취향 추천 줄은 없다)");

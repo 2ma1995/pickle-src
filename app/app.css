@@ -441,14 +441,17 @@ html.lock,html.lock body{overflow:hidden}  /* 시트가 열려 있는 동안 뒤
 .hsort{margin:-6px 0 0}
 .hmore{justify-self:center;width:auto;min-width:200px;margin-top:18px}
 #homegrid{display:grid}
-/* 넓은 화면(900px 이상)만: 취향 카드 뒤에 작품 포스터를 부채꼴로(가운데 포스터는 카드 위로 살짝 보인다). 폰에선 숨긴다 */
-.tcstage{display:grid}
-.tcfan{display:none}
+/* 첫 화면 무대(넓은 화면 900px 이상만). 폰에선 문구·포스터를 숨기고 카드만 */
+.tcstage,.tcarena{display:grid}
+.tchero,.tcfan{display:none}
 @media (min-width:900px){
-  .tcstage{position:relative;padding:140px 0 24px;overflow-x:clip}
-  .tcfan{display:block;position:absolute;inset:0;pointer-events:none}
-  .tcfan img{position:absolute;left:50%;top:150px;width:170px;aspect-ratio:2/3;object-fit:cover;border-radius:14px;opacity:.8;transform:translate(-50%,-50%) translateY(760px) rotate(var(--a)) translateY(-760px)}
-  .tcstage .tcwrap{position:relative;z-index:1}
+  .tcstage{width:100vw;margin-inline:calc(50% - 50vw);padding:20px 0 28px;overflow-x:clip}  /* 무대는 화면 끝까지, 끝 밖으로 나간 포스터는 잘라서 가로 스크롤이 안 생긴다 */
+  .tchero{display:block;margin:12px 0 40px;font-family:"Pretendard",-apple-system,BlinkMacSystemFont,sans-serif;font-size:clamp(44px,4.4vw,68px);font-weight:800;line-height:1.2;letter-spacing:-.045em;text-align:center;color:var(--fg)}
+  .tcarena{position:relative}
+  /* 원기둥 벽: 각 포스터를 무대 가운데에서 --a 만큼 돌린 뒤 반지름만큼 뒤로 민다. 보는 사람 쪽으로 당긴 만큼(--d) 양쪽 포스터가 가까워져 커 보인다 */
+  .tcfan{--r:1000px;--d:900px;--pw:180px;display:block;position:absolute;left:50%;top:42%;width:0;height:0;perspective:1000px;pointer-events:none}
+  .tcfan img{position:absolute;left:calc(var(--pw) / -2);top:calc(var(--pw) * -.75);width:var(--pw);aspect-ratio:2/3;object-fit:cover;border-radius:12px;opacity:.8;backface-visibility:hidden;transform:translateZ(var(--d)) rotateY(var(--a)) translateZ(calc(var(--r) * -1))}
+  .tcarena .tcwrap{position:relative;z-index:1}
 }
 /* 카드(면) 안의 입력칸은 바탕색으로 한 단 내려서 칸이 보이게 */
 .card :is(input,select,textarea){background:var(--bg);border-color:var(--line)}
