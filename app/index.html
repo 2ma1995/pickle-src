@@ -447,22 +447,30 @@ button.tcard:focus-visible,.tk .btn:focus-visible,.tkedit:focus-visible{outline:
 .tctitle{margin:0;font-size:24px;font-weight:800;line-height:1.3;text-wrap:balance}
 .tkgrid{display:grid;grid-template-columns:1fr 1fr;margin:-1px 0 0 1px}
 .tkgrid .wide{grid-column:1/-1}
-.tkv{font-size:14px;font-weight:600;line-height:1.4;color:var(--tk-ink);overflow-wrap:anywhere}
+.tkv{font-size:14px;font-weight:600;line-height:1.4;color:var(--tk-ink)}
+.tk,.tk *{word-break:keep-all;overflow-wrap:break-word}  /* 카드 안 문장은 단어 중간에서 끊지 않는다(사용자 요청 2026-10-29) */
+.tkhead{grid-template-columns:1fr}
+.tkbody{display:grid;align-content:start;padding:0 16px}
+.tkbtns{display:flex;gap:8px;padding:8px 16px 0}
+.tkbtns .tkedit{flex:1;min-height:36px;font-size:13px;color:var(--tk-ink)}
+.tkflip{flex:1;min-height:40px;border:0;border-radius:8px;background:var(--tk-burg2);color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.tkflip:hover{background:var(--tk-burg)}
+.tkfoot .tkicons svg{width:30px;height:18px}.tkfoot .tkicons svg+svg{width:18px;height:18px}
+.tk.back .tkbig{text-align:center;padding:34px 14px}
+.tk.tcard.back{background:var(--tk-bg);padding:0;text-align:left}  /* 뒷면은 .tcard 의 투명 바탕·여백을 덮어 앞면과 같은 틀로 */
 .tchint{display:block;padding:14px 0 6px;font-size:12px;color:var(--tk-mute);text-align:center}
 .tkperf{position:relative;height:22px;margin-top:6px}
 .tkperf::before{content:"";position:absolute;left:18px;right:18px;top:50%;border-top:2px dashed var(--tk-line)}
 .tkperf::after{content:"";position:absolute;inset:0 -11px;background:radial-gradient(circle at 0 50%,var(--bg) 10px,transparent 11px),radial-gradient(circle at 100% 50%,var(--bg) 10px,transparent 11px)}
 .tkstub{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 18px 0;color:var(--tk-burg2)}
 .tkicons{display:inline-flex;gap:10px;align-items:center;color:var(--tk-burg2)}
-.tkfoot{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:10px 16px 14px;margin-top:auto}
+.tkfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 18px 16px;margin-top:auto}
 .tkedit{border:1px solid var(--tk-line);background:transparent;color:var(--tk-mute);font:inherit;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer}
 .tkedit:hover{color:var(--tk-ink);border-color:var(--tk-burg2)}
 .tkdate{font-size:11px;color:var(--tk-mute)}
 .tk .btn{background:var(--tk-burg);border-color:var(--tk-burg2);color:#fff}
 .tk .chip.x{background:transparent;border-color:var(--tk-line);color:var(--tk-mute)}
-.tk.back{padding:0}
-.tk.back .tkhead{margin:10px 16px 0}
-.tkbackbody{margin:-1px 16px 0;padding:36px 18px;gap:18px;justify-items:center;text-align:center}
+.tkbackbody{padding:24px 18px;gap:18px;justify-items:center;text-align:center}
 .tkbackbody .tkicons svg{width:64px;height:34px}
 .tk.empty{min-height:560px}
 .tkveilbg{padding:0 16px;filter:blur(1.6px);opacity:.8;user-select:none;pointer-events:none}
@@ -2101,17 +2109,40 @@ const tasteTitle = p => {
 const TK_CURTAIN = `<svg class="tkcurtain" viewBox="0 0 360 44" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0H360V16${Array.from({length: 8}, () => "q-22.5 20 -45 0").join("")}Z" fill="#7A1E2C"/><path d="M0 0H360V8${Array.from({length: 8}, () => "q-22.5 12 -45 0").join("")}Z" fill="#A32A3D"/><path d="M0 0V44Q14 22 30 0Z M360 0V44Q346 22 330 0Z" fill="#5C1521"/></svg>`;
 const TK_GLASS = `<svg viewBox="0 0 48 26" width="40" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="16" r="8"/><circle cx="36" cy="16" r="8"/><path d="M20 14h8M10 8l3-5M38 8l-3-5M24 14V4"/></svg>`;
 const TK_SEAT = `<svg viewBox="0 0 32 32" width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M8 3h16a3 3 0 0 1 3 3v10H5V6a3 3 0 0 1 3-3z"/><rect x="2" y="15" width="28" height="6" rx="2"/><rect x="6" y="21" width="3" height="8"/><rect x="23" y="21" width="3" height="8"/></svg>`;
-const TK_HEAD = `<div class="tkhead"><span class="tkcell"><b class="tkbrand">PICKLE</b><span class="tclabel">MY PICKLE TASTE</span></span><span class="tkcell tkr"><span class="tkk">ADMIT</span><b>ONE</b></span></div>`;
+const TK_HEAD = `<div class="tkhead"><span class="tkcell"><b class="tkbrand">PICKLE</b><span class="tclabel">MY PICKLE TASTE</span></span></div>`;
+// 저장하기(이미지 한 장)·공유하기(SNS): 카드 앞면을 html2canvas 로 PNG 로 만든다. 라이브러리는 처음 필요할 때만 받고,
+// 공유는 브라우저가 '누른 직후'에만 허락해서 홈을 그릴 때 이미지를 미리 만들어 둔다(취향이 바뀌면 다시)
+let H2C = null, CARD_IMG = {key: "", blob: null, job: null};
+const loadH2C = () => H2C ||= new Promise((ok, no) => { if (window.html2canvas) return ok(window.html2canvas);
+  const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+  s.onload = () => ok(window.html2canvas); s.onerror = () => { H2C = null; no(new Error("html2canvas")); }; document.head.appendChild(s); });
+const cardKey = () => JSON.stringify([S.prefs, tasteTitle(S.prefs || {})]);
+const cardBlob = () => { const key = cardKey(); if (CARD_IMG.key === key && (CARD_IMG.blob || CARD_IMG.job)) return CARD_IMG.blob ? Promise.resolve(CARD_IMG.blob) : CARD_IMG.job;
+  const el = document.querySelector(".tk.front"); if (!el) return Promise.resolve(null);
+  CARD_IMG = {key, blob: null, job: loadH2C().then(h2c => h2c(el, {backgroundColor: null, scale: 2, useCORS: true, logging: false, ignoreElements: n => !!n.hasAttribute && n.hasAttribute("data-noshot")}))
+    .then(cv => new Promise(r => cv.toBlob(r, "image/png"))).then(b => { if (CARD_IMG.key === key) { CARD_IMG.blob = b; CARD_IMG.job = null; } return b; })
+    .catch(e => { CARD_IMG = {key: "", blob: null, job: null}; throw e; })};
+  return CARD_IMG.job; };
+const prepCardImg = () => { try { if (typeof document.querySelector !== "function" || !document.head || typeof HTMLCanvasElement === "undefined") return;  // 화면이 그려진 뒤에 만든다
+  setTimeout(() => { try { if (document.querySelector(".tk.front")) cardBlob().catch(() => {}); } catch (e) {} }, 600); } catch (e) {} };
+const CARD_FILE = "PICKLE_내취향카드.png";
+const saveCardImg = () => cardBlob().then(b => { if (!b) return; const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = CARD_FILE; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast("취향 카드를 이미지로 저장했어요"); })
+  .catch(() => toast("이미지를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요"));
+const shareCard = () => { const url = location.origin + location.pathname, text = `나의 뮤지컬 관극 취향: ${tasteTitle(S.prefs || {})} #PICKLE`, title = "PICKLE 내 취향 카드";
+  const copy = () => (navigator.clipboard?.writeText ? navigator.clipboard.writeText(`${text}\n${url}`) : Promise.reject()).then(() => toast("공유 문구와 링크를 복사했어요. SNS에 붙여 넣어 주세요"), () => toast("이 브라우저에서는 공유를 쓸 수 없어요. 저장하기로 이미지를 받아 올려 주세요"));
+  const go = data => navigator.share(data).catch(e => { if (e?.name !== "AbortError") copy(); });
+  const f = CARD_IMG.key === cardKey() && CARD_IMG.blob ? new File([CARD_IMG.blob], CARD_FILE, {type: "image/png"}) : null;  // 미리 만든 이미지가 있으면 누른 그 순간 바로 공유창
+  if (f && navigator.canShare?.({files: [f]})) return go({files: [f], title, text, url});
+  if (navigator.share) return go({title, text, url});
+  copy(); };
 // 카드 앞면의 분류별 태그: 질문 하나 = 칸 하나. 문구는 온보딩 선택지 그대로
 const TK_GROUPS = {tone: "목소리", sing: "노래", act: "감정 표현", body: "움직임", char: "인물 표현", combo: "배우 호흡"};
 const tasteCells = p => {
   const axes = p.axes || [], cells = [], must = p.must || [];
   if (p.prio) cells.push(["가장 기대하는 것", [PRIO.find(([v]) => v === p.prio)?.[1] || p.prio]]);
-  for (const q of ONBOARD_QS) { const xs = q.opts.filter(([, t]) => axes.includes(tagKey(t))).map(([l]) => l); if (xs.length) cells.push([TK_GROUPS[q.id] || q.q, xs]); }
-  const known = new Set(ONBOARD_QS.flatMap(q => q.opts.map(([, t]) => tagKey(t)))), rest = tasteTags({axes: axes.filter(k => !known.has(k))});
-  if (rest.length) cells.push(["그 밖의 취향", rest]);
+  // 배우 호흡·그 밖의 취향·피하고 싶은 배우는 카드에 보이지 않는다(사용자 요청 2026-10-29). 값은 그대로 추천에 쓴다
+  for (const q of ONBOARD_QS.filter(q => q.id !== "combo")) { const xs = q.opts.filter(([, t]) => axes.includes(tagKey(t))).map(([l]) => l); if (xs.length) cells.push([TK_GROUPS[q.id] || q.q, xs]); }
   if ((p.favs || []).length) cells.push(["보고 싶은 배우", p.favs.map(a => a + (must.includes(a) ? " (반드시)" : "")), true]);
-  if ((p.avoid || []).length) cells.push(["피하고 싶은 배우", p.avoid, true]);
   // 칸 배치: 태그 하나짜리는 반 칸, 여럿·배우는 한 줄 전체. 짝이 없는 반 칸은 한 줄로 늘려 빈 칸을 안 남긴다
   const wide = cells.map(([, xs, w]) => !!w || xs.length > 1);
   for (let i = 0, col = 0; i < cells.length; i++) { if (wide[i]) { col = 0; continue; } if (col === 0 && (i + 1 >= cells.length || wide[i + 1])) wide[i] = true; else col = 1 - col; }
@@ -2123,24 +2154,30 @@ V.home = () => {
   const p = S.prefs, from = today(), due = S.proto?.vd ? S.proto.vd.i : dueVisit(S, from);
   Object.keys(RATE_CTX).forEach(k => delete RATE_CTX[k]);
   const visit = due >= 0 && S.plans[due] ? visitCard(due) : "";  // 관람 후 배너(결정 46 사용자 결정: 푸시 대신 홈 배너). 카드보다 위
-  if (!p) return `${noticeLine()}${visit}<div class="tcwrap">
+  // 홈 맨 위의 기록 안내 줄(noticeLine)은 뺐다(사용자 요청 2026-10-29). 기록·개인정보 안내는 홈 맨 아래 링크
+  if (!p) return `${visit}<div class="tcwrap">
     <section class="tk empty" aria-label="아직 비어 있는 내 취향 카드">${TK_CURTAIN}
       <div class="tkveilbg" aria-hidden="true">${TK_HEAD}<div class="tkcell tkbig">나의 뮤지컬 관극 취향</div>
         <div class="tkgrid"><span class="tkcell"><span class="tkk">목소리</span><span class="tcskel w60"></span></span><span class="tkcell"><span class="tkk">노래</span><span class="tcskel w40"></span></span><span class="tkcell wide"><span class="tkk">보고 싶은 배우</span><span class="tcskel w60"></span></span></div></div>
       <div class="tkveil"><button class="btn tkset" data-go="#taste/1">내 취향 설정하기</button><p class="tcsub">보고 싶은 배우와 기대하는 점을 고르면 나에게 맞는 배우 조합을 추천해 드려요.</p></div></section></div>`;
   const cells = tasteCells(p);
-  const stub = `<div class="tkperf" aria-hidden="true"></div><div class="tkstub"><span class="tkicons">${TK_GLASS}${TK_SEAT}</span><span class="tkk">SEAT · 내 취향석</span></div>`;
+  // 앞·뒷면 같은 틀: 커튼 → 머리 → 본문 → 절취선 → 버튼 줄 → (왼쪽) 오페라글라스·좌석 · (오른쪽) 업데이트 날짜
+  const foot = `<div class="tkfoot"><span class="tkicons">${TK_GLASS}${TK_SEAT}</span>${p.at ? `<span class="tkdate">${ymd(p.at)} 업데이트</span>` : ""}</div>`;
   const card = CARD_BACK
-    ? `<section class="tk tcard back" aria-label="내 취향 카드 뒷면">${TK_CURTAIN}${TK_HEAD}<div class="tkcell tkbackbody"><span class="tkicons">${TK_GLASS}</span><p class="tctitle">내 취향에 맞는 배우 조합을 찾아볼까요?</p>
-        <button class="btn" data-go="#find">배우 조합 추천받기</button></div>${stub}
-        <div class="tkfoot"><button type="button" class="chip x" data-act="cardFlip">앞면으로</button></div></section>`
-    : `<div class="tk">${TK_CURTAIN}<button type="button" class="tcard" data-act="cardFlip" aria-label="내 취향 카드. 눌러서 뒤집기">${TK_HEAD}
+    ? `<section class="tk tcard back" aria-label="내 취향 카드 뒷면">${TK_CURTAIN}<div class="tkbody">${TK_HEAD}
+        <div class="tkcell tkcap">나의 뮤지컬 관극 취향</div>
+        <p class="tkcell tkbig tctitle">내 취향에 맞는 배우 조합을<br>찾아볼까요?</p>
+        <div class="tkcell tkbackbody"><button class="btn" data-go="#find">배우 조합 추천받기</button></div></div>
+        <div class="tkperf" aria-hidden="true"></div><div class="tkbtns"><button type="button" class="tkflip" data-act="cardFlip">앞면으로</button></div>${foot}</section>`
+    : `<div class="tk front">${TK_CURTAIN}<button type="button" class="tcard" data-act="cardFlip" aria-label="내 취향 카드. 눌러서 뒤집기">${TK_HEAD}
         <span class="tkcell tkcap">나의 뮤지컬 관극 취향</span>
         <span class="tkcell tkbig tctitle">${esc(tasteTitle(p))}</span>
         <span class="tkgrid">${cells.length ? cells.map(([k, xs, wide]) => `<span class="tkcell${wide ? " wide" : ""}"><span class="tkk">${esc(k)}</span><span class="tkv">${xs.map(esc).join(" · ")}</span></span>`).join("") : `<span class="tkcell wide"><span class="tkv">아직 고른 태그가 없어요</span></span>`}</span>
-        <span class="tchint">카드를 눌러 배우 조합을 추천받아요 ↻</span></button>${stub}
-        <div class="tkfoot"><button type="button" class="tkedit" data-go="#taste/1">수정하기</button>${p.at ? `<span class="tkdate">${ymd(p.at)} 업데이트</span>` : ""}</div></div>`;
-  return `${noticeLine()}${visit}<div class="tcwrap">${card}</div>${homeWorks(from)}
+        <span class="tchint" data-noshot>카드를 눌러 배우 조합을 추천받아요 ↻</span></button>
+        <div class="tkperf" aria-hidden="true"></div>
+        <div class="tkbtns" data-noshot><button type="button" class="tkedit" data-go="#taste/1">수정하기</button><button type="button" class="tkedit" data-act="tkShare">공유하기</button><button type="button" class="tkedit" data-act="tkSave">저장하기</button></div>${foot}</div>`;
+  if (!CARD_BACK) prepCardImg();
+  return `${visit}<div class="tcwrap">${card}</div>${homeWorks(from)}
     ${privacyLink() ? `<p class="tiny muted">${privacyLink().replace(/^\s*·\s*/, "")}</p>` : ""}`;
 };
 // 홈 아래 작품 목록(사용자 요청 2026-10-28: 홈이 비어 보이지 않게). ① 배우 조합을 추천받을 수 있는 작품(#find/작품) ② 지금 하는 공연 전체(KOPIS, 인기순·지역 칩, #show/…)
@@ -2583,6 +2620,8 @@ document.addEventListener("click", e => {
     case "rmAvoid": { const P = prefsOf(); P.avoid = (P.avoid || []).filter(a => a !== d.a); save(); route(); break; }
     case "tasteSkipAll": { prefsOf(); save(); location.hash = "#home"; break; }  // 취향을 한 번도 안 고르고 전체 목록으로
     case "meDone": { prefsOf(); save(); snapTaste(); CARD_BACK = false; location.hash = "#home"; if (hasTaste(S.prefs)) toast("취향을 저장했어요"); break; }  // 내 취향 확인 버튼 → 홈 취향 카드(앞면)
+    case "tkShare": shareCard(); break;  // 홈 취향 카드 공유하기: 휴대폰은 공유창(SNS 앱), 못 쓰면 문구·링크 복사
+    case "tkSave": saveCardImg(); break;  // 홈 취향 카드 저장하기: 카드 한 장을 PNG 로
     case "cardFlip": { CARD_BACK = !CARD_BACK; route(); const f = document.querySelector(CARD_BACK ? ".tcard.back .btn" : "button.tcard"); if (f && f.focus) f.focus(); break; }  // 홈 취향 카드 뒤집기(포커스는 뒤집힌 면의 첫 버튼으로)
     case "obGo": { prefsOf(); save(); snapTaste(); location.hash = tasteNext(+d.to - 1); if (+d.to > 2 && hasTaste(S.prefs)) toast("취향을 저장했어요"); break; }  // 건너뛰어도 S.prefs 는 만들어 둔다(다음부터는 곧바로 홈)
     case "askTag": { if (!askTagList(D).includes(d.t) || !(S.prefs?.favs || []).includes(d.a)) break; if (ASK.a !== d.a) { ASK.a = d.a; ASK.sel = new Set(); } ASK.sel.has(d.t) ? ASK.sel.delete(d.t) : ASK.sel.add(d.t); route(); break; }
