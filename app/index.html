@@ -2246,40 +2246,49 @@ const condLine = w => { const c = actorConds(D, S, w.name), n = c.avoid.length +
   const parts = [c.must.length ? `반드시 포함 ${c.must.map(esc).join("·")}` : "", n ? `피하는 배우 ${n}명` : ""].filter(Boolean);
   return `<div class="card condline">${parts.length ? `<p class="small">${parts.join(" · ")} 적용 중 <a href="#find/${esc(w.name)}/actor">바꾸기</a></p>` : ""}</div>`; };
 const cardsOf = d => shownRecs(D, S, d.work, today(), d.dd ? S.cal[d.work]?.dates || [] : null);  // 버튼이 가리키는 카드 목록(날짜 먼저 카드는 data-dd)
-// 날짜 먼저(7절): 작품 회차 달력(회차 있는 날만 진하게, 조건 때문에 볼 수 없는 날은 흐리게, 공개 안 된 기간은 안내) → 하루씩/기간 → 고른 날짜의 추천 조합 → 그 조합의 회차(고른 날짜 안, 밖은 펼치기)
-const dateFirst = w => {
+// 날짜 먼저(7절, 2026-10-29 사용자 요청으로 세 화면): ① #find/작품/date 회차 달력에서 날짜 고르기(기간이 먼저·기본, 기간을 여러 번 더할 수 있고, 하루씩으로 하루를 빼거나 더한다) → 다음 버튼
+// ② #find/작품/date/recs 고른 날짜의 추천 조합 → 이 조합 고르기 ③ #find/작품/date/cal 고른 조합의 캘린더만. 볼 수 없는 날(조건 때문)은 흐리게, 공개 안 된 기간은 안내
+const dfRange = st => st.range !== false;  // 기간이 기본(사용자가 하루씩을 고르면 false)
+const dateFirst = (w, step) => {
   const work = w.name, W = esc(work), from = today(), st = (S.cal[work] ||= {actors: [], period: "all"}), c = actorConds(D, S, work), never = [...c.avoid, ...c.extra], byDate = {};
   for (const p of D.perfs) if (p.work === work && p.date >= from && !isPrivate(p)) (byDate[p.date] ||= []).push(p);
   const all = Object.keys(byDate).sort(), dates = (st.dates || []).filter(d => byDate[d]), head = `<div><p class="eyebrow">${W} · 날짜 먼저</p><h1>언제 볼 수 있어요?</h1></div>${condLine(w)}`;
+  if (step === "recs") return dateRecs(w, dates, byDate, all, c, never);
+  if (step === "cal") return actorCal(w, showRef(D, work), `#find/${W}/date/recs`);
   if (!all.length) return `<div class="one">${head}<div class="card"><p class="small">아직 공개된 회차가 없어요.</p></div></div>`;
   const ok = p => !Object.values(p.cast).some(a => never.includes(a)) && c.must.every(a => Object.values(p.cast).includes(a)), dim = d => !byDate[d].some(ok);
   const ms = monthRange(all), m = ms.includes(st.dm) ? st.dm : ms[0], mi = ms.indexOf(m), first = new Date(m + "-01T00:00:00"), pad = (first.getDay() + 6) % 7, nd = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
   let cells = ""; for (let k = 0; k < pad; k++) cells += `<div class="day empty"></div>`;
   for (let d = 1; d <= nd; d++) { const date = `${m}-${String(d).padStart(2, "0")}`, ps = byDate[date];
     cells += ps ? `<button type="button" class="day has ${dates.includes(date) || st.rs === date ? "pin" : ""} ${dim(date) ? "dim" : ""} ${redDay(date) ? "red" : ""}" data-act="dfDay" data-work="${W}" data-d="${date}" aria-pressed="${dates.includes(date)}" aria-label="${md(date)} 회차 ${ps.length}개${dim(date) ? " · 조건에 맞는 회차 없음" : ""}"><span class="n">${d}</span><span class="s k">${ps.length}회</span></button>` : `<div class="day none ${redDay(date) ? "red" : ""}"><span class="n">${d}</span></div>`; }
-  const runEnd = (w.runs || []).reduce((x, r) => r.end > x ? r.end : x, ""), last = all[all.length - 1];
-  const cal = `<div class="card"><div class="seg"><button class="${st.range ? "" : "on"}" data-act="dfMode" data-work="${W}" data-v="day">하루씩</button><button class="${st.range ? "on" : ""}" data-act="dfMode" data-work="${W}" data-v="range">기간</button></div>
+  const runEnd = (w.runs || []).reduce((x, r) => r.end > x ? r.end : x, ""), last = all[all.length - 1], range = dfRange(st);
+  return `<div class="one sv">${head}<div class="card"><div class="seg"><button class="${range ? "on" : ""}" data-act="dfMode" data-work="${W}" data-v="range">기간</button><button class="${range ? "" : "on"}" data-act="dfMode" data-work="${W}" data-v="day">하루씩</button></div>
     <div class="calnav"><button type="button" class="chip x" data-act="dfMonth" data-work="${W}" data-m="${ms[mi - 1] || ""}" aria-label="이전 달"${mi > 0 ? "" : " disabled"}>‹</button><b>${+m.slice(0, 4)}년 ${+m.slice(5, 7)}월</b><button type="button" class="chip x" data-act="dfMonth" data-work="${W}" data-m="${ms[mi + 1] || ""}" aria-label="다음 달"${mi < ms.length - 1 ? "" : " disabled"}>›</button></div>
     <div class="month"><div class="dow"><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="red">토</span><span class="red">일</span></div><div class="days">${cells}</div></div>
-    <p class="tiny muted">${st.range ? (st.rs ? `${md(st.rs)}부터 · 끝 날짜를 눌러 주세요` : "시작 날짜와 끝 날짜를 차례로 눌러 주세요") : "볼 수 있는 날짜를 여러 개 눌러도 돼요"}. 흐린 날은 배우 조건에 맞는 회차가 없어요.</p>
+    ${range && st.rs ? `<p class="tiny muted">${md(st.rs)}부터 · 끝 날짜를 눌러 주세요</p>` : ""}
     ${last < runEnd ? `<p class="tiny muted">${md(last)}까지 회차가 공개됐어요. 이후 회차는 공개되면 추천해 드려요</p>` : ""}
-    ${dates.length ? `<div class="chips">${dates.map(d => `<button class="chip x on" data-act="unpinDate" data-work="${W}" data-d="${d}">${md(d)} ×</button>`).join("")}<button class="chip x" data-act="clearDates" data-work="${W}">모두 지우기</button></div>` : ""}</div>`;
-  if (!dates.length) return `<div class="one sv">${head}${cal}</div>`;
-  const recs = comboRecs(D, S, work, from, dates), sel = curSel(D, S, work, from), sh = recs.length ? shownRecs(D, S, work, from, dates) : null;
-  const sameCast = (a, b) => Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, v]) => b[k] === v);
-  const picked = sh && sh.list.find(x => sameCast(x.cast, sel));
-  let body;
+    ${dates.length ? `<div class="chips">${dates.map(d => `<button class="chip x on" data-act="unpinDate" data-work="${W}" data-d="${d}" aria-label="${md(d)} 빼기">${md(d)} ×</button>`).join("")}<button class="chip x" data-act="clearDates" data-work="${W}">모두 지우기</button></div>` : ""}</div>
+    ${dates.length ? `<a class="btn" href="#find/${W}/date/recs">다음 · ${dates.length}일의 추천 조합 보기</a>` : `<button class="btn" disabled>볼 수 있는 날짜를 골라 주세요</button>`}</div>`;
+};
+const dateRecs = (w, dates, byDate, all, c, never) => {
+  const work = w.name, W = esc(work), from = today(), head = `<div><p class="eyebrow">${W} · 날짜 먼저</p><h1>고른 날짜에 볼 수 있는 조합</h1></div>
+    <p class="small acsum">${dates.map(d => `<span>${md(d)}(${esc(dowOf(d))})</span>`).join("")} <a href="#find/${W}/date">날짜 다시 고르기</a></p>`;
+  if (!dates.length) return `<div class="one sv">${head}<div class="card"><p class="small">고른 날짜가 없어요.</p><a class="btn ghost" href="#find/${W}/date">날짜 고르기</a></div></div>`;
+  const recs = comboRecs(D, S, work, from, dates), sel = curSel(D, S, work, from);
   if (!recs.length) { const ps = dates.flatMap(d => byDate[d]), noMust = c.must.filter(a => !ps.some(p => Object.values(p.cast).includes(a))), nextOf = a => all.find(d => d > dates[dates.length - 1] && byDate[d].some(p => Object.values(p.cast).includes(a)));
     const blocker = !noMust.length && never.find(a => ps.every(p => Object.values(p.cast).some(x => never.includes(x))) && ps.some(p => Object.values(p.cast).includes(a)));
-    body = `<div class="card"><p class="small"><b>이 날짜엔 맞는 조합이 없어요.</b></p>${noMust.map(a => `<p class="small muted">${esc(a)} 배우는 고른 날짜에 나오지 않아요.${nextOf(a) ? ` 다음 출연은 ${md(nextOf(a))}이에요` : ""}</p>`).join("")}${blocker ? `<p class="small muted">고른 날짜의 회차에 모두 ${esc(blocker)} 배우가 나와요</p>` : ""}<p class="tiny muted">날짜를 더 고르거나 <a href="#find/${W}/actor">배우 조건</a>을 바꿔 보세요.</p></div>`; }
-  else { const mine = picked ? D.perfs.filter(p => p.work === work && p.date >= from && !isPrivate(p) && comboKey(D, work, p.cast) === picked.key).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)) : [], inSel = mine.filter(p => dates.includes(p.date)), out = mine.length - inSel.length;
-    body = `<section id="cast" class="sec"><h2>고른 날짜에 볼 수 있는 조합</h2><div class="combochips">${satCards(work, sel, dates)}</div></section>
-      ${picked ? `<section id="dates" class="sec"><h2>이 조합의 회차</h2>${(st.more ? mine : inSel).map(p => sessionCard(work, p)).join("")}${out ? `<button class="chip x" data-act="dfMore" data-work="${W}">${st.more ? "고른 날짜만 보기" : `다른 날짜도 보기 · ${out}개`}</button>` : ""}</section>` : `<p class="small muted">조합을 누르면 그 조합의 회차가 나와요.</p>`}`; }
-  return `<div class="one sv">${head}${cal}${body}</div>`;
+    return `<div class="one sv">${head}<div class="card"><p class="small"><b>이 날짜엔 맞는 조합이 없어요.</b></p>${noMust.map(a => `<p class="small muted">${esc(a)} 배우는 고른 날짜에 나오지 않아요.${nextOf(a) ? ` 다음 출연은 ${md(nextOf(a))}이에요` : ""}</p>`).join("")}${blocker ? `<p class="small muted">고른 날짜의 회차에 모두 ${esc(blocker)} 배우가 나와요</p>` : ""}<p class="tiny muted"><a href="#find/${W}/date">날짜</a>를 더 고르거나 <a href="#find/${W}/actor">배우 조건</a>을 바꿔 보세요.</p></div></div>`; }
+  return `<div class="one sv">${head}<section id="cast" class="sec"><div class="combochips">${satCards(work, sel, dates, true)}</div></section></div>`;
 };
 // 배우 먼저(8절, 2026-10-29 사용자 요청으로 세 화면): ① #find/작품/actor 배역별 배우 칸(이름 + 대표 영상) — 한 번 ✓ 가능하면 포함, 두 번 ★ 반드시 포함, 세 번 취소 → 확인 버튼
 // ② #find/작품/actor/recs 추천 조합 카드 → 이 조합 고르기 ③ #find/작품/actor/cal 고른 조합의 캘린더만. 이 작품에만 적용·작품별 기억(결정 9·10·29·30)
 const AC_ICON = {maybe: "✓", must: "★"};
+const avatar = (a, cls = "") => { const p = (D.actorPhotos || {})[a];
+  return p ? `<span class="avi ${cls}"><img src="${esc(p.src)}" alt="" loading="lazy" referrerpolicy="no-referrer"></span>` : `<span class="avi none ${cls}" aria-hidden="true">${esc([...a][0] || "")}</span>`; };
+const photoCredit = names => names.some(a => (D.actorPhotos || {})[a]) ? `<p class="tiny muted">배우 사진: 위키미디어 공용 · <a href="#photos">사진 출처</a></p>` : "";
+V.photos = () => { const ps = Object.entries(D.actorPhotos || {}).sort(([a], [b]) => a.localeCompare(b, "ko"));
+  return `<div class="one"><div><p class="eyebrow">배우 사진 출처</p><h1>사진 출처</h1></div><p class="small muted">배우 사진은 위키미디어 공용(Wikimedia Commons)에서 자유 이용 라이선스로 공개된 사진만 써요. 사진이 없는 배우는 이름 첫 글자로 보여 드려요.</p>
+    <div class="card">${ps.map(([a, p]) => `<div class="phrow">${avatar(a)}<span class="small"><b>${esc(a)}</b><br><span class="muted">${esc(p.by)} · ${esc(p.lic)} · <a href="${esc(p.page)}" target="_blank" rel="noopener">원본</a></span></span></div>`).join("") || `<p class="small muted">아직 사진이 없어요.</p>`}</div></div>`; };
 const acVideo = (work, role, a) => { const v = videoOf(work, a), id = ytIdOf(v);  // 회차 상세(이 회차 캐스트)와 같은 대표 영상. 제목은 영상 아래 작은 글씨
   return id ? `<a class="acvid" href="${esc(v.url)}" target="_blank" rel="noopener" title="${esc(v.title)}"><img src="https://i.ytimg.com/vi/${esc(id)}/mqdefault.jpg" alt="${esc(a)} 영상" loading="lazy"><span class="acplay" aria-hidden="true">▶</span></a><p class="actitle">${ccTag(v)}${esc(v.title)}</p>`
     : `<a class="acvid none" href="${esc(ytSearch(work, a, role))}" target="_blank" rel="noopener">▶ 영상 찾아보기</a>`; };
@@ -2298,7 +2307,7 @@ const actorFirst = (w, step) => {
       <p class="aclegend"><span><b class="acic">✓</b> 가능하면 포함</span><span><b class="acic">★</b> 반드시 포함</span><span class="muted">한 번 더 누르면 취소</span></p></div>
     <section class="sec">${roles}</section>
     ${clashLine}
-    <div class="card"><h3>피하고 싶은 배우 <span class="small muted">선택</span></h3><div class="chips">${c.avoid.map(a => `<span class="tag">${esc(a)}</span>`).join("")}${c.extra.map(a => `<button class="chip x on" data-act="acSet" data-work="${W}" data-a="${esc(a)}" data-k="">${esc(a)} ×</button>`).join("")}</div>
+    <div class="card"><h3>피하고 싶은 배우 <span class="small muted">선택</span></h3><div class="chips">${c.avoid.map(a => `<span class="tag avtag">${avatar(a, "sm")}${esc(a)}</span>`).join("")}${c.extra.map(a => `<button class="chip x on avtag" data-act="acSet" data-work="${W}" data-a="${esc(a)}" data-k="">${avatar(a, "sm")}${esc(a)} ×</button>`).join("")}</div>${photoCredit([...c.avoid, ...c.extra])}
       <div class="row"><input id="acAvoid" list="acActors" placeholder="이 작품에 한해 더 피할 배우" autocomplete="off" style="flex:1"><button class="chip" data-act="acAvoidAdd" data-work="${W}">추가</button></div><datalist id="acActors">${[...workCastSet(D, work)].sort().map(a => `<option value="${esc(a)}">`).join("")}</datalist>
       <p class="tiny muted">${c.avoid.length ? "회색은 모든 작품에 적용 중인 배우예요('내 취향'에서 바꿔요). " : ""}이 배우가 나오는 회차는 배역과 상관없이 빼요.</p></div>
     ${c.edited ? `<button class="chip x" data-act="acReset" data-work="${W}">평소 배우 조건으로 되돌리기</button>` : ""}
@@ -2312,10 +2321,10 @@ const actorRecs = (w, c) => {
   return `<div class="one sv"><div><p class="eyebrow">${W} · 배우 먼저</p><h1>${title}</h1></div>${acSummary(w, c)}
     <section id="cast" class="sec">${recs.length ? `<div class="combochips">${satCards(work, sel, null, true)}</div>` : `<div class="card"><p class="small"><b>이 조건에 맞는 조합이 없어요.</b> 반드시 포함을 가능하면 포함으로 바꾸거나 피하는 배우를 줄여 보세요.</p><a class="btn ghost" href="#find/${W}/actor">배우 다시 고르기</a></div>`}</section></div>`;
 };
-const actorCal = (w, ref) => {
+const actorCal = (w, ref, back = `#find/${esc(w.name)}/actor/recs`) => {  // 배우 먼저·날짜 먼저 ③ 공통
   const work = w.name, W = esc(work), sel = curSel(D, S, work, today());
   return `<div class="one sv"><div><p class="eyebrow">${W} · 고른 조합</p><h1>언제 볼까요?</h1></div>
-    <div class="card"><p class="small">${Object.entries(sel).map(([r, a]) => `<b>${esc(r)}</b> ${esc(a)}`).join(" · ")}</p><a class="small" href="#find/${W}/actor/recs">다른 조합 고르기</a></div>
+    <div class="card"><p class="small">${Object.entries(sel).map(([r, a]) => `<b>${esc(r)}</b> ${esc(a)}`).join(" · ")}</p><a class="small" href="${back}">다른 조합 고르기</a></div>
     ${ref ? datesSection(ref) : ""}</div>`;
 };
 const workEdit = w => { const st = (S.cal[w] ||= {actors: [], period: "all"}), base = S.prefs || {}; if (!st.edited) { st.axes = [...(base.axes || [])]; st.prio = base.prio || ""; st.any = [...(base.any || [])]; st.edited = true; } return st; };  // 처음 고칠 때 온보딩 값을 복사(결정 24)
@@ -2328,7 +2337,7 @@ const workTaste = w => `<div class="one"><div><p class="eyebrow">${esc(w.name)}<
 V.find = (work, how, step) => {
   const from = today(), w = work && workOf(work);
   if (w && !how && workState(w, from).ok) return workTaste(w);  // 작품을 고르면 먼저 작품 취향 확인(6.3절)
-  if (w && how === "date") return dateFirst(w);  // 날짜 먼저(7절)
+  if (w && how === "date") return dateFirst(w, step);  // 날짜 먼저(7절)
   if (w && how === "actor") return actorFirst(w, step);  // 배우 먼저(8절)
   if (w) { const st = workState(w, from);
     return `<div class="one"><div><p class="eyebrow">${esc(w.name)}</p><h1>어떻게 찾을까요?</h1></div>
@@ -2428,14 +2437,14 @@ const satCards = (work, sel, inDates = null, nav = false) => {  // nav: 배우 �
     const why = e?.a !== "dislike" ? "" : `<p class="tiny muted">누구 때문인가요? <span>(선택)</span></p><div class="chips">${names.map(a => `<button type="button" class="chip x ${e.actor === a ? "on" : ""}" data-act="satWhy" data-work="${W}"${DD} data-i="${i}" data-who="${esc(a)}" aria-pressed="${e.actor === a}">${esc(a)}</button>`).join("")}${SAT_WHY.map(([k, l]) => `<button type="button" class="chip x ${e.why === k ? "on" : ""}" data-act="satWhy" data-work="${W}"${DD} data-i="${i}" data-k="${k}" aria-pressed="${e.why === k}">${esc(l)}</button>`).join("")}</div>
       ${e.actor && !e.ask ? `<div class="pinask"><p class="small">${esc(e.actor)} 배우를 피하고 싶은 배우에 추가할까요? <span class="muted">이 작품에서만 빠져요.</span></p><div class="nbgrid"><button class="nb" data-act="satAvoid" data-work="${W}"${DD} data-i="${i}" data-y="1">추가</button><button class="nb" data-act="satAvoid" data-work="${W}"${DD} data-i="${i}" data-y="0">아니요</button></div></div>`
         : e.actor && e.ask === "yes" ? `<p class="tiny muted">${esc(e.actor)} 배우를 이 작품에서 뺐어요.</p>` : ""}`;
-    return `<div class="card rcard">${whenHead(c.key)}<p class="small">${Object.entries(c.cast).map(([r, a]) => `<b>${esc(r)}</b> ${esc(a)}`).join(" · ")}</p><p class="tiny muted">${inDates ? "고른 날짜 중 " : "남은 "}회차 ${nPerf(c.key)}개</p>${whyLines(c)}
+    return `<div class="card rcard">${whenHead(c.key)}<div class="rcast">${Object.entries(c.cast).map(([r, a]) => `<div class="rca">${avatar(a)}<b>${esc(a)}</b><span>${esc(r)}</span></div>`).join("")}</div><p class="tiny muted">${inDates ? "고른 날짜 중 " : "남은 "}회차 ${nPerf(c.key)}개</p>${whyLines(c)}
       <button class="rcpick ${on ? "on" : ""}" data-act="selCombo" data-work="${W}"${DD}${nav ? ` data-nav="1"` : ""} data-i="${i}" aria-pressed="${on}">${on ? (nav ? "고른 조합 · 날짜 보기" : "고른 조합") : "이 조합 고르기"}</button>
       <p class="tiny muted">이 조합 어때요?</p><div class="chips">${SAT.map(([k, l]) => `<button type="button" class="chip x ${e?.a === k ? "on" : ""}" data-act="sat" data-work="${W}"${DD} data-i="${i}" data-a="${k}" aria-pressed="${e?.a === k}">${esc(l)}</button>`).join("")}</div>
       ${e?.a === "like" ? `<p class="tiny muted">좋아한 조합으로 기억할게요. 이 배우들이 나오는 조합을 앞에 보여 드려요.</p>` : ""}${why}</div>`; };
   const more = sh.again ? `<p class="tiny muted">다시 추천은 한 번만 할 수 있어요</p>`
     : sh.list.length < 2 ? `<p class="tiny muted">이 조건에서는 조합이 하나뿐이에요</p>`
     : `<button class="btn ghost" data-act="recAgain" data-work="${W}"${DD}>다시 추천받기</button>`;
-  return `${sh.list.map(card).join("")}${more}`;
+  return `${sh.list.map(card).join("")}${more}${photoCredit(sh.list.flatMap(c => Object.values(c.cast)))}`;
 };
 const castSection = (ref, taste, want) => {
   const work = ref.key, from = today(), sel = curSel(D, S, work, from), recs = taste ? comboRecs(D, S, work, from) : [], {star, avoid} = pinsOf(S, work), cmp = S.proto?.cmp?.[work];
@@ -2652,11 +2661,11 @@ document.addEventListener("click", e => {
       save(); route(); break; }
     case "obMore": OB_MORE = true; route(); break;
     case "obPrio": { if (d.w) { const st = workEdit(d.w); st.prio = st.prio === d.v ? "" : d.v; save(); route(); break; } const P = prefsOf(); P.prio = P.prio === d.v ? "" : d.v; save(); route(); break; }
-    case "dfMode": { const st = (S.cal[d.work] ||= {actors: [], period: "all"}); st.range = d.v === "range"; delete st.rs; save(); route(); break; }  // 날짜 먼저: 하루씩(기본) / 기간(결정 19)
+    case "dfMode": { const st = (S.cal[d.work] ||= {actors: [], period: "all"}); st.range = d.v === "range"; delete st.rs; save(); route(); break; }  // 날짜 먼저: 기간(기본) / 하루씩(결정 19, 2026-10-29 기간이 먼저)
     case "dfDay": { const st = (S.cal[d.work] ||= {actors: [], period: "all"});
-      if (!st.range) st.dates = (st.dates || []).includes(d.d) ? st.dates.filter(x => x !== d.d) : [...(st.dates || []), d.d].sort();
-      else if (!st.rs) st.rs = d.d;  // 기간: 시작일 → 끝일 두 번
-      else { const [a, b] = [st.rs, d.d].sort(); st.dates = [...new Set(D.perfs.filter(p => p.work === d.work && p.date >= a && p.date <= b && p.date >= today() && !isPrivate(p)).map(p => p.date))].sort(); delete st.rs; }
+      if (!dfRange(st)) st.dates = (st.dates || []).includes(d.d) ? st.dates.filter(x => x !== d.d) : [...(st.dates || []), d.d].sort();  // 하루씩: 하루를 더하거나 뺀다
+      else if (!st.rs) st.rs = d.d;  // 기간: 시작일 → 끝일 두 번. 기간을 여러 번 고르면 날짜가 더해진다(사용자 요청 2026-10-29)
+      else { const [a, b] = [st.rs, d.d].sort(); st.dates = [...new Set([...(st.dates || []), ...D.perfs.filter(p => p.work === d.work && p.date >= a && p.date <= b && p.date >= today() && !isPrivate(p)).map(p => p.date)])].sort(); delete st.rs; }
       save(); route(); break; }
     case "dfMonth": { const st = (S.cal[d.work] ||= {actors: [], period: "all"}); st.dm = d.m; save(); route(); break; }
     case "dfMore": { const st = S.cal[d.work]; if (st) st.more = !st.more; save(); route(); break; }  // 고른 날짜 밖 회차도 보기(결정 20)
@@ -2718,7 +2727,7 @@ document.addEventListener("click", e => {
     case "pinAnswer": { const before = pinStateOf(S, d.work, d.a), after = answerPinAsk(S, d.work, d.a, d.y === "1"); if (after) track("actor_pick", pickRecord(D, d.work, d.a, before, after)); save(); refresh(); break; }  // '제외할까요?'·'꼭 볼 배우로 할까요?' 에 답했을 때만 🚫/⭐
     case "duelMore": duelMore(S, d.work || work); save(); route(); break;  // 월드컵 다음 라운드
     case "selActor": { const before = setSel(D, S, d.work, d.role, d.a, today()); save(); route(); break; }  // 그 배역의 배우를 바꾼다: 아래 날짜가 다시 계산된다
-    case "selCombo": { const c = cardsOf(d).list[+d.i]; if (!c) return; setSelCast(S, d.work, c.cast); save(); if (d.nav) location.hash = `#find/${d.work}/actor/cal`; else route(); break; }  // 배우 먼저: 고른 조합의 캘린더 화면으로
+    case "selCombo": { const c = cardsOf(d).list[+d.i]; if (!c) return; setSelCast(S, d.work, c.cast); save(); if (d.nav) location.hash = `#find/${d.work}/${d.dd ? "date" : "actor"}/cal`; else route(); break; }  // 배우 먼저: 고른 조합의 캘린더 화면으로
     case "sat": { const c = cardsOf(d).list[+d.i]; if (!c) return; const run = runLabelOf(D, d.work, (D.perfs.find(p => p.work === d.work && comboKey(D, d.work, p.cast) === c.key) || {}).date || today());
       const r = setSat(S, d.work, c.key, c.cast, d.a, run, +d.i + 1); if (r === null) return;
       track("combo_fit", r ? satRecord(D, S, d.work, c.key) : {work: d.work, run, cast: c.cast, answer: "clear"}); save(); route(); break; }  // 다시 누르면 풀린다

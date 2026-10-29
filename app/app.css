@@ -428,3 +428,16 @@ html.lock,html.lock body{overflow:hidden}  /* 시트가 열려 있는 동안 뒤
 .month .days .day.none{background:transparent}
 .month .days .day.has:not(.pin){background:var(--soft);border:1.5px solid var(--fg)}
 .month .days .day.has:not(.pin) .n{font-weight:800}
+/* 폰(600px 미만)은 원래대로 한 줄 3개(사용자 요청 2026-10-29: 한 줄 5개는 넓은 화면만) */
+@media (max-width:599px){.pgrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 10px}.pgrid .pcard{gap:8px}.pgrid .pt{font-size:12.5px;line-height:1.35}.pgrid .pw{font-size:12px;line-height:1.45}.pgrid .prank{font-size:34px}}
+/* 동그란 배우 사진(위키미디어 공용, 없으면 이름 첫 글자) — 추천 조합 카드: 날짜·시간 밑에 사진 → 이름 → 배역 */
+.avi{display:inline-grid;place-items:center;flex:none;width:56px;height:56px;border-radius:50%;overflow:hidden;background:var(--soft);color:var(--muted);font-weight:800;font-size:20px;border:1px solid var(--line)}
+.avi img{width:100%;height:100%;object-fit:cover;object-position:50% 22%;display:block}
+.avi.sm{width:24px;height:24px;font-size:11px}
+.rcast{display:grid;grid-template-columns:repeat(auto-fill,minmax(68px,1fr));gap:12px 6px;margin:4px 0 2px}
+.rca{display:grid;justify-items:center;gap:3px;text-align:center;min-width:0}
+.rca b{font-size:13px;line-height:1.25;word-break:keep-all}
+.rca span:not(.avi){font-size:11px;line-height:1.25;color:var(--muted);word-break:keep-all}
+.avtag{display:inline-flex;align-items:center;gap:6px}
+.phrow{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+.phrow:first-child{border-top:0}

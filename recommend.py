@@ -571,6 +571,15 @@ def load_log_casts(shows, sched_dir=None):
     return out
 
 
+def load_actor_photos(path=None):
+    """data/actor_photos.tsv(actor_photos.py, 위키미디어 공용 사진만) → {배우: {src, page, lic, by}}. 앱 추천 조합 카드·피하고 싶은 배우의 동그란 사진과 '사진 출처' 화면."""
+    path = Path(path or DATA / "actor_photos.tsv")
+    if not path.exists():
+        return {}
+    return {r["배우"]: {"src": https_url(r["사진URL"]), "page": https_url(r["원본"]), "lic": r["라이선스"], "by": r["저작자"]}
+            for r in csv.DictReader(open(path, encoding="utf-8"), delimiter="	") if https_url(r["사진URL"])}
+
+
 def voice_tags():
     """사전 순서대로 본 목소리 태그(VOICE = 하위 영역 음색·파워·기술)."""
     return [t for t in ACTOR_TAG_LABELS if t in VOICE]
@@ -802,6 +811,7 @@ def export_js(path, track=True, env_get=None):
         "popularityAsOf": pop_asof,  # currentShows·works 의 popularity(예매상황판 주간·월간 중 가장 좋은 순위, 없으면 null) 기준일. 앱은 이 순서로만 정렬하고 숫자는 안 보인다
         "currentShows": cur["shows"], "currentAsOf": cur["asOf"],
         "pastShows": past,  # KOPIS 끝난 공연(kopis_past.tsv). 앱 '본 공연 기록하기'에서만 쓴다
+        "actorPhotos": load_actor_photos(),  # {배우: {src, page, lic, by}} 위키미디어 공용 사진(저작자·라이선스 표시용)
         "logCasts": log_casts,  # {KOPIS 공연 ID: {roles: [[배역, [배우]]], perfs: [[날짜, 시각, [배우]]]}} 회차표(data/schedules)가 있는 MVP 밖 공연. 앱 '본 공연 기록하기' 출연진  # KOPIS 현재 공연(시드 밖). 앱 홈 '지금 하는 다른 공연'·'○○를 좋아하면'의 후보. 19세 이상·출연진 없음·끝난 공연·시드는 뺌
         "voiceAxis": VOICE_AXIS,  # {목소리 태그: 축} 음색 네 태그는 '음색' 한 축, 성량·고음·딕션은 각자 한 축(앱이 같은 축을 찾을 때)
         "workTagLabels": WORK_TAG_LABELS,  # {태그: 대분류} 사전의 작품 태그. 앱 첫 화면 카드가 쓰는 태그 이름이 사전에 있는지 테스트가 확인한다

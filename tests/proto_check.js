@@ -524,19 +524,31 @@ const live = (cfg, ex = {}) => { const e = mkEnv({send: async req => { sentReqs.
       ok(af.S.cal[W].ac.extra.includes("b2") && !af.S.cal[W].ac.pick.some(x => x.a === "b2") && !(af.S.prefs.avoid || []).includes("b2"), "이 작품에 한해 피하고 싶은 배우를 더한다(공통 값은 그대로)");
       const dl = af.V.find(W, "date"); ok(/반드시 포함 a1 · 피하는 배우 2명 적용 중 <a href="#find\/극\/actor">바꾸기<\/a>/.test(dl) && !/나오지 않아요/.test(dl) && /data-act="dfDay"/.test(dl), "날짜 먼저: 배우 조건 줄 + [바꾸기]는 배우 먼저 화면으로(작품에 없는 배우 안내는 없다)");
       af.click({act: "acReset", work: W}); ok(!af.S.cal[W].ac && /<span class="acic"[^>]*>★<\/span>a1/.test(af.V.find(W, "actor")), "평소 배우 조건으로 되돌리기"); }
-    // 날짜 먼저(7절): 회차 달력 → 하루씩/기간 → 고른 날짜의 추천 조합 → 그 조합의 회차(밖은 펼치기)
+    // 동그란 배우 사진(2026-10-29): 추천 조합 카드는 날짜·시간 밑에 사진 → 이름 → 배역, 피하고 싶은 배우도 같은 사진. 사진이 없으면 이름 첫 글자, 출처는 #photos
+    { const HP = JSON.parse(JSON.stringify(HD)); HP.actorPhotos = {a1: {src: "https://upload.example/a1.jpg", page: "https://commons.example/a1", lic: "CC BY 4.0", by: "찍은이"}, a2: {src: "https://upload.example/a2.jpg", page: "https://commons.example/a2", lic: "CC BY-SA 3.0", by: "누구"}};
+      const ph = loadApp(HP, {...opts, storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: ["a1"], avoid: ["a2"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {}, proto: {}})}}); ph.route();
+      const hr = ph.V.find(W, "actor", "recs"), card = hr.split('class="card rcard"')[1] || "";
+      ok(/^><div class="rcwhen">[\s\S]*?<\/div><div class="rcast"><div class="rca"><span class="avi "><img src="https:\/\/upload\.example\/a1\.jpg"[^>]*><\/span><b>a1<\/b><span>A<\/span><\/div>/.test(card) && /<span class="avi none " aria-hidden="true">b<\/span><b>b1<\/b><span>B<\/span>/.test(card), "추천 조합 카드: 날짜·시간 밑에 사진(없으면 첫 글자) → 이름 → 배역");
+      ok(/배우 사진: 위키미디어 공용 · <a href="#photos">사진 출처<\/a>/.test(hr), "사진이 있으면 출처 링크");
+      const ha = ph.V.find(W, "actor"); ok(/<span class="tag avtag"><span class="avi sm"><img src="https:\/\/upload\.example\/a2\.jpg"/.test(ha), "피하고 싶은 배우에도 같은 사진");
+      const pp = ph.V.photos(); ok(/<b>a1<\/b><br><span class="muted">찍은이 · CC BY 4\.0 · <a href="https:\/\/commons\.example\/a1" target="_blank" rel="noopener">원본<\/a>/.test(pp), "사진 출처 화면: 저작자 · 라이선스 · 원본"); }
+    // 날짜 먼저(7절, 2026-10-29 세 화면): 회차 달력(기간이 먼저·기본, 여러 기간 더하기, 하루씩 빼기·더하기) → 다음 → 고른 날짜의 추천 조합 → 이 조합 고르기 → 그 조합의 캘린더만
     { const df = boot(); df.location.hash = `#find/${W}/date`; df.route(); let h = df.V.find(W, "date");
-      ok(/언제 볼 수 있어요\?/.test(h) && /data-act="dfMode" data-work="극" data-v="day">하루씩/.test(h) && /class="on" data-act="dfMode" data-work="극" data-v="day"/.test(h) && (h.match(/data-act="dfDay"/g) || []).length === 4 && !/class="card rcard"/.test(h), "날짜 먼저: 하루씩이 기본, 회차 있는 날만 누를 수 있고(대관 제외), 날짜를 고르기 전엔 추천이 없다");
-      df.click({act: "dfDay", work: W, d: "2026-11-01"}); df.click({act: "dfDay", work: W, d: "2026-11-02"}); h = df.V.find(W, "date");
-      ok(/고른 날짜에 볼 수 있는 조합/.test(h) && /11\/1 ×/.test(h) && /11\/2 ×/.test(h) && /고른 날짜 중 회차 1개/.test(h) && /data-dd="1"/.test(h) && !/a2[^<]*<\/p><p class="tiny muted">고른 날짜/.test(h), "하루씩 여러 날: 그 날짜에 나오는 조합만 카드로(회차 수는 고른 날짜 안)");
+      ok(/언제 볼 수 있어요\?/.test(h) && h.indexOf('data-v="range">기간') < h.indexOf('data-v="day">하루씩') && /class="on" data-act="dfMode" data-work="극" data-v="range"/.test(h) && (h.match(/data-act="dfDay"/g) || []).length === 4 && !/class="card rcard"/.test(h), "날짜 먼저: 기간 탭이 먼저·기본, 회차 있는 날만 누를 수 있고(대관 제외), 날짜 화면엔 추천이 없다");
+      ok(!/볼 수 있는 날짜를 여러 개|흐린 날은|시작 날짜와 끝 날짜를/.test(h) && /<button class="btn" disabled>볼 수 있는 날짜를 골라 주세요/.test(h), "달력 아래 안내 문구는 지웠고, 날짜를 고르기 전엔 다음 버튼이 꺼져 있다");
+      df.click({act: "dfDay", work: W, d: "2026-11-01"}); ok(/11\/1부터 · 끝 날짜를 눌러 주세요/.test(df.V.find(W, "date")), "기간: 시작 날짜를 누르면 끝 날짜를 묻는다");
+      df.click({act: "dfDay", work: W, d: "2026-11-02"}); eq(df.S.cal[W].dates, ["2026-11-01", "2026-11-02"], "기간: 시작~끝 사이 회차 있는 날 모두(결정 19)");
+      df.click({act: "dfDay", work: W, d: "2026-11-04"}); df.click({act: "dfDay", work: W, d: "2026-11-04"}); eq(df.S.cal[W].dates, ["2026-11-01", "2026-11-02", "2026-11-04"], "기간을 한 번 더 고르면 날짜가 더해진다(여러 기간)");
+      df.click({act: "dfMode", work: W, v: "day"}); df.click({act: "dfDay", work: W, d: "2026-11-04"}); eq(df.S.cal[W].dates, ["2026-11-01", "2026-11-02"], "하루씩: 고른 날을 다시 누르면 뺀다");
+      h = df.V.find(W, "date"); ok(/11\/1 ×/.test(h) && /11\/2 ×/.test(h) && /<a class="btn" href="#find\/극\/date\/recs">다음 · 2일의 추천 조합 보기/.test(h), "고른 날짜 칩 + 다음 버튼");
+      const hr = df.V.find(W, "date", "recs");
+      ok(/고른 날짜에 볼 수 있는 조합/.test(hr) && /11\/1\(/.test(hr) && /날짜 다시 고르기/.test(hr) && /고른 날짜 중 회차 1개/.test(hr) && /data-dd="1"/.test(hr) && /data-nav="1"/.test(hr) && !/id="dates"/.test(hr), "② 추천 조합 화면: 고른 날짜 요약 + 그 날짜의 조합 카드(회차 수는 고른 날짜 안)");
       const sh = df.S.proto.shown[W + "#날짜"]; ok(sh && sh.list.every(x => x.cast.A === "a1"), "고른 날짜(11/1·11/2)엔 a1 조합만");
-      df.click({act: "selCombo", work: W, dd: "1", i: "0"}); h = df.V.find(W, "date");
-      ok(/이 조합의 회차/.test(h) && /class="card perf"/.test(h), "조합을 누르면 고른 날짜 안의 그 조합 회차");
       df.click({act: "sat", work: W, dd: "1", i: "0", a: "like"}); ok(Object.values(df.S.proto.sat[W]).some(e => e.a === "like"), "날짜 먼저 카드에서도 만족도 답변");
-      df.click({act: "dfMode", work: W, v: "range"}); df.click({act: "dfDay", work: W, d: "2026-11-02"}); ok(/11\/2부터 · 끝 날짜를 눌러 주세요/.test(df.V.find(W, "date")), "기간: 시작 날짜를 누르면 끝 날짜를 묻는다");
-      df.click({act: "dfDay", work: W, d: "2026-11-04"}); eq(df.S.cal[W].dates, ["2026-11-02", "2026-11-03", "2026-11-04"], "기간: 시작~끝 사이 회차 있는 날 모두(결정 19)");
+      df.click({act: "selCombo", work: W, dd: "1", nav: "1", i: "0"}); const hc = df.V.find(W, "date", "cal");
+      ok(df.location.hash === "#find/극/date/cal" && /id="dates"/.test(hc) && !/class="card rcard"/.test(hc) && /href="#find\/극\/date\/recs">다른 조합 고르기/.test(hc) && df.S.proto.sel[W]?.A === "a1", "③ 이 조합 고르기 → 그 조합의 캘린더만");
       const dm = boot({storage: {pickle_v2: JSON.stringify({prefs: {axes: ["강한 성량"], works: [], favs: ["a2"], must: ["a2"], grade: ""}, plans: [], tags: [], votes: [], likes: [], cal: {[W]: {actors: [], period: "all", dates: ["2026-11-01"]}}, proto: {}})}});
-      const hm = dm.V.find(W, "date"); ok(/이 날짜엔 맞는 조합이 없어요/.test(hm) && /a2 배우는 고른 날짜에 나오지 않아요\. 다음 출연은 11\/3이에요/.test(hm) && /class="day has pin dim[ "]/.test(hm), "반드시 포함 배우가 고른 날짜에 안 나오면: 0개 + 다음 출연일, 그날은 흐리게(13절)"); }
+      const hm = dm.V.find(W, "date", "recs"); ok(/이 날짜엔 맞는 조합이 없어요/.test(hm) && /a2 배우는 고른 날짜에 나오지 않아요\. 다음 출연은 11\/3이에요/.test(hm) && /class="day has pin dim[ "]/.test(dm.V.find(W, "date")), "반드시 포함 배우가 고른 날짜에 안 나오면: 0개 + 다음 출연일, 그날은 흐리게(13절)"); }
     // 좋아한 조합(10.3절) · 관람 후 알림 권한(결정 42) · 취향 스냅숏(16절 할 일)
     { const nx = boot(); nx.location.hash = "#show/" + W; nx.route(); nx.click({act: "sat", work: W, i: "0", a: "like"});
       ok(/좋아한 조합 <span class="small muted">1개<\/span>/.test(nx.V.plans()) && /좋아한 조합/.test(nx.V.me()) && /href="#find\/극\/actor">다시 찾기/.test(nx.V.plans()), "마음에 들어요 조합은 내 공연·내 취향의 '좋아한 조합'에");
